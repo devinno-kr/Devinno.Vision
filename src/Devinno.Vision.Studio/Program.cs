@@ -1,5 +1,6 @@
 using Devinno.UI.App;
 using Devinno.UI.Components;
+using Devinno.UI.Localization;
 using Devinno.UI.Styling;
 using Devinno.UI.WinForms;
 using Devinno.Vision.Studio.Mcp;
@@ -18,10 +19,14 @@ public static class StudioApp
         ArgumentNullException.ThrowIfNull(dialogs);
         var registry = new ComponentRegistry();
         DvVisionView.Register(registry);
-        var app = new DvApp { Theme = DvTheme.Dark, Registry = registry };
-        app.Top = new TopBar();
+        var app = new DvApp { Theme = DvTheme.Dark, Registry = registry, Strings = new DvStrings { Language = "ko" } };
+        var edit = new EditPage(session, dialogs);
+        app.Pages.Add(edit);
+        app.Pages.Add(new TestPage(session, dialogs, edit));
+        app.Top = new TopBar(session, dialogs);
+        app.Left = new CheckListBar(session, edit);
         app.Bottom = new StatusBar();
-        app.Pages.Add(new EditPage(session));
+        session.ProjectChanged += app.Invalidate;   // MCP 가 바꿔도 다음 프레임에 다시 그린다
         return app;
     }
 
@@ -46,7 +51,7 @@ internal static class Program
         ApplicationConfiguration.Initialize();
         var session = new StudioSession();
         using var form = new Form { Text = "Devinno Vision Studio", ClientSize = new Size(1280, 800), StartPosition = FormStartPosition.CenterScreen };
-        var app = StudioApp.Create(session, new NullFileDialogs());
+        var app = StudioApp.Create(session, new WinFormsDialogs(form));
         form.Controls.Add(new ViewControl { Dock = DockStyle.Fill, App = app });
 
         // 창이 뜨기 전, 동기화 문맥이 없을 때 시작한다
@@ -70,10 +75,21 @@ internal static class Program
         }
     }
 
-    // Task 8 에서 WinForms 구현으로 바꾼다
-    private sealed class NullFileDialogs : IFileDialogs
+    // WinForms 파일 · 폴더 고르기 — 창의 UI 스레드에서 연다
+    private sealed class WinFormsDialogs(Form owner) : IFileDialogs
     {
-        public string? PickImage() => null;
-        public string? PickFolder() => null;
+        public string? PickImage() => OnUi(() =>
+        {
+            using var d = new OpenFileDialog { Title = "이미지 고르기", Filter = "이미지|*.png;*.bmp;*.jpg;*.jpeg;*.tif;*.tiff|모든 파일|*.*" };
+            return d.ShowDialog(owner) == DialogResult.OK ? d.FileName : null;
+        });
+
+        public string? PickFolder() => OnUi(() =>
+        {
+            using var d = new FolderBrowserDialog { Description = "폴더 고르기", UseDescriptionForTitle = true, ShowNewFolderButton = true };
+            return d.ShowDialog(owner) == DialogResult.OK ? d.SelectedPath : null;
+        });
+
+        private string? OnUi(Func<string?> show) => owner.InvokeRequired ? (string?)owner.Invoke(show) : show();
     }
 }

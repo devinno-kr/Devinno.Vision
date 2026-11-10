@@ -1,0 +1,17 @@
+<DvDialogFrame vm="Devinno.Vision.Studio.Ui.AddCheckDialog" title="검사 추가" style="width:420">
+  <DvLabel class="label muted" text="이름"/>
+  <DvInput value="{Bind CheckName}" placeholder="예: 왼쪽 구멍"/>
+  <DvLabel class="label muted" text="종류"/>
+  <DvSelect value="{Bind Kind}">
+    <DvOption value="BlobAlign" text="블롭 정렬 (부품 위치)"/>
+    <DvOption value="BlobCount" text="블롭 개수"/>
+    <DvOption value="PixelCount" text="픽셀 수"/>
+    <DvOption value="Brightness" text="평균 밝기"/>
+    <DvOption value="Length" text="폭/길이"/>
+  </DvSelect>
+  <DvRow gap="sm">
+    <DvSpacer/>
+    <DvButton id="cancel" variant="secondary" text="취소" onclick="Cancel"/>
+    <DvButton id="ok" variant="primary" text="추가" onclick="Ok" disabled="{CannotAdd}"/>
+  </DvRow>
+</DvDialogFrame>

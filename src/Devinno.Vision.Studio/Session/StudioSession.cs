@@ -36,6 +36,15 @@ public sealed class StudioSession
     /// <summary>열린 프로젝트. 화면이 읽기용으로 쓴다 — 바꾸는 것은 반드시 명령으로.</summary>
     public StudioProject? Project { get { lock (_gate) return _project; } }
 
+    /// <summary>지금 검사 목록 (복사본 — 화면이 열거하는 동안 MCP 가 바꿔도 안전).</summary>
+    public IReadOnlyList<CheckDef> Checks { get { lock (_gate) return _project?.Checks.ToArray() ?? []; } }
+
+    /// <summary>지금 테스트 폴더 목록 (복사본).</summary>
+    public IReadOnlyList<TestSet> TestSets { get { lock (_gate) return _project?.TestSets.ToArray() ?? []; } }
+
+    /// <summary>기준 이미지 파일의 전체 경로. 없으면 null.</summary>
+    public string? BaseImageFile { get { lock (_gate) return _project is { } p ? BaseImagePath(p) : null; } }
+
     /// <summary>프로젝트가 바뀐 뒤 (어느 스레드에서든 올 수 있다).</summary>
     public event Action? ProjectChanged;
 
@@ -253,8 +262,13 @@ public sealed class StudioSession
         return CommandResult.Done($"기준 위치: x {pose.X:0.0}, y {pose.Y:0.0}, 각도 {pose.Angle:0.00}°");
     });
 
-    /// <summary>이미지 한 장을 지금 로직으로 실행한다.</summary>
-    public async Task<RunResult> RunImageAsync(string imagePath)
+    /// <summary>이미지 한 장을 지금 로직으로 실행한다. 결과 PNG 를 담는다.</summary>
+    public Task<RunResult> RunImageAsync(string imagePath) => RunCoreAsync(imagePath, see: null);
+
+    /// <summary>화면용 — 결과를 해제되기 전에 <paramref name="see"/> 에 넘긴다 (PNG 는 만들지 않는다).</summary>
+    internal Task<RunResult> RunImageAsync(string imagePath, Action<VisionResult> see) => RunCoreAsync(imagePath, see);
+
+    private async Task<RunResult> RunCoreAsync(string imagePath, Action<VisionResult>? see)
     {
         VisionJob job;
         lock (_gate)
@@ -277,22 +291,25 @@ public sealed class StudioSession
         using (img)
         {
             using var r = await job.RunAsync(img).ConfigureAwait(false);
-            return ToRunResult(r, ResultRenderer.Render(r));
+            see?.Invoke(r);
+            return ToRunResult(r, see is null ? ResultRenderer.Render(r) : null);
         }
     }
 
     /// <summary>마지막 보고서의 항목 하나를 지금 로직으로 다시 돌려 결과 PNG 를 만든다. 보고서가 없거나 번호가 범위 밖이면 null.</summary>
     public async Task<byte[]?> RenderTestItemAsync(int index)
     {
-        string file;
-        lock (_gate)
-        {
-            if (_lastReport is not { } rep || index < 0 || index >= rep.Items.Count)
-                return null;
-            file = rep.Items[index].File;
-        }
+        if (TestItemFile(index) is not { } file)
+            return null;
         var r = await RunImageAsync(file).ConfigureAwait(false);
         return r.Png;
+    }
+
+    /// <summary>마지막 보고서 항목의 파일. 없으면 null.</summary>
+    internal string? TestItemFile(int index)
+    {
+        lock (_gate)
+            return _lastReport is { } rep && index >= 0 && index < rep.Items.Count ? rep.Items[index].File : null;
     }
 
     // ── 폴더 테스트 ───────────────────────────────────────

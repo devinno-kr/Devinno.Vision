@@ -1,0 +1,45 @@
+<DvPageFrame vm="Devinno.Vision.Studio.Ui.TestPage" title="테스트" subtitle="{Summary}">
+  <DvRow grow="1" style="align-items:stretch">
+    <DvStack gap="sm" style="width:400; flex-shrink:0; overflow:scroll">
+      <DvCard title="테스트 폴더">
+        <DvListBox value="{Bind SelectedSet}" items="{Sets}" item-value="Index" item-text="Text" style="height:96"/>
+        <DvRow gap="sm">
+          <DvSegment value="{Bind NewRule}" grow="1" fill="true">
+            <DvOption value="FileName" text="파일 이름 라벨"/>
+            <DvOption value="Folder" text="하위 폴더 라벨"/>
+          </DvSegment>
+        </DvRow>
+        <DvRow gap="sm">
+          <DvButton variant="secondary" text="+ 폴더 추가" onclick="AddSet" disabled="{NoProject}" grow="1"/>
+          <DvButton variant="danger" text="삭제" onclick="RemoveSet" hold="1000" disabled="{CannotRun}"/>
+        </DvRow>
+        <DvRow gap="sm">
+          <DvButton id="btnRun" variant="primary" text="실행 ▶" onclick="Run" disabled="{CannotRun}" grow="1"/>
+          <DvLabel class="caption muted" text="{Progress}"/>
+        </DvRow>
+        <DvLabel class="caption" style="color: token(tone-danger-fg)" text="{Message}" visible="{HasMessage}"/>
+      </DvCard>
+      <DvCard title="종류별">
+        <DvDataGrid items="{Labels}" row-height="32" header-height="32" style="height:168; border-radius:token(radius.md); border:1 solid token(border)">
+          <DvColumn header="라벨" field="Label"/>
+          <DvColumn header="기대" field="Expect" width="52" align="center"/>
+          <DvColumn header="장" field="Count" width="44" align="right"/>
+          <DvColumn header="맞음" field="Correct" width="52" align="right"/>
+          <DvColumn header="정답률" field="Rate" width="72" align="right"/>
+        </DvDataGrid>
+      </DvCard>
+      <DvCard title="틀린 이미지">
+        <DvListBox value="{Bind SelectedFailure}" items="{Failures}" item-value="Index" item-text="Text" style="height:200"/>
+      </DvCard>
+    </DvStack>
+
+    <DvStack gap="sm" style="flex:1; width:0">
+      <DvRow gap="sm">
+        <DvLabel class="body" style="color: token(text)" text="{FailureDetail}"/>
+        <DvSpacer/>
+        <DvButton variant="secondary" text="이 검사 고치기" onclick="Fix" disabled="{CannotFix}"/>
+      </DvRow>
+      <VisionView source="{View}" style="flex:1; height:0"/>
+    </DvStack>
+  </DvRow>
+</DvPageFrame>

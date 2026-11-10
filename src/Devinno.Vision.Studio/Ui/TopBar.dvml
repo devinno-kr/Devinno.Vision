@@ -1,4 +1,17 @@
 <DvRow vm="Devinno.Vision.Studio.Ui.TopBar" style="height:56; padding:0 16; gap:8; background: token(surface); border: 1 token(border)">
+  <DvStyle>
+    .tab { padding:8 18; border-radius: token(radius.md); color: token(text-muted); font-size: token(font.body) }
+    .tab:hover { background: token(surface-raised); color: token(text) }
+    .tab-active, .tab-active:hover { background: token(primary); color: token(primary-fg) }
+  </DvStyle>
+  <DvButton variant="secondary" text="새 로직" onclick="New"/>
+  <DvButton variant="secondary" text="열기" onclick="Open"/>
+  <DvButton variant="secondary" text="저장" onclick="Save" disabled="{NoProject}"/>
+  <DvBox style="width:12"/>
   <DvLabel class="title" text="{Title}"/>
+  <DvLabel class="caption muted" text="{FolderText}"/>
   <DvSpacer/>
+  <DvLabel class="caption" style="color: token(tone-danger-fg); max-width:360" text="{Message}" visible="{HasMessage}"/>
+  <DvButton class="{EditClass}" text="편집" onclick="ShowEdit"/>
+  <DvButton class="{TestClass}" text="테스트 ▶" onclick="ShowTest"/>
 </DvRow>

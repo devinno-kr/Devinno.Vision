@@ -1,0 +1,13 @@
+<DvStack vm="Devinno.Vision.Studio.Ui.CheckListBar" gap="sm" padding="md" style="width:260; background: token(surface); border: 1 token(border)">
+  <DvLabel class="label muted" text="검사 목록"/>
+  <DvListBox value="{Bind SelectedId}" items="{Rows}" item-value="Id" item-text="Text" grow="1"/>
+  <DvRow gap="xs">
+    <DvButton id="btnAdd" variant="primary" text="+ 추가" onclick="Add" disabled="{NoProjectFlag}" grow="1"/>
+    <DvButton variant="danger" text="삭제" onclick="Remove" hold="1000" disabled="{NoSelection}"/>
+  </DvRow>
+  <DvRow gap="xs">
+    <DvButton variant="secondary" text="▲" onclick="Up" disabled="{NoSelection}" grow="1"/>
+    <DvButton variant="secondary" text="▼" onclick="Down" disabled="{NoSelection}" grow="1"/>
+  </DvRow>
+  <DvLabel class="caption" style="color: token(tone-danger-fg)" text="{Message}" visible="{HasMessage}"/>
+</DvStack>
