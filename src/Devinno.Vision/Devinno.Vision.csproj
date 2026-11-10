@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Devinno.Vision</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <WarningsAsErrors>$(WarningsAsErrors);CS1591;CS1573</WarningsAsErrors>
+
+    <PackageId>Devinno.Vision</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Devinno</Authors>
+    <Company>Devinno</Company>
+    <Description>Thin vision inspection framework over OpenCvSharp4 — images with automatic disposal and coordinate tracking, inspection jobs with steps, ROI, timeouts and uniform results, a camera interface, a small toolkit, and a result view for Devinno.UI.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Copyright>Copyright (c) 2026 Devinno</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OpenCvSharp4" Version="4.13.0.20261107" />
+    <!-- ONNX 추론 (CPU). 2026-11-10 사용자 결정: 코어가 참조한다 (docs/01). GPU 용 패키지와의 공존은 확인 안 함 (docs/09 P) -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.31.1" />
+  </ItemGroup>
+
+  <!-- 개발 중에는 Devinno.UI 를 로컬 프로젝트로 참조한다. 게시할 때 패키지 참조로 바꾼다 (docs/01). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Devinno.UI\src\Devinno.UI\Devinno.UI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Devinno.Vision.Tests" />
+  </ItemGroup>
+
+</Project>

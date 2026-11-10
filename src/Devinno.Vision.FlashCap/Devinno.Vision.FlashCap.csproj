@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Devinno.Vision.FlashCap</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <WarningsAsErrors>$(WarningsAsErrors);CS1591;CS1573</WarningsAsErrors>
+
+    <PackageId>Devinno.Vision.FlashCap</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Devinno</Authors>
+    <Company>Devinno</Company>
+    <Description>UVC camera driver for Devinno.Vision, based on FlashCap.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Copyright>Copyright (c) 2026 Devinno</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FlashCap" Version="1.13.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Devinno.Vision\Devinno.Vision.csproj" />
+  </ItemGroup>
+
+</Project>
