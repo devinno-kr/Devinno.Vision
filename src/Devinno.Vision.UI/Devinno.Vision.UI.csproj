@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Devinno.Vision.UI</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <WarningsAsErrors>$(WarningsAsErrors);CS1591;CS1573</WarningsAsErrors>
+
+    <PackageId>Devinno.Vision.UI</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Devinno</Authors>
+    <Company>Devinno</Company>
+    <Description>Result view for Devinno.Vision on Devinno.UI — image, overlays, judgment, disabled-step warning and ROI drag editing.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Copyright>Copyright (c) 2026 Devinno</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Devinno.Vision\Devinno.Vision.csproj" />
+    <!-- 개발 중에는 Devinno.UI 를 로컬 프로젝트로 참조한다. 게시할 때 패키지 참조로 바꾼다. 코어(Devinno.Vision)는 Devinno.UI 를 모른다. -->
+    <ProjectReference Include="..\..\..\Devinno.UI\src\Devinno.UI\Devinno.UI.csproj" />
+  </ItemGroup>
+
+</Project>

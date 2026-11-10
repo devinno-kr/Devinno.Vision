@@ -1,7 +1,7 @@
 using OpenCvSharp;
 using SkiaSharp;
 
-namespace Devinno.Vision;
+namespace Devinno.Vision.UI;
 
 /// <summary>
 /// What a vision view shows: a result (image + overlays + judgment) or a plain image, and the ROI being taught.

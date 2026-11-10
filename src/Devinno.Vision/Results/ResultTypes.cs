@@ -52,7 +52,7 @@ public sealed class StepResult
     /// <summary>The pose the step's ROI followed, or <see langword="null"/>.</summary>
     public string? Followed { get; internal set; }
 
-    /// <summary>The last image the step created (for tuning in <see cref="DvVisionView"/>), or <see langword="null"/>. Owned by the result: released when the result is disposed.</summary>
+    /// <summary>The last image the step created (for tuning in the result view, <c>DvVisionView</c> of Devinno.Vision.UI), or <see langword="null"/>. Owned by the result: released when the result is disposed.</summary>
     public VisionImage? Image { get; internal set; }
 }
 

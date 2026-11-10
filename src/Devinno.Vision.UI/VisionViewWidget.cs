@@ -2,7 +2,7 @@ using Devinno.UI.Widgets;
 using OpenCvSharp;
 using SkiaSharp;
 
-namespace Devinno.Vision;
+namespace Devinno.Vision.UI;
 
 // <VisionView source="{Vm.FrontView}"/> — DvVisionView 를 그리고, EditRoi 를 끌어 고친다
 internal sealed class VisionViewWidget : DvWidget

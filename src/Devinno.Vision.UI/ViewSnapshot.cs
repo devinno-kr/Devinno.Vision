@@ -1,7 +1,7 @@
 using OpenCvSharp;
 using SkiaSharp;
 
-namespace Devinno.Vision;
+namespace Devinno.Vision.UI;
 
 // 화면용 사본: 축소 BGRA + 원본(실행 입력) 좌표 → 표시 이미지 좌표
 internal sealed class ViewSnapshot : IDisposable

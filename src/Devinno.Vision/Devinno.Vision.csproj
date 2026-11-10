@@ -23,13 +23,10 @@
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.31.1" />
   </ItemGroup>
 
-  <!-- 개발 중에는 Devinno.UI 를 로컬 프로젝트로 참조한다. 게시할 때 패키지 참조로 바꾼다 (docs/01). -->
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\Devinno.UI\src\Devinno.UI\Devinno.UI.csproj" />
-  </ItemGroup>
-
+  <!-- 화면(DvVisionView)은 Devinno.Vision.UI 패키지에 있다. 코어는 Devinno.UI 를 참조하지 않는다. -->
   <ItemGroup>
     <InternalsVisibleTo Include="Devinno.Vision.Tests" />
+    <InternalsVisibleTo Include="Devinno.Vision.UI" />
   </ItemGroup>
 
 </Project>
