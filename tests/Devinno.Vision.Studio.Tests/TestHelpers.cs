@@ -47,3 +47,10 @@ internal sealed class TempDir : IDisposable
         try { Directory.Delete(Path, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
     }
 }
+
+internal static class Samples
+{
+    public static string BracketDir => Path.Combine(AppContext.BaseDirectory, "Samples", "Bracket");
+
+    public static string Bracket(string name) => Path.Combine(BracketDir, name);
+}

@@ -33,6 +33,12 @@ public abstract class CheckDef
     // 재정의한 속성에는 [JsonIgnore] 가 따라오지 않으므로 protected 로 둔다
     private protected abstract string Label { get; }
 
+    /// <summary>실행할 단계를 만든다. 지금 값을 복사해 담으므로 뒤에 정의를 고쳐도 만든 단계는 그대로다.</summary>
+    internal abstract IVisionStep Build(StudioProject p);
+
+    /// <summary>이 검사가 부품 위치(Pose)를 만드는가.</summary>
+    internal virtual bool MakesPose => false;
+
     /// <summary>Kind 이름으로 빈 검사를 만든다. 모르는 이름이면 null.</summary>
     public static CheckDef? New(string kind) => kind switch
     {
