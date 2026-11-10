@@ -73,7 +73,7 @@ internal static class Program
         try
         {
             mcp = McpHost.StartAsync(session, McpPort).GetAwaiter().GetResult();
-            StudioApp.SetStatus(app, $"MCP: {mcp.Endpoint}");
+            StudioApp.SetStatus(app, $"MCP {mcp.Endpoint.Authority}");
         }
         catch (IOException)
         {

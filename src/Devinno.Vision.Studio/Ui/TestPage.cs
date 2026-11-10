@@ -29,7 +29,7 @@ public sealed partial class TestPage : DvPage
     private TestFilter _filter;
     private string? _selectedFile;
     private string? _failedCheckId;
-    private (int Set, string Folder, TestReport? Report, TestFilter Filter, long Stamp) _rowsKey = (-1, "", null, TestFilter.All, -1);
+    private (int Set, string Folder, TestReport? Report, TestFilter Filter, long Stamp, string? Selected) _rowsKey = (-1, "", null, TestFilter.All, -1, null);
     private IReadOnlyList<ImageRow> _rows = [];
     private IReadOnlyList<TestImage>? _images;
     private long _imagesStamp;
@@ -50,7 +50,7 @@ public sealed partial class TestPage : DvPage
     /// <summary>폴더 고르기 항목.</summary>
     public sealed record SetRow(int Index, string Text);
 
-    public IReadOnlyList<SetRow> Sets => [.. _session.TestSets.Select((t, i) => new SetRow(i, $"{Path.GetFileName(t.Folder.TrimEnd('\\', '/'))}  ·  {(t.Rule == LabelRule.FileName ? "파일 이름 라벨" : "하위 폴더 라벨")}"))];
+    public IReadOnlyList<SetRow> Sets => [.. _session.TestSets.Select((t, i) => new SetRow(i, Path.GetFileName(t.Folder.TrimEnd('\\', '/'))))];
 
     public int SelectedSet
     {
@@ -69,6 +69,13 @@ public sealed partial class TestPage : DvPage
     public bool NoProject => !HasProject;
     public bool HasSets => _session.TestSets.Count > 0;
     public bool NoSets => !HasSets;
+    public string SetMeta => _session.TestSets.ElementAtOrDefault(_selectedSet) is { } t
+        ? $"{Short(t.Folder)}  ·  {(t.Rule == LabelRule.FileName ? "파일 이름 라벨" : "하위 폴더 라벨")}"
+        : "";
+
+    // 긴 경로는 끝부분만 (한 줄에 들어가게)
+    private static string Short(string path) => path.Length <= 44 ? path : "…" + path[^43..];
+
     public string SetFolder => _session.TestSets.ElementAtOrDefault(_selectedSet)?.Folder ?? "";
     public bool Running { get; private set; }
     public bool CannotRun => !HasSets || Running || _session.Checks.Count == 0 || _session.BaseImageFile is null;
@@ -94,12 +101,28 @@ public sealed partial class TestPage : DvPage
     public bool HasReport => Report is not null;
     public bool NoReport => !HasReport;
 
-    /// <summary>종류별 표 한 줄 (표시용).</summary>
-    public sealed record LabelLine(string Label, string Expect, int Count, int Correct, string Rate);
+    /// <summary>종류별 한 줄 (표시용) — 다 맞으면 초록, 하나라도 틀리면 빨강 배지.</summary>
+    public sealed record LabelLine(string Label, string Expect, int Count, int Correct, string Rate)
+    {
+        public string Score => $"{Correct} / {Count}";
+        public string Tone => Correct == Count ? "success" : "danger";
+    }
 
     public IReadOnlyList<LabelLine> Labels => Report is { } r
         ? [.. r.Labels.Select(l => new LabelLine(l.Label, l.ExpectOk ? "OK" : "NG", l.Count, l.Correct, $"{100.0 * l.Correct / l.Count:0.#} %"))]
         : [];
+
+    // 결과 숫자 (KPI)
+    public string RateText => Report is { Total: > 0 } r ? $"{100.0 * r.Correct / r.Total:0.#}%" : "—";
+    public string WrongText => Report is { } r ? (r.Total - r.Correct).ToString() : "—";
+    public string UnlabeledText => Report is { } r ? r.Unlabeled.ToString() : "—";
+    public string ReportBadge => Report is { } r ? $"{r.Correct} / {r.Total} 맞음" : (HasSets ? $"{Images.Count}장 · 실행 전" : "");
+
+    // 필터 글자에 개수
+    public string FilterAllText => $"전체 {Images.Count}";
+    public string FilterWrongText => Report is { } r ? $"틀림 {r.Items.Count(i => i.Correct == false)}" : "틀림";
+    public string FilterNgText => Report is { } r ? $"NG {r.Items.Count(i => i.State == "Ng")}" : "NG";
+    public string FilterOkText => Report is { } r ? $"OK {r.Items.Count(i => i.State == "Ok")}" : "OK";
 
     public string Summary => Report is { } r ? r.Message : (HasSets ? $"이미지 {Images.Count}장 · 아직 실행하지 않았습니다" : "테스트 폴더가 없습니다");
 
@@ -116,8 +139,11 @@ public sealed partial class TestPage : DvPage
 
     // ── 이미지 표 ────────────────────────────────────────
 
-    /// <summary>표 한 줄. Result · Judge 는 실행 전에는 "—".</summary>
-    public sealed record ImageRow(int No, string File, string Name, string Label, string Result, string Judge, string? JudgeClass, string? ResultClass);
+    /// <summary>목록 한 줄 — 썸네일 · 이름 · 라벨 · 결과 배지 · 판정 배지. Result · Judge 는 실행 전에는 "—" (배지 숨김).</summary>
+    public sealed record ImageRow(int No, string File, string Name, string Label, string Result, string ResultTone, string Judge, string JudgeTone, string ItemClass)
+    {
+        public bool HasResult => Result != "—";
+    }
 
     private IReadOnlyList<TestImage> Images
     {
@@ -135,7 +161,7 @@ public sealed partial class TestPage : DvPage
         {
             lock (_gate)
             {
-                var key = (_selectedSet, SetFolder, Report, _filter, _imagesStamp);
+                var key = (_selectedSet, SetFolder, Report, _filter, _imagesStamp, _selectedFile);
                 if (key == _rowsKey)
                     return _rows;
                 var items = Report?.Items.ToDictionary(i => i.File, StringComparer.OrdinalIgnoreCase);
@@ -148,9 +174,10 @@ public sealed partial class TestPage : DvPage
                     items?.TryGetValue(img.File, out it);
                     var row = new ImageRow(no, img.File, Path.GetFileName(img.File), img.Label ?? "라벨 없음",
                         it?.State switch { "Ok" => "OK", "Ng" => "NG", "Error" => "Error", _ => "—" },
+                        it?.State switch { "Ok" => "success", "Ng" => "danger", "Error" => "warning", _ => "neutral" },
                         it is null ? "—" : it.Correct switch { true => "맞음", false => "틀림", null => "제외" },
-                        it?.Correct switch { true => "good", false => "bad", _ => null },
-                        it?.State switch { "Ng" => "ng", "Error" => "bad", _ => null });
+                        it?.Correct switch { true => "success", false => "danger", _ => "neutral" },
+                        img.File == _selectedFile ? "item item-on" : "item");
                     if (Keep(it))
                         rows.Add(row);
                 }
@@ -185,12 +212,26 @@ public sealed partial class TestPage : DvPage
 
     // ── 고른 이미지 ──────────────────────────────────────
 
+    /// <summary>목록 항목을 누르면 그 이미지를 고른다.</summary>
+    public void Pick(ImageRow row) => SelectedRow = row;
+
+    public string ViewerTitle => _selectedFile is { } f ? Path.GetFileName(f) : "이미지";
+    public string ResultBadge { get; private set; } = "";
+    public string ResultTone { get; private set; } = "neutral";
+    public bool HasResultBadge => ResultBadge.Length > 0;
+    public string JudgeBadge { get; private set; } = "";
+    public string JudgeTone { get; private set; } = "neutral";
+    public bool HasJudgeBadge => JudgeBadge.Length > 0;
+
     public bool HasSelection => _selectedFile is not null;
     public bool NoSelection => !HasSelection;
     public string Position => SelectedRow is { } r ? $"{IndexOf(r) + 1} / {Rows.Count}" : $"— / {Rows.Count}";
     public bool CannotPrev => SelectedRow is not { } r || IndexOf(r) <= 0;
     public bool CannotNext => Rows.Count == 0 || (SelectedRow is { } r && IndexOf(r) >= Rows.Count - 1);
     public string Detail { get; private set; } = "";
+
+    /// <summary>배지 옆 설명 (라벨 · 코드 · 원인 검사 — 배지에 이미 있는 OK/NG · 맞음/틀림은 빼고).</summary>
+    public string DetailLine { get; private set; } = "";
     public bool CannotFix => _failedCheckId is null;
 
     /// <summary>고른 이미지를 다시 돌려 보여 주는 중인 작업 (테스트가 기다린다).</summary>
@@ -217,10 +258,11 @@ public sealed partial class TestPage : DvPage
     {
         _selectedFile = file;
         _failedCheckId = null;
+        ResultBadge = JudgeBadge = "";
         if (file is null)
         {
             View.Clear();
-            Detail = "";
+            Detail = DetailLine = "";
             return;
         }
         Showing = ShowAsync(file);
@@ -233,7 +275,7 @@ public sealed partial class TestPage : DvPage
             var name = Path.GetFileName(file);
             var item = Report?.Items.FirstOrDefault(i => string.Equals(i.File, file, StringComparison.OrdinalIgnoreCase));
             var label = Images.FirstOrDefault(i => i.File == file)?.Label;
-            var head = $"{name}  ·  라벨 {label ?? "없음"}";
+            var head = $"라벨 {label ?? "없음"}";
             if (_session.Checks.Count == 0 || _session.BaseImageFile is null)
             {
                 // 로직이 없으면 이미지만
@@ -241,7 +283,7 @@ public sealed partial class TestPage : DvPage
                 if (_selectedFile == file)
                 {
                     View.Show(img);
-                    Detail = $"{head}  ·  (로직이 없어 이미지만 봅니다)";
+                    Detail = DetailLine = $"{head}  ·  (로직이 없어 이미지만 봅니다)";
                 }
                 return;
             }
@@ -258,13 +300,17 @@ public sealed partial class TestPage : DvPage
             _failedCheckId = failed is null ? null : _session.Checks.FirstOrDefault(c => c.Name == failed)?.Id;
             var judge = item?.Correct switch { true => "  ·  맞음", false => "  ·  틀림", _ => "" };
             Detail = $"{head}  ·  {r.Message}{judge}" + (failed is null ? "" : $"  ·  원인 검사: {failed}");
+            (ResultBadge, ResultTone) = r.State switch { "Ok" => ("OK", "success"), "Ng" => ("NG", "danger"), "Error" => ("Error", "warning"), _ => ("", "neutral") };
+            var codes = r.Codes.Count > 0 ? $"  ·  {string.Join(", ", r.Codes)}" : "";
+            DetailLine = $"{head}{codes}" + (failed is null ? "" : $"  ·  원인 검사: {failed}");
+            (JudgeBadge, JudgeTone) = item?.Correct switch { true => ("맞음", "success"), false => ("틀림", "danger"), _ => ("", "neutral") };
         }
         catch (Exception ex)
         {
             if (_selectedFile == file)
             {
                 View.Clear();
-                Detail = $"{Path.GetFileName(file)}  ·  열 수 없습니다: {ex.Message}";
+                Detail = DetailLine = $"{Path.GetFileName(file)}  ·  열 수 없습니다: {ex.Message}";
             }
         }
         finally

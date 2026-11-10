@@ -1,16 +1,21 @@
-<DvRow vm="Devinno.Vision.Studio.Ui.TopBar" style="height:56; padding:0 16; gap:8; background: token(surface-raised); border: 1 token(border); box-shadow: 0 2 8 #00000066">
+<DvRow vm="Devinno.Vision.Studio.Ui.TopBar" style="height:56; padding:0 16; gap:8; background: token(surface); border: 1 token(border)">
   <DvStyle>
-    .tab { padding:8 20; border-radius: token(radius.md); color: token(text-muted); font-size: token(font.body); font-weight: bold }
-    .tab:hover { background: token(surface-overlay); color: token(text) }
+    .brand { width:32; height:32; border-radius: token(radius.md); background: token(primary); display:flex; justify-content:center; align-items:center }
+    .meta { font-size: 11; color: token(text-subtle) }
+    .tab { padding:8 16; border-radius: token(radius.md); color: token(text-muted); font-size: token(font.body); font-weight: bold }
+    .tab:hover { background: token(surface-raised); color: token(text) }
     .tab-active, .tab-active:hover { background: token(primary); color: token(primary-fg) }
   </DvStyle>
-  <DvButton id="btnNew" variant="secondary" icon="fa-file-circle-plus" text="새 로직" onclick="New"/>
-  <DvButton id="btnOpen" variant="secondary" icon="fa-folder-open" text="열기" onclick="Open"/>
-  <DvButton id="btnSave" variant="secondary" icon="fa-floppy-disk" text="저장" onclick="Save" disabled="{NoProject}"/>
-  <DvBox style="width:16"/>
-  <DvLabel class="title" text="{Title}" style="white-space:nowrap"/>
-  <DvLabel class="caption" text="{FolderText}" style="white-space:nowrap"/>
+  <DvBox class="brand"><DvIcon icon="fa-eye" style="font-size:16; color: token(primary-fg)"/></DvBox>
+  <DvStack gap="none" style="max-width:360">
+    <DvLabel class="title" text="{Title}" style="white-space:nowrap"/>
+    <DvLabel class="meta" text="{FolderText}" style="white-space:nowrap"/>
+  </DvStack>
+  <DvBox style="width:8"/>
+  <DvButton id="btnNew" variant="ghost" icon="fa-file-circle-plus" text="새 로직" onclick="New"/>
+  <DvButton id="btnOpen" variant="ghost" icon="fa-folder-open" text="열기" onclick="Open"/>
+  <DvButton id="btnSave" variant="ghost" icon="fa-floppy-disk" text="저장" onclick="Save"/>
   <DvSpacer/>
-  <DvButton class="{EditClass}" text="편집" onclick="ShowEdit"/>
-  <DvButton class="{TestClass}" text="테스트" onclick="ShowTest"/>
+  <DvButton class="{EditClass}" icon="fa-sliders" text="편집" onclick="ShowEdit"/>
+  <DvButton class="{TestClass}" icon="fa-flask" text="테스트" onclick="ShowTest"/>
 </DvRow>

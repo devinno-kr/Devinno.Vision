@@ -124,7 +124,7 @@ public class UiTests
         var list = s.List.AddBounds;   // 목록 바 맨 위 줄의 버튼
         var open = s.Top.OpenBounds;
 
-        Assert.True(open.Left < 260, "위 바의 첫 버튼이 창 왼쪽 끝 근처에 있어야 한다 (목록 바가 위 바를 먹지 않음)");
+        Assert.True(open.Bottom <= 56, $"위 바의 버튼은 높이 56 의 위 바 안에 있어야 한다: {open}");
         Assert.True(list.Top >= 56, $"목록 바는 위 바(높이 56) 아래에서 시작해야 한다: {list.Top}");
     }
 
@@ -349,7 +349,7 @@ public class UiTests
         s.Frame();
 
         Assert.Equal(before + 1, s.List.Rows.Count);
-        Assert.Contains(s.List.Rows, r => r.Text.Contains("밖에서"));
+        Assert.Contains(s.List.Rows, r => r.Name == "밖에서");
         Assert.True(s.Errors.Count == 0, s.Errs);
     }
 

@@ -63,7 +63,7 @@ public sealed partial class EditPage : DvPage
     public string NoSelectionText => HasChecks
         ? "왼쪽 목록에서 검사를 고르면\n여기서 ROI 와 판정 값을 고칩니다."
         : "검사가 없습니다.\n왼쪽 [추가] 로 검사를 더하세요.\n부품 위치는 '블롭 정렬' 을 먼저.";
-    public string SelectedTitle => Selected is { } c ? $"{c.Name} · {c.KindLabel}" : "검사 속성";
+    public string SelectedTitle => Selected?.Name ?? "검사 속성";
 
     /// <summary>다음 할 일 — 비활성 버튼의 이유도 이것으로 알려 준다.</summary>
     public string Hint
@@ -184,12 +184,26 @@ public sealed partial class EditPage : DvPage
     public IReadOnlyList<ValueLine> LastValues { get; private set; } = [];
     public string LastRun { get; private set; } = "아직 실행하지 않았습니다 — [실행] 또는 [다른 이미지로 실행]";
     public bool HasValues => LastValues.Count > 0;
+
+    /// <summary>결과 띠의 상태 배지 (OK · NG · Error). 결과가 없으면 빈 문자열.</summary>
+    public string ResultBadge { get; private set; } = "";
+    public string ResultTone { get; private set; } = "neutral";
+    public bool HasResultBadge => ResultBadge.Length > 0;
+
+    public string ImageTitle => _session.BaseImageFile is { } f ? $"기준 이미지 · {Path.GetFileName(f)}" : "기준 이미지";
+    public string ImageBadge => ShowingResult ? "결과 보는 중" : (HasSelection ? "ROI 편집" : "");
+    public string PanelBadge => Selected?.KindLabel ?? "";
+    public string CalibrationBadge => _session.Project?.Calibration is null ? "px" : "mm";
     public bool NoValues => !HasValues;
     public bool CannotRun => NoBase || !HasChecks;
     public bool ShowingResult { get { lock (_viewGate) return _resultRevision >= 0; } }
 
     /// <summary>값 표 한 줄 (표시용).</summary>
-    public sealed record ValueLine(string Check, string Name, string Value, string Range, string Judge);
+    public sealed record ValueLine(string Check, string Name, string Value, string Range, string Judge)
+    {
+        /// <summary>판정 칸 색 (DvStyle 의 ok · ng).</summary>
+        public string JudgeClass => Judge == "OK" ? "ok" : "ng";
+    }
 
     internal SkiaSharp.SKRect OpenBaseBounds => btnOpenBase.Bounds;
     internal SkiaSharp.SKRect TeachBounds => btnTeach.Bounds;
@@ -250,10 +264,12 @@ public sealed partial class EditPage : DvPage
             // 도는 동안 로직이 바뀌었다 — 이 결과는 이미 낡았다
             LastRun = "로직이 바뀌어 앞 결과를 지웠습니다 — 다시 실행하세요";
             LastValues = [];
+            ResultBadge = "";
             SyncView();
             return;
         }
         LastRun = $"{name} — {r.Message}";
+        (ResultBadge, ResultTone) = r.State switch { "Ok" => ("OK", "success"), "Ng" => ("NG", "danger"), _ => ("Error", "warning") };
         LastValues = [.. r.Values.Select(v => new ValueLine(v.Check, v.Name, $"{v.Value:0.###}{(v.Unit is null ? "" : " " + v.Unit)}",
             v.Nominal is { } n ? $"{n:0.###} ({v.Min:0.###}~{v.Max:0.###})" : $"{v.Min:0.###}~{v.Max:0.###}", v.Ok ? "OK" : "NG"))];
         if (r.Ok) _status.Ok($"실행: {name} → {r.Message}");
@@ -285,6 +301,7 @@ public sealed partial class EditPage : DvPage
             {
                 LastRun = "로직이 바뀌어 앞 결과를 지웠습니다 — 다시 실행하세요";
                 LastValues = [];
+                ResultBadge = "";
             }
             if (stamp != _shownBase || stale)
             {

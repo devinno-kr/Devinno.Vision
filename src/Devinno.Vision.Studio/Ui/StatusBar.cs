@@ -28,6 +28,11 @@ public sealed partial class StatusBar : DvBar
     /// <summary>MCP 상태 (주소 · 꺼진 이유).</summary>
     public string Mcp { get { lock (_gate) return _mcp; } set { lock (_gate) _mcp = value ?? ""; } }
 
+    public bool HasMcp => Mcp.Length > 0;
+
+    /// <summary>MCP 배지 색 — 꺼졌으면 경고.</summary>
+    public string McpTone => Mcp.Contains("꺼짐") ? "warning" : "success";
+
     public void Ok(string text) => Set(text, false);
 
     public void Fail(string text) => Set(text, true);

@@ -1,77 +1,98 @@
-<DvPageFrame vm="Devinno.Vision.Studio.Ui.TestPage" title="테스트" subtitle="{Hint}">
+<DvPageFrame vm="Devinno.Vision.Studio.Ui.TestPage" style="padding:16; gap:16">
   <DvStyle>
-    .good { color: token(tone-success-fg) }
-    .bad { color: token(tone-danger-fg); font-weight: bold }
-    .ng { color: token(tone-warning-fg) }
+    .name { font-size: token(font.body); color: token(text) }
+    .sub { font-size: 13; color: token(text-muted) }
+    .meta { font-size: 11; color: token(text-subtle) }
+    .kpi { font-size: 28; font-weight: bold; color: token(text) }
+    .kpi-bad { color: token(tone-danger-fg) }
+    .kpi-dim { color: token(text-muted) }
+    .item { padding:8; gap:12; border-radius: token(radius.md) }
+    .item:hover { background: token(surface-raised) }
+    .item-on, .item-on:hover { background: token(surface-overlay) }
+    .thumb { width:56; height:42; border-radius: token(radius.sm) }
     .empty-title { font-size: token(font.title); font-weight: bold; color: token(text) }
-    .empty-text { font-size: token(font.body); color: token(text-muted) }
   </DvStyle>
-  <DvRow grow="1" style="align-items:stretch; gap:16">
-    <!-- 왼쪽: 폴더 · 실행 · 표 -->
-    <DvStack gap="sm" style="width:480; flex-shrink:0">
-      <DvRow gap="sm">
-        <DvSelect value="{Bind SelectedSet}" items="{Sets}" item-value="Index" item-text="Text" placeholder="테스트 폴더 없음" disabled="{NoSets}" style="flex:1; width:0"/>
-        <DvButton id="btnAddSet" variant="secondary" icon="fa-folder-plus" text="폴더 추가" onclick="AddSet" disabled="{NoProject}"/>
-        <DvButton id="btnRemoveSet" variant="danger" icon="fa-trash" text="삭제" onclick="RemoveSet" disabled="{NoSets}"/>
-      </DvRow>
-      <DvRow gap="sm">
-        <DvButton id="btnRun" variant="primary" icon="fa-play" text="실행" onclick="Run" disabled="{CannotRun}"/>
-        <DvLabel class="body" style="color: token(text)" text="{Summary}"/>
-        <DvSpacer/>
-        <DvLabel class="body" style="color: token(primary)" text="{Progress}"/>
-      </DvRow>
-      <DvDataGrid items="{Labels}" row-height="28" header-height="28" visible="{HasReport}" style="height:144; border-radius:token(radius.md); border:1 solid token(border)">
-        <DvColumn header="라벨" field="Label"/>
-        <DvColumn header="기대" field="Expect" width="56" align="center"/>
-        <DvColumn header="장" field="Count" width="48" align="right"/>
-        <DvColumn header="맞음" field="Correct" width="56" align="right"/>
-        <DvColumn header="정답률" field="Rate" width="76" align="right"/>
-      </DvDataGrid>
-      <DvSegment value="{Bind Filter}" fill="true" disabled="{NoReport}" visible="{HasSets}">
-        <DvOption value="All" text="전체"/>
-        <DvOption value="Wrong" text="틀린 것"/>
-        <DvOption value="Ng" text="NG"/>
-        <DvOption value="Ok" text="OK"/>
-      </DvSegment>
-      <DvDataGrid items="{Rows}" row-key="File" selection-mode="single" selected-items="{Bind SelectedRow}" row-height="32" header-height="32"
-                  visible="{HasRows}" style="flex:1; height:0; border-radius:token(radius.md); border:1 solid token(border)">
-        <DvColumn header="#" field="No" width="44" align="right"/>
-        <DvColumn header="파일" field="Name"/>
-        <DvColumn header="라벨" field="Label" width="110"/>
-        <DvColumn header="결과" field="Result" width="64" align="center" cell-class="ResultClass"/>
-        <DvColumn header="판정" field="Judge" width="86" align="center" cell-class="JudgeClass"/>
-      </DvDataGrid>
-      <DvCard style="flex:1; height:0" visible="{NoRows}">
-        <DvLabel class="empty-text" text="{NoRowsText}"/>
+  <DvRow gap="sm">
+    <DvIcon icon="fa-lightbulb" style="font-size:13; color: token(tone-warning-fg)"/>
+    <DvLabel class="sub" text="{Hint}"/>
+  </DvRow>
+  <DvRow grow="1" style="align-items:stretch; gap:16; height:0">
+    <!-- 왼쪽: 테스트 · 이미지 목록 -->
+    <DvStack style="width:420; flex-shrink:0; gap:16">
+      <DvCard title="테스트" badge="{ReportBadge}">
+        <DvRow gap="sm">
+          <DvSelect value="{Bind SelectedSet}" items="{Sets}" item-value="Index" item-text="Text" placeholder="테스트 폴더 없음" disabled="{NoSets}" style="flex:1; width:0"/>
+          <DvButton id="btnAddSet" variant="secondary" icon="fa-folder-plus" onclick="AddSet" disabled="{NoProject}"/>
+          <DvButton id="btnRemoveSet" variant="secondary" icon="fa-trash" onclick="RemoveSet" disabled="{NoSets}"/>
+          <DvButton id="btnRun" variant="primary" icon="fa-play" text="실행" onclick="Run" disabled="{CannotRun}"/>
+        </DvRow>
+        <DvLabel class="meta" text="{SetMeta}" style="white-space:nowrap" visible="{HasSets}"/>
+        <DvLabel class="sub" style="color: token(primary)" text="{Progress}" visible="{Running}"/>
+        <DvRow gap="lg" visible="{HasReport}">
+          <DvStack gap="none"><DvLabel class="kpi" text="{RateText}"/><DvLabel class="meta" text="정답률"/></DvStack>
+          <DvStack gap="none"><DvLabel class="kpi kpi-bad" text="{WrongText}"/><DvLabel class="meta" text="틀림"/></DvStack>
+          <DvStack gap="none"><DvLabel class="kpi kpi-dim" text="{UnlabeledText}"/><DvLabel class="meta" text="라벨 없음"/></DvStack>
+          <DvSpacer/>
+          <DvRepeat items="{Labels}" gap="xs">
+            <DvRow gap="sm">
+              <DvLabel class="sub" text="{Item.Label}" style="width:110"/>
+              <DvBadge text="{Item.Score}" tone="{Item.Tone}"/>
+            </DvRow>
+          </DvRepeat>
+        </DvRow>
       </DvCard>
-      <DvCard style="flex:1; height:0" visible="{NoSets}">
-        <DvStack gap="sm" style="align-items:center; justify-content:center" grow="1">
-          <DvIcon icon="fa-folder-open" style="font-size:40; color: token(text-subtle)"/>
+
+      <DvCard title="이미지" grow="1" style="height:0">
+        <DvSegment value="{Bind Filter}" fill="true" disabled="{NoReport}" visible="{HasSets}">
+          <DvOption value="All" text="{FilterAllText}"/>
+          <DvOption value="Wrong" text="{FilterWrongText}"/>
+          <DvOption value="Ng" text="{FilterNgText}"/>
+          <DvOption value="Ok" text="{FilterOkText}"/>
+        </DvSegment>
+        <DvRepeat items="{Rows}" gap="xs" style="flex:1; height:0; overflow:scroll" visible="{HasRows}">
+          <DvRow class="{Item.ItemClass}" onclick="Pick">
+            <DvImage class="thumb" src="{Item.File}" fit="cover"/>
+            <DvStack gap="none" style="flex:1; width:0">
+              <DvLabel class="name" text="{Item.Name}" style="white-space:nowrap"/>
+              <DvLabel class="meta" text="{Item.Label}"/>
+            </DvStack>
+            <DvBadge text="{Item.Result}" tone="{Item.ResultTone}" visible="{Item.HasResult}"/>
+            <DvBadge text="{Item.Judge}" tone="{Item.JudgeTone}" visible="{Item.HasResult}"/>
+          </DvRow>
+        </DvRepeat>
+        <DvStack gap="sm" style="flex:1; height:0; align-items:center; justify-content:center" visible="{NoRows}">
+          <DvIcon icon="fa-filter-circle-xmark" style="font-size:28; color: token(text-subtle)"/>
+          <DvLabel class="sub" text="{NoRowsText}"/>
+        </DvStack>
+        <DvStack gap="sm" style="flex:1; height:0; align-items:center; justify-content:center" visible="{NoSets}">
+          <DvIcon icon="fa-folder-open" style="font-size:36; color: token(text-subtle)"/>
           <DvLabel class="empty-title" text="테스트 폴더가 없습니다"/>
-          <DvLabel class="empty-text" style="text-align:center" text="양품 · 불량 이미지가 든 폴더를 추가하면&#10;이미지 목록이 바로 여기에 뜹니다."/>
+          <DvLabel class="sub" style="text-align:center" text="양품 · 불량 이미지가 든 폴더를 추가하면&#10;이미지 목록이 바로 여기에 뜹니다."/>
           <DvButton variant="primary" icon="fa-folder-plus" text="폴더 추가" onclick="AddSet" disabled="{NoProject}"/>
         </DvStack>
       </DvCard>
     </DvStack>
 
-    <!-- 오른쪽: 고른 이미지 -->
-    <DvStack gap="sm" style="flex:1; width:0">
+    <!-- 오른쪽: 고른 이미지 (남는 폭 전부) -->
+    <DvCard title="{ViewerTitle}" badge="{Position}" style="flex:1; width:0">
       <DvRow gap="sm">
         <DvButton variant="secondary" icon="fa-chevron-left" text="이전" onclick="Prev" disabled="{CannotPrev}"/>
-        <DvLabel class="body" style="color: token(text); width:64; text-align:center" text="{Position}"/>
         <DvButton id="btnNext" variant="secondary" icon="fa-chevron-right" text="다음" onclick="Next" disabled="{CannotNext}"/>
+        <DvLabel class="meta" text="← → 키"/>
         <DvSpacer/>
         <DvButton id="btnFix" variant="primary" icon="fa-wrench" text="이 검사 고치기" onclick="Fix" disabled="{CannotFix}"/>
       </DvRow>
-      <DvLabel class="body" style="color: token(text)" text="{Detail}" visible="{HasSelection}"/>
+      <DvRow gap="sm" visible="{HasSelection}">
+        <DvBadge text="{ResultBadge}" tone="{ResultTone}" visible="{HasResultBadge}"/>
+        <DvBadge text="{JudgeBadge}" tone="{JudgeTone}" visible="{HasJudgeBadge}"/>
+        <DvLabel class="sub" text="{DetailLine}"/>
+      </DvRow>
       <VisionView source="{View}" style="flex:1; height:0" visible="{HasSelection}"/>
-      <DvCard style="flex:1; height:0" visible="{NoSelection}">
-        <DvStack gap="sm" style="align-items:center; justify-content:center" grow="1">
-          <DvIcon icon="fa-hand-pointer" style="font-size:40; color: token(text-subtle)"/>
-          <DvLabel class="empty-title" text="이미지를 고르세요"/>
-          <DvLabel class="empty-text" style="text-align:center" text="왼쪽 목록에서 이미지를 고르면 지금 로직의 결과가 여기에 그려집니다.&#10;[이전] [다음] 이나 ← → 키로 넘깁니다."/>
-        </DvStack>
-      </DvCard>
-    </DvStack>
+      <DvStack gap="sm" style="flex:1; height:0; align-items:center; justify-content:center" visible="{NoSelection}">
+        <DvIcon icon="fa-hand-pointer" style="font-size:36; color: token(text-subtle)"/>
+        <DvLabel class="empty-title" text="이미지를 고르세요"/>
+        <DvLabel class="sub" style="text-align:center" text="왼쪽 목록에서 이미지를 고르면 지금 로직의 결과가 여기에 그려집니다.&#10;[이전] [다음] 이나 ← → 키로 넘깁니다."/>
+      </DvStack>
+    </DvCard>
   </DvRow>
 </DvPageFrame>
