@@ -27,3 +27,23 @@ internal static class Png
         }
     }
 }
+
+// 테스트마다 지우는 임시 폴더
+internal sealed class TempDir : IDisposable
+{
+    public TempDir() => Directory.CreateDirectory(Path);
+
+    public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "studio-test-" + Guid.NewGuid().ToString("N")[..8]);
+
+    public string Sub(string name)
+    {
+        var p = System.IO.Path.Combine(Path, name);
+        Directory.CreateDirectory(p);
+        return p;
+    }
+
+    public void Dispose()
+    {
+        try { Directory.Delete(Path, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+    }
+}
