@@ -270,8 +270,22 @@ public sealed class StudioSession
         using (img)
         {
             using var r = await job.RunAsync(img).ConfigureAwait(false);
-            return ToRunResult(r, png: null);
+            return ToRunResult(r, ResultRenderer.Render(r));
         }
+    }
+
+    /// <summary>마지막 보고서의 항목 하나를 지금 로직으로 다시 돌려 결과 PNG 를 만든다. 보고서가 없거나 번호가 범위 밖이면 null.</summary>
+    public async Task<byte[]?> RenderTestItemAsync(int index)
+    {
+        string file;
+        lock (_gate)
+        {
+            if (_lastReport is not { } rep || index < 0 || index >= rep.Items.Count)
+                return null;
+            file = rep.Items[index].File;
+        }
+        var r = await RunImageAsync(file).ConfigureAwait(false);
+        return r.Png;
     }
 
     // ── 폴더 테스트 ───────────────────────────────────────

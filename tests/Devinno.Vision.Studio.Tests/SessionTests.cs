@@ -199,4 +199,38 @@ public class SessionTests
         Assert.Equal(["HOLE"], ng.Codes);
         Assert.False(missing.Ok);
     }
+
+    [Fact]
+    public async Task Run_image_returns_png_with_judgment()
+    {
+        using var dir = new TempDir();
+        var s = new StudioSession();
+        BracketStudioTests.BuildBracket(s, dir.Path);
+
+        var r = await s.RunImageAsync(Samples.Bracket("02_missinghole.bmp"));
+
+        Assert.True(r.Ok, r.Message);
+        Assert.Equal("Ng", r.State);
+        Assert.Equal(["HOLE"], r.Codes);
+        Assert.NotNull(r.Png);
+        Assert.Equal(new byte[] { 0x89, 0x50, 0x4E, 0x47 }, r.Png![..4]);
+        Assert.True(r.Png.Length > 20 * 1024, $"{r.Png.Length} bytes");
+        File.WriteAllBytes(Path.Combine(AppContext.BaseDirectory, "run-02.png"), r.Png);   // 눈으로 확인용
+    }
+
+    [Fact]
+    public async Task Render_test_item_returns_png()
+    {
+        using var dir = new TempDir();
+        var s = new StudioSession();
+        BracketStudioTests.BuildBracket(s, dir.Path);
+        Assert.Null(await s.RenderTestItemAsync(0));   // 보고서 전
+
+        var report = await s.RunTestAsync(0);
+        var png = await s.RenderTestItemAsync(1);
+
+        Assert.NotNull(png);
+        Assert.Equal(0x89, png![0]);
+        Assert.Null(await s.RenderTestItemAsync(report.Total));   // 범위 밖
+    }
 }
