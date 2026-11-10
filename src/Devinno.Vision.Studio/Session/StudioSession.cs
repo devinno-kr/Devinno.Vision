@@ -31,6 +31,7 @@ public sealed class StudioSession
 
     private readonly object _gate = new();
     private StudioProject? _project;
+    private TestReport? _lastReport;
 
     /// <summary>열린 프로젝트. 화면이 읽기용으로 쓴다 — 바꾸는 것은 반드시 명령으로.</summary>
     public StudioProject? Project { get { lock (_gate) return _project; } }
@@ -53,6 +54,7 @@ public sealed class StudioSession
                 return CommandResult.Fail($"이 폴더에는 이미 프로젝트가 있습니다: {p.Folder} (open_project 로 여세요)");
             p.Save();
             _project = p;
+            _lastReport = null;
             return CommandResult.Done($"새 프로젝트: {p.Name} ({p.Folder})");
         }, needsProject: false);
     }
@@ -73,6 +75,7 @@ public sealed class StudioSession
                 return CommandResult.Fail($"열 수 없습니다: {ex.Message}");   // 지금 열린 프로젝트는 그대로
             }
             _project = p;
+            _lastReport = null;
             return CommandResult.Done($"열림: {p.Name} (검사 {p.Checks.Count}개)");
         }, needsProject: false);
     }
@@ -269,6 +272,58 @@ public sealed class StudioSession
             using var r = await job.RunAsync(img).ConfigureAwait(false);
             return ToRunResult(r, png: null);
         }
+    }
+
+    // ── 폴더 테스트 ───────────────────────────────────────
+
+    /// <summary>마지막 폴더 테스트 보고서.</summary>
+    public TestReport? LastReport { get { lock (_gate) return _lastReport; } }
+
+    public CommandResult AddTestSet(string folder, LabelRule rule) => Change(() =>
+    {
+        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+            return CommandResult.Fail($"폴더가 없습니다: {folder}");
+        var sets = _project!.TestSets;
+        var full = Path.GetFullPath(folder);
+        if (sets.Any(t => string.Equals(Path.GetFullPath(t.Folder), full, StringComparison.OrdinalIgnoreCase) && t.Rule == rule))
+            return CommandResult.Fail($"이미 있는 테스트 폴더입니다: {full}");
+        sets.Add(new TestSet { Folder = full, Rule = rule });
+        return CommandResult.Done($"테스트 폴더 {sets.Count - 1}: {full} (라벨 규칙 {rule})");
+    });
+
+    public CommandResult RemoveTestSet(int index) => Change(() =>
+    {
+        var sets = _project!.TestSets;
+        if (index < 0 || index >= sets.Count)
+            return CommandResult.Fail($"테스트 폴더 번호는 0 ~ {sets.Count - 1} 입니다 (받은 값 {index})");
+        sets.RemoveAt(index);
+        return CommandResult.Done($"테스트 폴더 {index} 삭제됨");
+    });
+
+    /// <summary>테스트 폴더 하나를 지금 로직으로 모두 돌린다. 결과는 <see cref="LastReport"/> 에도 남는다.</summary>
+    public async Task<TestReport> RunTestAsync(int setIndex, IProgress<int>? progress = null, CancellationToken ct = default)
+    {
+        VisionJob job;
+        TestSet set;
+        lock (_gate)
+        {
+            if (_project is not { } p)
+                return TestRunner.Fail(NoProject);
+            if (BaseImagePath(p) is null)
+                return TestRunner.Fail(NoBaseImage);
+            if (p.Checks.Count == 0)
+                return TestRunner.Fail("검사가 없습니다 (add_check)");
+            if (setIndex < 0 || setIndex >= p.TestSets.Count)
+                return TestRunner.Fail(p.TestSets.Count == 0 ? "테스트 폴더가 없습니다 (add_test_set)" : $"테스트 폴더 번호는 0 ~ {p.TestSets.Count - 1} 입니다 (받은 값 {setIndex})");
+            job = JobBuilder.Build(p);
+            var s = p.TestSets[setIndex];
+            set = new TestSet { Folder = s.Folder, Rule = s.Rule, GoodLabel = s.GoodLabel };
+        }
+        var report = await TestRunner.RunAsync(job, set, progress, ct).ConfigureAwait(false);
+        lock (_gate)
+            _lastReport = report;
+        ProjectChanged?.Invoke();   // 화면이 보고서를 다시 그리게
+        return report;
     }
 
     internal static RunResult ToRunResult(VisionResult r, byte[]? png)
