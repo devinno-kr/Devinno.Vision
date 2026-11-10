@@ -1,0 +1,3 @@
+<DvRow vm="Devinno.Vision.Studio.Ui.StatusBar" style="height:28; padding:0 12; background: token(surface); border: 1 token(border)">
+  <DvLabel class="caption muted" text="{Text}"/>
+</DvRow>

@@ -226,6 +226,13 @@ public sealed class StudioSession
             return Find(id);
     }
 
+    /// <summary>열린 프로젝트 전체를 studio.json 과 같은 형식으로 (잠금 안에서 찍는다). 없으면 null.</summary>
+    public string? ProjectJson()
+    {
+        lock (_gate)
+            return _project is { } p ? JsonSerializer.Serialize(p, StudioProject.Json) : null;
+    }
+
     // ── 티칭 · 실행 ───────────────────────────────────────
 
     /// <summary>기준 이미지로 정렬 검사를 돌려 그 위치를 기준(Reference)으로 저장한다.</summary>
