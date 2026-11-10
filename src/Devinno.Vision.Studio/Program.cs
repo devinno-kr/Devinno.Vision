@@ -20,25 +20,38 @@ public static class StudioApp
         var registry = new ComponentRegistry();
         DvVisionView.Register(registry);
         var app = new DvApp { Theme = DvTheme.Dark, Registry = registry, Strings = new DvStrings { Language = "ko" } };
-        var edit = new EditPage(session, dialogs);
+        var status = new StatusBar();
+        var edit = new EditPage(session, dialogs, status);
         app.Pages.Add(edit);
-        app.Pages.Add(new TestPage(session, dialogs, edit));
-        app.Top = new TopBar(session, dialogs);
-        app.Left = new CheckListBar(session, edit);
-        app.Bottom = new StatusBar();
+        app.Pages.Add(new TestPage(session, dialogs, edit, status));
+        // 배치 규칙 (DvApp): Top · Bottom = 창 전체 폭, Left = 그 사이 높이 → 검사 목록은 위 바 아래에서 시작한다
+        app.Top = new TopBar(session, dialogs, status);
+        app.Left = new CheckListBar(session, edit, status);
+        app.Bottom = status;
         session.ProjectChanged += app.Invalidate;   // MCP 가 바꿔도 다음 프레임에 다시 그린다
-        app.HandlerError += (_, e) => SetStatus(app, $"오류: {e.Exception.Message}");   // 화면 명령이 조용히 죽지 않게
+        app.HandlerError += (_, e) => status.Fail(e.Exception.Message);   // 화면 명령이 조용히 죽지 않게
         return app;
     }
 
-    /// <summary>아래 상태 줄 문구를 바꾼다 (어느 스레드에서든).</summary>
+    /// <summary>아래 상태 줄의 MCP 상태를 바꾼다 (어느 스레드에서든).</summary>
     public static void SetStatus(DvApp app, string text)
     {
         if (app.Bottom is StatusBar bar)
         {
-            bar.Text = text;
+            bar.Mcp = text;
             app.Invalidate();
         }
+    }
+
+    /// <summary>← → 키: 테스트 화면이 보이고 대화상자가 없을 때 이전/다음 이미지. 처리했으면 true.</summary>
+    public static bool ArrowKey(DvApp app, bool next)
+    {
+        if (app.CurrentPage is not TestPage page || app.Dialogs.Top is not null)
+            return false;
+        if (next) page.Next();
+        else page.Prev();
+        app.Invalidate();
+        return true;
     }
 }
 
@@ -51,11 +64,11 @@ internal static class Program
     {
         ApplicationConfiguration.Initialize();
         var session = new StudioSession();
-        using var form = new Form { Text = "Devinno Vision Studio", ClientSize = new Size(1280, 800), StartPosition = FormStartPosition.CenterScreen };
+        using var form = new StudioForm { Text = "Devinno Vision Studio", ClientSize = new Size(1280, 800), StartPosition = FormStartPosition.CenterScreen };
         var app = StudioApp.Create(session, new WinFormsDialogs(form));
+        form.App = app;
         form.Controls.Add(new ViewControl { Dock = DockStyle.Fill, App = app });
 
-        // 창이 뜨기 전, 동기화 문맥이 없을 때 시작한다
         McpHost? mcp = null;
         try
         {
@@ -73,6 +86,20 @@ internal static class Program
         finally
         {
             mcp?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    // 화살표 키는 컨트롤이 길 찾기에 쓰기 전에 여기서 가로챈다 (Devinno.UI 페이지에는 키 이벤트가 없다)
+    private sealed class StudioForm : Form
+    {
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public DvApp? App { get; set; }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (App is { } app && keyData is Keys.Left or Keys.Right && StudioApp.ArrowKey(app, keyData == Keys.Right))
+                return true;
+            return base.ProcessCmdKey(ref msg, keyData);
         }
     }
 

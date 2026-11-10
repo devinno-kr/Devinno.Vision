@@ -55,7 +55,7 @@ public class BracketStudioTests
 
         Assert.True(r.Ok, r.Message);
         Assert.Equal(18, r.Total);
-        Assert.True(r.Correct == 18, string.Join("\n", r.Items.Where(i => !i.Correct).Select(i => $"{i.File} {i.State} {string.Join(",", i.Codes)} {i.Error}")));
+        Assert.True(r.Correct == 18, string.Join("\n", r.Items.Where(i => i.Correct != true).Select(i => $"{i.File} {i.State} {string.Join(",", i.Codes)} {i.Error}")));
         Assert.Equal(3, r.Labels.Single(l => l.Label == "missinghole").Correct);
         Assert.Equal(3, r.Labels.Single(l => l.Label == "tabdefect").Correct);
         Assert.Equal(3, r.Labels.Single(l => l.Label == "distancedefect").Correct);

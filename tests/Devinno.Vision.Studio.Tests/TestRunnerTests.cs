@@ -151,4 +151,47 @@ public class TestRunnerTests
             Assert.Contains("outside", i.Error);
         });
     }
+
+    [Fact]
+    public async Task Files_without_underscore_have_no_label_and_are_not_judged()
+    {
+        using var dir = new TempDir();
+        var images = dir.Sub("images");
+        WritePng(Path.Combine(images, "01_good.png"), 200);
+        WritePng(Path.Combine(images, "scan0007.png"), 10);   // '_' 없음 → 라벨 없음 (NG 로 추측하지 않는다)
+        var s = BrightLogic(dir, Path.Combine(images, "01_good.png"));
+        s.AddTestSet(images, LabelRule.FileName);
+
+        var before = s.TestImages(0);
+        var r = await s.RunTestAsync(0);
+
+        Assert.Equal([("01_good.png", "good"), ("scan0007.png", (string?)null)], before.Select(i => (Path.GetFileName(i.File), i.Label)));
+        Assert.Equal((1, 1, 1), (r.Correct, r.Total, r.Unlabeled));
+        var none = r.Items.Single(i => i.File.EndsWith("scan0007.png"));
+        Assert.Equal(("Ng", (bool?)null, (bool?)null), (none.State, none.ExpectOk, none.Correct));
+        Assert.DoesNotContain(r.Labels, l => l.Label == "scan0007");
+        Assert.Contains("라벨 없음 1", r.Message);
+    }
+
+    [Fact]
+    public void Project_folder_cannot_be_a_test_folder()
+    {
+        using var dir = new TempDir();
+        var images = dir.Sub("images");
+        WritePng(Path.Combine(images, "01_good.png"), 200);
+        var s = BrightLogic(dir, Path.Combine(images, "01_good.png"));
+        var project = s.Project!.Folder;
+
+        var self = s.AddTestSet(project, LabelRule.FileName);
+        var inside = s.AddTestSet(Path.Combine(project, "images"), LabelRule.FileName);
+        var above = s.AddTestSet(dir.Path, LabelRule.Folder);
+        var sibling = s.AddTestSet(images, LabelRule.FileName);
+
+        Assert.False(self.Ok);
+        Assert.Contains("프로젝트 폴더", self.Message);
+        Assert.False(inside.Ok);
+        Assert.False(above.Ok);
+        Assert.True(sibling.Ok, sibling.Message);
+        Assert.Single(s.TestSets);
+    }
 }

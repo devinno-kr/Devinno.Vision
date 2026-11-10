@@ -40,7 +40,7 @@ internal sealed class StudioTools(StudioSession session)
         McpServerTool.Create(t.UpdateCheck, Opt("update_check", "Change a check's properties", "Change some properties of a check. properties_json is a JSON object with only the keys to change, for example {\"Min\":1,\"Max\":1} or {\"Blob\":{\"Threshold\":80}}. Kind and Id cannot change. Unknown keys are rejected with the list of valid ones.", readOnly: false, idempotent: true)),
         McpServerTool.Create(t.TeachBase, Opt("teach_base", "Teach the base position", "Run the BlobAlign check on the base image and store the part position as the reference. Run it again after changing the BlobAlign settings or the base image.", readOnly: false, idempotent: true)),
         McpServerTool.Create(t.RunImage, Opt("run_image", "Run on one image", "Run the current logic on one image file. Returns the judgment and values, and the result image with ROIs and findings drawn.", readOnly: true)),
-        McpServerTool.Create(t.AddTestSet, Opt("add_test_set", "Add a test folder", "Add a folder of test images. rule FileName: the label is the token after the first '_' in the file name (02_missinghole.bmp -> missinghole). rule Folder: each subfolder name is the label (MVTec style). Images labelled 'good' are expected OK, all others NG.", readOnly: false)),
+        McpServerTool.Create(t.AddTestSet, Opt("add_test_set", "Add a test folder", "Add a folder of test images. rule FileName: the label is the token after the first '_' in the file name (02_missinghole.bmp -> missinghole). rule Folder: each subfolder name is the label (MVTec style). Images labelled 'good' are expected OK, all others NG. With the FileName rule a file without '_' has no label: it runs but is not judged. The project's own folder (or a folder inside or above it) cannot be a test folder.", readOnly: false)),
         McpServerTool.Create(t.RunTest, Opt("run_test", "Run a folder test", "Run the current logic on every image of a test folder (set_index from add_test_set, 0 = first). Returns correct/total and a table per label.", readOnly: true)),
         McpServerTool.Create(t.GetFailures, Opt("get_failures", "List wrong images", "List the images the last run_test judged wrongly, with their index, label, expected and actual result, NG codes and errors. Look at one with view_test_item.", readOnly: true)),
         McpServerTool.Create(t.ViewTestItem, Opt("view_test_item", "View a test image result", "Re-run one image of the last run_test (index from get_failures) and return the result image with ROIs and findings drawn.", readOnly: true)),
@@ -119,7 +119,7 @@ internal sealed class StudioTools(StudioSession session)
         var r = await session.RunTestAsync(set_index);
         if (!r.Ok)
             return Error(r.Message);
-        var sb = new StringBuilder($"{r.Correct}/{r.Total} correct\n");
+        var sb = new StringBuilder($"{r.Correct}/{r.Total} correct" + (r.Unlabeled > 0 ? $" ({r.Unlabeled} unlabeled images run but not judged)" : "") + "\n");
         foreach (var l in r.Labels)
             sb.AppendLine($"- {l.Label} (expect {(l.ExpectOk ? "OK" : "NG")}): {l.Correct}/{l.Count}");
         if (r.Correct < r.Total)
@@ -131,12 +131,12 @@ internal sealed class StudioTools(StudioSession session)
     {
         if (session.LastReport is not { } r)
             return Error("테스트 보고서가 없습니다 (run_test 를 먼저)");
-        var wrong = r.Items.Select((item, index) => (item, index)).Where(x => !x.item.Correct).ToList();
+        var wrong = r.Items.Select((item, index) => (item, index)).Where(x => x.item.Correct == false).ToList();
         if (wrong.Count == 0)
             return Text($"틀린 이미지 없음 ({r.Correct}/{r.Total})");
         var sb = new StringBuilder($"{wrong.Count} wrong of {r.Total}:\n");
         foreach (var (i, index) in wrong)
-            sb.AppendLine($"- index {index}: {Path.GetFileName(i.File)} label={i.Label} expected={(i.ExpectOk ? "Ok" : "Ng")} got={i.State}"
+            sb.AppendLine($"- index {index}: {Path.GetFileName(i.File)} label={i.Label} expected={(i.ExpectOk == true ? "Ok" : "Ng")} got={i.State}"
                 + (i.Codes.Count > 0 ? $" codes={string.Join(",", i.Codes)}" : "") + (i.Error is null ? "" : $" error={i.Error}"));
         return Text(sb.ToString());
     }

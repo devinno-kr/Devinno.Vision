@@ -332,6 +332,34 @@ public sealed class StudioSession
         return r.Png;
     }
 
+    /// <summary>테스트 폴더의 이미지 목록과 라벨 (실행 전에도). 폴더를 읽을 수 없으면 빈 목록.</summary>
+    public IReadOnlyList<TestImage> TestImages(int setIndex)
+    {
+        TestSet set;
+        lock (_gate)
+        {
+            if (_project is not { } p || setIndex < 0 || setIndex >= p.TestSets.Count)
+                return [];
+            set = p.TestSets[setIndex];
+        }
+        try
+        {
+            return Directory.Exists(set.Folder) ? TestRunner.Collect(set) : [];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
+
+    // 두 폴더가 같거나 한쪽이 다른 쪽 안에 있는가
+    private static bool Overlaps(string a, string b)
+    {
+        static string Norm(string p) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(p)) + Path.DirectorySeparatorChar;
+        var (x, y) = (Norm(a), Norm(b));
+        return x.StartsWith(y, StringComparison.OrdinalIgnoreCase) || y.StartsWith(x, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>마지막 보고서 항목의 파일. 없으면 null.</summary>
     internal string? TestItemFile(int index)
     {
@@ -350,6 +378,8 @@ public sealed class StudioSession
             return CommandResult.Fail($"폴더가 없습니다: {folder}");
         var sets = _project!.TestSets;
         var full = Path.GetFullPath(folder);
+        if (Overlaps(full, _project.Folder))
+            return CommandResult.Fail($"프로젝트 폴더(그 안이나 위 폴더 포함)는 테스트 폴더로 쓸 수 없습니다 — 기준 이미지 사본이 섞입니다: {full}");
         if (sets.Any(t => string.Equals(Path.GetFullPath(t.Folder), full, StringComparison.OrdinalIgnoreCase) && t.Rule == rule))
             return CommandResult.Fail($"이미 있는 테스트 폴더입니다: {full}");
         sets.Add(new TestSet { Folder = full, Rule = rule });
@@ -424,11 +454,18 @@ public sealed class StudioSession
             if (needsProject && _project is null)
                 return CommandResult.Fail(NoProject);
             r = change();
+            if (r.Ok)
+                _revision++;
         }
         if (r.Ok)
             ProjectChanged?.Invoke();
         return r;
     }
+
+    private long _revision;
+
+    /// <summary>로직이 바뀔 때마다 1 씩 는다 (보여 주던 결과가 낡았는지 화면이 알 수 있게). 보고서만 바뀐 것은 세지 않는다.</summary>
+    public long Revision { get { lock (_gate) return _revision; } }
 
     private CheckDef? Find(string id) => _project?.Checks.FirstOrDefault(c => c.Id == id);
 

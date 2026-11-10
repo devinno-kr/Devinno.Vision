@@ -1,114 +1,137 @@
-<DvPageFrame vm="Devinno.Vision.Studio.Ui.EditPage" title="편집" subtitle="{SelectedTitle}">
-  <DvRow grow="1" style="align-items:stretch">
+<DvPageFrame vm="Devinno.Vision.Studio.Ui.EditPage" title="편집" subtitle="{Hint}">
+  <DvStyle>
+    .field { font-size: token(font.body); color: token(text); width: 96 }
+    .empty-title { font-size: token(font.title); font-weight: bold; color: token(text) }
+    .empty-text { font-size: token(font.body); color: token(text-muted) }
+  </DvStyle>
+  <DvRow grow="1" style="align-items:stretch; gap:16">
+    <!-- 가운데: 이미지 · 실행 -->
     <DvStack gap="sm" style="flex:1; width:0">
       <DvRow gap="sm">
-        <DvButton variant="secondary" text="기준 이미지 열기" onclick="OpenBase" disabled="{NoProject}"/>
-        <DvButton variant="secondary" text="기준 티칭" onclick="Teach" disabled="{NoBase}"/>
-        <DvButton variant="primary" text="이 이미지로 실행" onclick="RunBase" disabled="{NoBase}"/>
+        <DvButton variant="secondary" icon="fa-image" text="기준 이미지" onclick="OpenBase" disabled="{NoProject}"/>
+        <DvButton id="btnTeach" variant="secondary" icon="fa-crosshairs" text="기준 티칭" onclick="Teach" disabled="{NoBase}"/>
+        <DvSpacer/>
+        <DvButton id="btnRun" variant="primary" icon="fa-play" text="실행" onclick="RunBase" disabled="{CannotRun}"/>
+        <DvButton id="btnRunOther" variant="secondary" icon="fa-folder-open" text="다른 이미지로 실행" onclick="RunOther" disabled="{CannotRun}"/>
       </DvRow>
-      <DvCard grow="1" visible="{NoBase}">
-        <DvLabel class="body muted" text="{EmptyText}"/>
+
+      <DvCard style="flex:1; height:0" visible="{NoBase}">
+        <DvStack gap="sm" style="align-items:center; justify-content:center" grow="1">
+          <DvIcon icon="fa-image" style="font-size:40; color: token(text-subtle)"/>
+          <DvLabel class="empty-title" text="{EmptyTitle}"/>
+          <DvLabel class="empty-text" text="{EmptyText}" style="text-align:center"/>
+          <DvButton id="btnOpenBase" variant="primary" icon="fa-image" text="기준 이미지 열기" onclick="OpenBase" visible="{HasProject}"/>
+        </DvStack>
       </DvCard>
       <VisionView source="{View}" style="flex:1; height:0" visible="{HasBase}"/>
-      <DvLabel class="body" style="color: token(text)" text="{LastRun}"/>
-      <DvDataGrid items="{LastValues}" row-height="32" header-height="32" style="height:124; border-radius:token(radius.md); border:1 solid token(border)">
+
+      <DvRow gap="sm">
+        <DvLabel class="label" style="color: token(text-muted)" text="마지막 실행"/>
+        <DvLabel class="body" style="color: token(text)" text="{LastRun}"/>
+      </DvRow>
+      <DvDataGrid items="{LastValues}" row-height="30" header-height="30" visible="{HasValues}" style="height:122; border-radius:token(radius.md); border:1 solid token(border)">
         <DvColumn header="검사" field="Check" width="150"/>
-        <DvColumn header="값 이름" field="Name" width="170"/>
-        <DvColumn header="값" field="Value" width="120"/>
+        <DvColumn header="값 이름" field="Name" width="180"/>
+        <DvColumn header="값" field="Value" width="120" align="right"/>
         <DvColumn header="기준" field="Range"/>
-        <DvColumn header="판정" field="Judge" width="70" align="center"/>
+        <DvColumn header="판정" field="Judge" width="64" align="center"/>
       </DvDataGrid>
     </DvStack>
 
+    <!-- 오른쪽: 속성 -->
     <DvStack gap="sm" style="width:340; flex-shrink:0; overflow:scroll">
-      <DvLabel class="caption" style="color: token(tone-danger-fg)" text="{Message}" visible="{HasMessage}"/>
-
-      <DvCard title="캘리브레이션">
-        <DvRow gap="sm">
-          <DvInput value="{Bind Calibration}" placeholder="비우면 없음 (px)" unit="mm/px" grow="1" disabled="{NoProject}"/>
-        </DvRow>
+      <DvCard title="캘리브레이션" subtitle="mm/px — 비우면 길이를 px 로 판정">
+        <DvInput value="{Bind Calibration}" placeholder="예: 0.05" unit="mm/px" disabled="{NoProject}"/>
       </DvCard>
 
-      <DvCard title="검사 속성" visible="{HasSelection}">
-        <DvLabel class="label muted" text="이름"/>
-        <DvInput value="{Bind CheckName}"/>
-        <DvLabel class="caption muted" text="{RoiText}"/>
+      <DvCard title="검사 속성" grow="1" visible="{NoSelection}">
+        <DvStack gap="sm" style="align-items:center; justify-content:center" grow="1">
+          <DvIcon icon="fa-list-check" style="font-size:32; color: token(text-subtle)"/>
+          <DvLabel class="empty-text" text="{NoSelectionText}" style="text-align:center"/>
+        </DvStack>
+      </DvCard>
+
+      <DvCard title="{SelectedTitle}" visible="{HasSelection}">
+        <DvRow gap="sm">
+          <DvLabel class="field" text="이름"/>
+          <DvInput value="{Bind CheckName}" style="flex:1; width:0"/>
+        </DvRow>
+        <DvLabel class="caption" text="{RoiText}"/>
 
         <DvStack gap="sm" visible="{HasBlob}">
-          <DvLabel class="label muted" text="이진화"/>
+          <DvLabel class="label" style="color: token(text-muted)" text="이진화"/>
           <DvSegment value="{Bind BlobMode}" fill="true">
             <DvOption value="Otsu" text="자동 (Otsu)"/>
             <DvOption value="Fixed" text="고정 문턱"/>
           </DvSegment>
           <DvRow gap="sm">
-            <DvLabel class="body" style="color: token(text); width:110" text="문턱"/>
+            <DvLabel class="field" text="문턱"/>
             <DvInput value="{Bind BlobThreshold}" keyboard-type="numeric" min="0" max="255" style="flex:1; width:0"/>
           </DvRow>
           <DvCheckBox text="어두운 것을 찾기 (반전)" value="{Bind BlobInvert}"/>
           <DvRow gap="sm">
-            <DvLabel class="body" style="color: token(text); width:110" text="최소 면적"/>
+            <DvLabel class="field" text="최소 면적"/>
             <DvInput value="{Bind BlobMinArea}" keyboard-type="numeric" min="0" unit="px²" style="flex:1; width:0"/>
           </DvRow>
         </DvStack>
 
-        <DvStack gap="sm" visible="{IsBlobAlign}">
-          <DvLabel class="caption muted" text="{ReferenceText}"/>
-        </DvStack>
+        <DvLabel class="caption" text="{ReferenceText}" visible="{IsBlobAlign}"/>
 
-        <DvStack gap="sm" visible="{IsBlobCount}">
-          <DvRow gap="sm">
-            <DvLabel class="body" style="color: token(text); width:110" text="개수 범위"/>
-            <DvInput value="{Bind CountMin}" keyboard-type="numeric" min="0" style="flex:1; width:0"/>
-            <DvInput value="{Bind CountMax}" keyboard-type="numeric" min="0" style="flex:1; width:0"/>
-          </DvRow>
-        </DvStack>
+        <DvRow gap="sm" visible="{IsBlobCount}">
+          <DvLabel class="field" text="개수 범위"/>
+          <DvInput value="{Bind CountMin}" keyboard-type="numeric" min="0" style="flex:1; width:0"/>
+          <DvLabel class="body" style="color: token(text-muted)" text="~"/>
+          <DvInput value="{Bind CountMax}" keyboard-type="numeric" min="0" style="flex:1; width:0"/>
+        </DvRow>
 
         <DvStack gap="sm" visible="{IsPixelCount}">
           <DvRow gap="sm">
-            <DvLabel class="body" style="color: token(text); width:110" text="밝기 범위"/>
+            <DvLabel class="field" text="밝기 범위"/>
             <DvInput value="{Bind PixelLow}" keyboard-type="numeric" min="0" max="255" style="flex:1; width:0"/>
+            <DvLabel class="body" style="color: token(text-muted)" text="~"/>
             <DvInput value="{Bind PixelHigh}" keyboard-type="numeric" min="0" max="255" style="flex:1; width:0"/>
           </DvRow>
           <DvRow gap="sm">
-            <DvLabel class="body" style="color: token(text); width:110" text="최대 픽셀 수"/>
+            <DvLabel class="field" text="최대 픽셀 수"/>
             <DvInput value="{Bind PixelMax}" keyboard-type="numeric" min="0" style="flex:1; width:0"/>
           </DvRow>
         </DvStack>
 
-        <DvStack gap="sm" visible="{IsBrightness}">
-          <DvRow gap="sm">
-            <DvLabel class="body" style="color: token(text); width:110" text="평균 범위"/>
-            <DvInput value="{Bind BrightMin}" keyboard-type="numeric" min="0" max="255" style="flex:1; width:0"/>
-            <DvInput value="{Bind BrightMax}" keyboard-type="numeric" min="0" max="255" style="flex:1; width:0"/>
-          </DvRow>
-        </DvStack>
+        <DvRow gap="sm" visible="{IsBrightness}">
+          <DvLabel class="field" text="평균 범위"/>
+          <DvInput value="{Bind BrightMin}" keyboard-type="numeric" min="0" max="255" style="flex:1; width:0"/>
+          <DvLabel class="body" style="color: token(text-muted)" text="~"/>
+          <DvInput value="{Bind BrightMax}" keyboard-type="numeric" min="0" max="255" style="flex:1; width:0"/>
+        </DvRow>
 
         <DvStack gap="sm" visible="{IsLength}">
-          <DvLabel class="label muted" text="에지"/>
-          <DvSelect value="{Bind LengthPolarity}">
-            <DvOption value="BrightObject" text="밝은 물체"/>
-            <DvOption value="DarkObject" text="어두운 물체"/>
-            <DvOption value="Both" text="둘 다"/>
-          </DvSelect>
           <DvRow gap="sm">
-            <DvLabel class="body" style="color: token(text); width:110" text="최소 대비"/>
+            <DvLabel class="field" text="에지"/>
+            <DvSelect value="{Bind LengthPolarity}" style="flex:1; width:0">
+              <DvOption value="BrightObject" text="밝은 물체"/>
+              <DvOption value="DarkObject" text="어두운 물체"/>
+              <DvOption value="Both" text="둘 다"/>
+            </DvSelect>
+          </DvRow>
+          <DvRow gap="sm">
+            <DvLabel class="field" text="최소 대비"/>
             <DvInput value="{Bind LengthContrast}" keyboard-type="numeric" min="0" style="flex:1; width:0"/>
           </DvRow>
           <DvRow gap="sm">
-            <DvLabel class="body" style="color: token(text); width:110" text="공칭값"/>
+            <DvLabel class="field" text="공칭값"/>
             <DvInput value="{Bind LengthNominal}" keyboard-type="numeric" unit="{LengthUnit}" style="flex:1; width:0"/>
           </DvRow>
           <DvRow gap="sm">
-            <DvLabel class="body" style="color: token(text); width:110" text="공차 + / −"/>
+            <DvLabel class="field" text="공차 + / −"/>
             <DvInput value="{Bind LengthPlus}" keyboard-type="numeric" min="0" style="flex:1; width:0"/>
             <DvInput value="{Bind LengthMinus}" keyboard-type="numeric" min="0" style="flex:1; width:0"/>
           </DvRow>
         </DvStack>
 
-        <DvStack gap="sm" visible="{HasCode}">
-          <DvLabel class="label muted" text="NG 코드"/>
-          <DvInput value="{Bind Code}"/>
-        </DvStack>
+        <DvRow gap="sm" visible="{HasCode}">
+          <DvLabel class="field" text="NG 코드"/>
+          <DvInput value="{Bind Code}" style="flex:1; width:0"/>
+        </DvRow>
       </DvCard>
     </DvStack>
   </DvRow>
