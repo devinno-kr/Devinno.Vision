@@ -51,18 +51,72 @@ public sealed class VisionContext
     /// <param name="unit">Unit text for display, or <see langword="null"/>.</param>
     /// <returns>Whether the value is within the limits.</returns>
     public bool Value(string name, double value, double? min = null, double? max = null, string? code = null, string? unit = null)
+        => Record(name, value, min, max, code, unit, null);
+
+    private bool Record(string name, double value, double? min, double? max, string? code, string? unit, double? nominal)
     {
         ArgumentNullException.ThrowIfNull(name);
         var ok = !double.IsNaN(value) && (min is null || value >= min) && (max is null || value <= max);
         var c = code ?? name;
         lock (_gate)
         {
-            _run.AddValue(new VisionValue(name, value, min, max, unit, c, ok, Step));
+            _run.AddValue(new VisionValue(name, value, min, max, unit, c, ok, Step, nominal));
             if (!ok && !_ngCodes.Contains(c))
                 _ngCodes.Add(c);
         }
         return ok;
     }
+
+    /// <summary>Records a measured value against a nominal value with tolerances (drawing style: 4.15 +0.05 / −0.05). The result keeps the nominal, so the deviation can be shown and logged.</summary>
+    /// <param name="name">Value name.</param>
+    /// <param name="value">The value.</param>
+    /// <param name="nominal">The nominal (target) value.</param>
+    /// <param name="plus">Upper tolerance (≥ 0): the value may be up to <c>nominal + plus</c>.</param>
+    /// <param name="minus">Lower tolerance (≥ 0): the value may be down to <c>nominal − minus</c>.</param>
+    /// <param name="code">NG code; <see langword="null"/> = the value name.</param>
+    /// <param name="unit">Unit text for display, or <see langword="null"/>.</param>
+    /// <returns>Whether the value is within the tolerance.</returns>
+    public bool Value(string name, double value, double nominal, double plus, double minus, string? code = null, string? unit = null)
+    {
+        if (plus < 0 || minus < 0)
+            throw new ArgumentOutOfRangeException(nameof(plus), "Tolerances are given as positive amounts (plus ≥ 0, minus ≥ 0).");
+        return Record(name, value, nominal - minus, nominal + plus, code, unit, nominal);
+    }
+
+    // ── 단위 환산 ─────────────────────────────────────────
+
+    /// <summary>Distance between two points in millimetres, using the job's <c>Calibration</c>. The points are converted to the original image first, so rotation, crop and resize do not matter.</summary>
+    /// <param name="p1">First point.</param>
+    /// <param name="p2">Second point.</param>
+    /// <param name="from">The image the points belong to; <see langword="null"/> = <see cref="Image"/>.</param>
+    /// <returns>The distance in mm.</returns>
+    /// <exception cref="InvalidOperationException">The job has no calibration (the step becomes Error).</exception>
+    public double Mm(Point2d p1, Point2d p2, VisionImage? from = null)
+    {
+        var t = (from ?? Image).ToSourceTransform;
+        return MmBetween(t.Map(p1), t.Map(p2));
+    }
+
+    /// <summary>The caliper distance in millimetres; <see cref="double.NaN"/> when the edges were not found (a NaN value is NG in <c>ctx.Value</c>).</summary>
+    /// <param name="caliper">The caliper result.</param>
+    /// <returns>The distance in mm.</returns>
+    /// <exception cref="InvalidOperationException">The job has no calibration (the step becomes Error).</exception>
+    public double Mm(CaliperResult caliper)
+    {
+        ArgumentNullException.ThrowIfNull(caliper);
+        if (_run.Calibration is null)
+            throw NoCalibration();
+        return caliper.Found ? MmBetween(caliper.ToSource.Map(caliper.P1), caliper.ToSource.Map(caliper.P2)) : double.NaN;
+    }
+
+    private double MmBetween(Point2d a, Point2d b)
+    {
+        var cal = _run.Calibration ?? throw NoCalibration();
+        return cal.ToMm(Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y)));
+    }
+
+    private static InvalidOperationException NoCalibration()
+        => new("The job has no calibration. Set job.Calibration (for example VisionCalibration.FromLength(px, mm)) before using ctx.Mm.");
 
     /// <summary>Judges directly, without a value. <see langword="false"/> makes the step NG with <paramref name="code"/>.</summary>
     /// <param name="ok">The judgment.</param>

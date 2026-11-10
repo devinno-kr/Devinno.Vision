@@ -32,6 +32,9 @@ public sealed class VisionJob<TSetup, TData> where TSetup : class
     /// <inheritdoc cref="VisionJob.Timeout"/>
     public TimeSpan? Timeout { get => _core.Timeout; set => _core.Timeout = value; }
 
+    /// <inheritdoc cref="VisionJob.Calibration"/>
+    public VisionCalibration? Calibration { get => _core.Calibration; set => _core.Calibration = value; }
+
     /// <summary>Adds a step.</summary>
     /// <param name="name">Step name (unique in the job).</param>
     /// <param name="step">The step code.</param>
@@ -151,6 +154,9 @@ public sealed class VisionJob<TSetup> where TSetup : class
     /// <inheritdoc cref="VisionJob.Timeout"/>
     public TimeSpan? Timeout { get => _core.Timeout; set => _core.Timeout = value; }
 
+    /// <inheritdoc cref="VisionJob.Calibration"/>
+    public VisionCalibration? Calibration { get => _core.Calibration; set => _core.Calibration = value; }
+
     /// <summary>Adds a step.</summary>
     /// <param name="name">Step name.</param>
     /// <param name="step">The step code.</param>
@@ -255,6 +261,9 @@ public sealed class VisionJob
     /// <summary>Default time limit of each step; <see langword="null"/> (default) = none. When exceeded, <c>ctx.Cancel</c> is signaled, the run waits for the step
     /// to really end (OpenCV calls cannot be stopped), skips the remaining steps and ends in Error.</summary>
     public TimeSpan? Timeout { get => _core.Timeout; set => _core.Timeout = value; }
+
+    /// <summary>Pixel → mm conversion used by <c>ctx.Mm</c> (a machine value: keep it with the camera setup, not with the product setup). <see langword="null"/> = none; <c>ctx.Mm</c> then makes the step Error.</summary>
+    public VisionCalibration? Calibration { get => _core.Calibration; set => _core.Calibration = value; }
 
     /// <summary>Adds a step.</summary>
     /// <param name="name">Step name.</param>

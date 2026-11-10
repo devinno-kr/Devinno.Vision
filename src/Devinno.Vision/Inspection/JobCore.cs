@@ -9,8 +9,9 @@ internal sealed class JobRun
     private readonly object _gate = new();
     private readonly Dictionary<string, (VisionPose Current, VisionPose Reference, string Step)> _poses = [];
 
-    public JobRun(object? setup, object? data, VisionScope scope, VisionImage frame, VisionResult result)
+    public JobRun(object? setup, object? data, VisionScope scope, VisionImage frame, VisionResult result, VisionCalibration? calibration)
     {
+        Calibration = calibration;
         Setup = setup;
         Data = data;
         Scope = scope;
@@ -20,6 +21,7 @@ internal sealed class JobRun
 
     public object? Setup { get; }
     public object? Data { get; }
+    public VisionCalibration? Calibration { get; }
     public VisionScope Scope { get; }
     public VisionImage Frame { get; }
     public VisionResult Result { get; }
@@ -103,6 +105,8 @@ internal sealed class JobCore(string name)
 
     public TimeSpan? Timeout { get; set; }
 
+    public VisionCalibration? Calibration { get; set; }
+
     public void Add(StepEntry entry)
     {
         var stepName = entry.Step.Name;
@@ -158,12 +162,14 @@ internal sealed class JobCore(string name)
         HashSet<string> disabled;
         AfterNg afterNg;
         TimeSpan? jobTimeout;
+        VisionCalibration? calibration;
         lock (_gate)
         {
             steps = [.. _steps];
             disabled = [.. _disabled];
             afterNg = AfterNg;
             jobTimeout = Timeout;
+            calibration = Calibration;
         }
 
         var scope = new VisionScope(Name);
@@ -184,7 +190,7 @@ internal sealed class JobCore(string name)
                 return Finish(result, VisionState.Error, $"{Name}: {ex.Message}", total);
             }
 
-            var run = new JobRun(setup, data, scope, frame, result);
+            var run = new JobRun(setup, data, scope, frame, result, calibration);
             string? stopReason = null;     // 남은 단계를 건너뛰는 이유
             var stopIsError = false;
             string? firstError = null;

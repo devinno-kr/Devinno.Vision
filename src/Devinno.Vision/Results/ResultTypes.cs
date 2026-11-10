@@ -89,7 +89,12 @@ public sealed class StepResultList : IReadOnlyList<StepResult>
 /// <param name="Code">NG code used when out of range.</param>
 /// <param name="Ok">Whether the value is within the limits.</param>
 /// <param name="Step">The step that recorded it.</param>
-public sealed record VisionValue(string Name, double Value, double? Min, double? Max, string? Unit, string Code, bool Ok, string Step);
+/// <param name="Nominal">The nominal value when recorded with tolerances, otherwise <see langword="null"/>.</param>
+public sealed record VisionValue(string Name, double Value, double? Min, double? Max, string? Unit, string Code, bool Ok, string Step, double? Nominal = null)
+{
+    /// <summary>Value − nominal, or <see langword="null"/> without a nominal.</summary>
+    public double? Deviation => Nominal is { } n ? Value - n : null;
+}
 
 /// <summary>Kind of an overlay shape.</summary>
 public enum VisionOverlayKind

@@ -88,7 +88,7 @@ public sealed class VisionResult : IDisposable
             error = Error,
             elapsedMs = Math.Round(Elapsed.TotalMilliseconds, 1),
             time = _image?.Info.Time,
-            values = Values.Select(v => new { name = v.Name, value = v.Value, min = v.Min, max = v.Max, unit = v.Unit, code = v.Code, ok = v.Ok, step = v.Step }),
+            values = Values.Select(v => new { name = v.Name, value = v.Value, min = v.Min, max = v.Max, nominal = v.Nominal, deviation = v.Deviation, unit = v.Unit, code = v.Code, ok = v.Ok, step = v.Step }),
             steps = Steps.Select(s => new { name = s.Name, state = s.State.ToString(), reason = s.Reason, elapsedMs = Math.Round(s.Elapsed.TotalMilliseconds, 1), followed = s.Followed }),
             poses = Poses.ToDictionary(p => p.Key, p => new { x = p.Value.X, y = p.Value.Y, angle = p.Value.Angle }),
             disabled = Disabled,
