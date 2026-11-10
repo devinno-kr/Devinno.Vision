@@ -5,7 +5,7 @@
     .tab-active, .tab-active:hover { background: token(primary); color: token(primary-fg) }
   </DvStyle>
   <DvButton variant="secondary" text="새 로직" onclick="New"/>
-  <DvButton variant="secondary" text="열기" onclick="Open"/>
+  <DvButton id="btnOpen" variant="secondary" text="열기" onclick="Open"/>
   <DvButton variant="secondary" text="저장" onclick="Save" disabled="{NoProject}"/>
   <DvBox style="width:12"/>
   <DvLabel class="title" text="{Title}"/>

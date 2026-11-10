@@ -27,6 +27,7 @@ public static class StudioApp
         app.Left = new CheckListBar(session, edit);
         app.Bottom = new StatusBar();
         session.ProjectChanged += app.Invalidate;   // MCP 가 바꿔도 다음 프레임에 다시 그린다
+        app.HandlerError += (_, e) => SetStatus(app, $"오류: {e.Exception.Message}");   // 화면 명령이 조용히 죽지 않게
         return app;
     }
 

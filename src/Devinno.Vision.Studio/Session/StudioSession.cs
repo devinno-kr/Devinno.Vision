@@ -58,10 +58,18 @@ public sealed class StudioSession
             return CommandResult.Fail("로직 이름을 지정하세요");
         return Change(() =>
         {
-            var p = StudioProject.Create(folder, name.Trim());
-            if (File.Exists(Path.Combine(p.Folder, StudioProject.FileName)))
-                return CommandResult.Fail($"이 폴더에는 이미 프로젝트가 있습니다: {p.Folder} (open_project 로 여세요)");
-            p.Save();
+            StudioProject p;
+            try
+            {
+                p = StudioProject.Create(folder, name.Trim());
+                if (File.Exists(Path.Combine(p.Folder, StudioProject.FileName)))
+                    return CommandResult.Fail($"이 폴더에는 이미 프로젝트가 있습니다: {p.Folder} (open_project 로 여세요)");
+                p.Save();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+            {
+                return CommandResult.Fail($"이 폴더에 프로젝트를 만들 수 없습니다: {ex.Message}");
+            }
             _project = p;
             _lastReport = null;
             return CommandResult.Done($"새 프로젝트: {p.Name} ({p.Folder})");
@@ -79,13 +87,14 @@ public sealed class StudioSession
             {
                 p = StudioProject.Load(folder);
             }
-            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {
                 return CommandResult.Fail($"열 수 없습니다: {ex.Message}");   // 지금 열린 프로젝트는 그대로
             }
+            var message = $"열림: {p.Name} (검사 {p.Checks.Count}개)";
             _project = p;
             _lastReport = null;
-            return CommandResult.Done($"열림: {p.Name} (검사 {p.Checks.Count}개)");
+            return CommandResult.Done(message);
         }, needsProject: false);
     }
 
@@ -122,9 +131,16 @@ public sealed class StudioSession
         }
         var rel = Path.Combine("images", "base" + Path.GetExtension(imagePath).ToLowerInvariant()).Replace('\\', '/');
         var dest = Path.Combine(p.Folder, rel);
-        Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
-        if (!string.Equals(Path.GetFullPath(imagePath), Path.GetFullPath(dest), StringComparison.OrdinalIgnoreCase))
-            File.Copy(imagePath, dest, overwrite: true);
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+            if (!string.Equals(Path.GetFullPath(imagePath), Path.GetFullPath(dest), StringComparison.OrdinalIgnoreCase))
+                File.Copy(imagePath, dest, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return CommandResult.Fail($"기준 이미지를 프로젝트에 복사할 수 없습니다: {ex.Message}");
+        }
         p.BaseImage = rel;
         return CommandResult.Done($"기준 이미지: {rel}");
     });
@@ -223,6 +239,8 @@ public sealed class StudioSession
         updated.Name = updated.Name?.Trim() ?? "";
         if (updated.Name.Length == 0)
             return CommandResult.Fail("검사 이름은 비울 수 없습니다");
+        if (StudioProject.Problem(updated) is { } problem)
+            return CommandResult.Fail(problem);
         if (p.Checks.Any(o => o != c && o.Name == updated.Name))
             return CommandResult.Fail($"같은 이름의 검사가 있습니다: {updated.Name}");
         p.Checks[p.Checks.IndexOf(c)] = updated;
@@ -254,7 +272,16 @@ public sealed class StudioSession
             return CommandResult.Fail("정렬 검사(BlobAlign)가 없어 티칭할 것이 없습니다");
         var probe = new BlobAlignCheck { Name = align.Name, Roi = align.Roi, Blob = align.Blob };   // 기준 없이 = 지금 위치 그대로
         var job = new VisionJob("teach").Add(probe.Build(p), roi: align.Roi.IsEmpty ? null : () => probe.Roi, pose: JobBuilder.PoseName);
-        using var img = VisionImage.Load(path);
+        VisionImage img;
+        try
+        {
+            img = VisionImage.Load(path);
+        }
+        catch (Exception ex)
+        {
+            return CommandResult.Fail($"기준 이미지를 읽을 수 없습니다: {ex.Message} (set_base_image 로 다시 지정하세요)");
+        }
+        using var loaded = img;
         using var r = job.RunAsync(img).GetAwaiter().GetResult();
         if (!r.Poses.TryGetValue(JobBuilder.PoseName, out var pose))
             return CommandResult.Fail($"기준 이미지에서 부품을 찾지 못했습니다: {r.Error} (정렬 검사의 Blob 설정을 확인하세요)");
@@ -419,6 +446,8 @@ public sealed class StudioSession
             var existing = target.Select(kv => kv.Key).FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase));
             if (existing is null)
                 return $"알 수 없는 속성: {path}{key} (가능: {string.Join(", ", target.Select(kv => kv.Key).Where(k => k != "Kind" && k != "Id"))})";
+            if (value is null && target[existing] is JsonObject)
+                return $"{path}{existing} 은 비울 수 없습니다 (바꿀 값만 객체로 주세요)";
             if (value is JsonObject sub && target[existing] is JsonObject cur)
             {
                 if (Merge(cur, sub, $"{path}{existing}.") is { } err)

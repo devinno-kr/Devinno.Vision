@@ -176,4 +176,22 @@ public class UiTests
         Assert.Same(s.Edit, s.App.CurrentPage);
         Assert.True(s.Errors.Count == 0, s.Errs);
     }
+
+    private sealed class ThrowingDialogs : IFileDialogs
+    {
+        public string? PickImage() => throw new IOException("dialog broke");
+        public string? PickFolder() => throw new IOException("dialog broke");
+    }
+
+    // I-4: 화면 명령의 예외는 상태 줄에 보인다
+    [Fact]
+    public void Handler_exception_shows_in_status_line()
+    {
+        var s = new Studio(dialogs: new ThrowingDialogs());
+
+        s.Press(((TopBar)s.App.Top!).OpenBounds);
+        s.Frame();
+
+        Assert.Contains("dialog broke", ((StatusBar)s.App.Bottom!).Text);
+    }
 }

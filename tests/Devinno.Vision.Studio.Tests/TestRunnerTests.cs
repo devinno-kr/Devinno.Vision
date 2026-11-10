@@ -143,6 +143,8 @@ public class TestRunnerTests
 
         Assert.True(r.Ok, r.Message);
         Assert.Equal(18, r.Total);
+        Assert.Equal(0, r.Correct);   // Error 는 기대가 NG 여도 정답이 아니다 → 틀린 목록에 사유와 함께
+        Assert.All(r.Items, i => Assert.False(i.Correct));
         Assert.All(r.Items, i =>
         {
             Assert.Equal("Error", i.State);

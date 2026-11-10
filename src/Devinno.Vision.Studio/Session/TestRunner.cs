@@ -14,7 +14,7 @@ public sealed record TestReport(bool Ok, string Message, IReadOnlyList<LabelRow>
 /// <summary>종류별 표 한 줄.</summary>
 public sealed record LabelRow(string Label, bool ExpectOk, int Count, int Correct);
 
-/// <summary>이미지 한 장의 테스트 결과. 정답 = (기대 OK) == (State == "Ok").</summary>
+/// <summary>이미지 한 장의 테스트 결과. 정답 = State 가 Error 가 아니고 (기대 OK) == (State == "Ok").</summary>
 public sealed record TestItem(string File, string Label, bool ExpectOk, string State, IReadOnlyList<string> Codes, string? Error, bool Correct);
 
 /// <summary>테스트 폴더의 이미지를 모두 돌려 보고서를 만든다.</summary>
@@ -63,7 +63,15 @@ internal static class TestRunner
     {
         if (!Directory.Exists(set.Folder))
             return Fail($"테스트 폴더가 없습니다: {set.Folder}");
-        var files = Collect(set);
+        List<(string File, string Label)> files;
+        try
+        {
+            files = Collect(set);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return Fail($"테스트 폴더를 읽을 수 없습니다: {ex.Message}");
+        }
         if (files.Count == 0)
             return Fail("이미지 없음");
 
@@ -99,7 +107,9 @@ internal static class TestRunner
         {
             using var r = await job.RunAsync(img, ct).ConfigureAwait(false);
             var state = r.State.ToString();
-            return new TestItem(file, label, expectOk, state, [.. r.Codes], r.Error, expectOk == (r.State == VisionState.Ok));
+            // Error 는 기대가 NG 여도 정답이 아니다 (검사를 못 한 것) — 틀린 목록에 사유와 함께 나오게
+            var correct = r.State != VisionState.Error && expectOk == (r.State == VisionState.Ok);
+            return new TestItem(file, label, expectOk, state, [.. r.Codes], r.Error, correct);
         }
     }
 }

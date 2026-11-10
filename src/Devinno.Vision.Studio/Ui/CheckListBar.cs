@@ -40,6 +40,12 @@ public sealed partial class CheckListBar : DvBar
 
     public async void Add()
     {
+        try { await AddAsync(); }
+        catch (Exception ex) { Message = $"오류: {ex.Message}"; }
+    }
+
+    private async Task AddAsync()
+    {
         if (await App.ShowDialog<AddCheckDialog, AddCheckRequest>() is not { } req)
             return;
         var r = _session.AddCheck(req.Kind, req.Name);

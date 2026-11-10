@@ -233,4 +233,66 @@ public class SessionTests
         Assert.Equal(0x89, png![0]);
         Assert.Null(await s.RenderTestItemAsync(report.Total));   // 범위 밖
     }
+
+    // I-2: 읽히지만 잘못된 studio.json — 지금 프로젝트를 망가뜨리지 않고 실패
+    [Theory]
+    [InlineData("\"Checks\": [", "\"Checks\": null, \"X\": [")]
+    [InlineData("\"TestSets\": [", "\"TestSets\": null, \"Y\": [")]
+    [InlineData("\"Name\": \"b\"", "\"Name\": \"a\"")]
+    [InlineData("\"Name\": \"b\"", "\"Name\": \"\"")]
+    public void Open_bad_but_parseable_file_keeps_current_project(string find, string replace)
+    {
+        using var dir = new TempDir();
+        var bad = new StudioSession();
+        bad.NewProject(dir.Sub("bad"), "bad");
+        bad.AddCheck("BlobCount", "a");
+        bad.AddCheck("BlobCount", "b");
+        bad.SaveProject();
+        var file = Path.Combine(dir.Path, "bad", StudioProject.FileName);
+        var text = File.ReadAllText(file);
+        Assert.Contains(find, text);
+        File.WriteAllText(file, text.Replace(find, replace));
+        var s = new StudioSession();
+        s.NewProject(dir.Sub("good"), "good");
+
+        var r = s.OpenProject(Path.Combine(dir.Path, "bad"));
+
+        Assert.False(r.Ok);
+        Assert.Equal("good", s.Project!.Name);
+    }
+
+    [Fact]
+    public void Update_rejects_null_object()
+    {
+        using var dir = new TempDir();
+        var s = new StudioSession();
+        s.NewProject(dir.Path, "p");
+        var a = Add(s, "BlobCount", "a");
+
+        var r = s.UpdateCheck(a, JsonNode.Parse("""{"Blob":null}""")!.AsObject());
+
+        Assert.False(r.Ok);
+        Assert.NotNull(((BlobCountCheck)s.GetCheck(a)!).Blob);
+    }
+
+    // I-3: 파일 문제는 예외가 아니라 실패 결과
+    [Fact]
+    public void File_problems_are_results_not_exceptions()
+    {
+        using var dir = new TempDir();
+        var blocker = Path.Combine(dir.Path, "file.txt");
+        File.WriteAllText(blocker, "x");
+        var s = new StudioSession();
+
+        var newInFile = s.NewProject(Path.Combine(blocker, "sub"), "p");   // 폴더 자리에 파일
+        Assert.False(newInFile.Ok);
+
+        s.NewProject(dir.Sub("p"), "p");
+        Assert.True(s.SetBaseImage(Samples.Bracket("01_good.bmp")).Ok);
+        s.AddCheck("BlobAlign", "정렬");
+        File.WriteAllBytes(s.BaseImageFile!, [1, 2, 3]);                  // 기준 이미지가 나중에 깨짐
+        var teach = s.TeachBase();
+        Assert.False(teach.Ok);
+        Assert.Contains("기준 이미지", teach.Message);
+    }
 }

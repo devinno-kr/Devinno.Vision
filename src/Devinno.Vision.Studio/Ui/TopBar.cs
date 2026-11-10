@@ -21,10 +21,18 @@ public sealed partial class TopBar : DvBar
     public string Message { get; private set; } = "";
     public bool HasMessage => Message.Length > 0;
 
+    internal SkiaSharp.SKRect OpenBounds => btnOpen.Bounds;
+
     public string EditClass => TabClass<EditPage>();
     public string TestClass => TabClass<TestPage>();
 
     public async void New()
+    {
+        try { await NewAsync(); }
+        catch (Exception ex) { Message = $"오류: {ex.Message}"; }
+    }
+
+    private async Task NewAsync()
     {
         if (_dialogs.PickFolder() is not { } folder)
             return;

@@ -60,8 +60,38 @@ public sealed class StudioProject
         }
         if (p is null)
             throw new InvalidDataException($"{FileName} 이 비어 있습니다.");
+        if (p.Checks is null || p.TestSets is null || p.TestSets.Any(t => t is null || string.IsNullOrWhiteSpace(t.Folder)))
+            throw new InvalidDataException($"{FileName} 의 Checks · TestSets 가 비었거나 잘못됐습니다.");
+        var names = new HashSet<string>();
+        var ids = new HashSet<string>();
+        foreach (var c in p.Checks)
+        {
+            if (c is null)
+                throw new InvalidDataException($"{FileName} 에 빈 검사 항목이 있습니다.");
+            if (Problem(c) is { } problem)
+                throw new InvalidDataException($"{FileName}: {problem}");
+            if (!names.Add(c.Name))
+                throw new InvalidDataException($"{FileName}: 같은 이름의 검사가 있습니다: {c.Name}");
+            if (string.IsNullOrEmpty(c.Id) || !ids.Add(c.Id))
+                throw new InvalidDataException($"{FileName}: 검사 id 가 비었거나 겹칩니다: {c.Name}");
+        }
+        if (p.Checks.Skip(1).Any(c => c is BlobAlignCheck))
+            throw new InvalidDataException($"{FileName}: 정렬 검사는 맨 앞에 하나만 둘 수 있습니다.");
         p.Folder = full;
         return p;
+    }
+
+    /// <summary>검사 하나가 실행할 수 있는 모양인지. 문제가 없으면 null.</summary>
+    internal static string? Problem(CheckDef c)
+    {
+        if (string.IsNullOrWhiteSpace(c.Name))
+            return "검사 이름이 비었습니다";
+        return c switch
+        {
+            BlobAlignCheck { Blob: null } or BlobCountCheck { Blob: null } => $"{c.Name}: Blob 설정이 없습니다",
+            BlobCountCheck { Code: null } or PixelCountCheck { Code: null } or BrightnessCheck { Code: null } or LengthCheck { Code: null } => $"{c.Name}: Code 가 없습니다",
+            _ => null,
+        };
     }
 
     // 새 버전에서 만든 파일 — 판별자 예외 문구 대신 사람이 읽을 이유를 준다

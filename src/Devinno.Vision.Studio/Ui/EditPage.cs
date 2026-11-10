@@ -176,6 +176,12 @@ public sealed partial class EditPage : DvPage
 
     public async void RunBase()
     {
+        try { await RunBaseAsync(); }
+        catch (Exception ex) { Message = $"오류: {ex.Message}"; }
+    }
+
+    private async Task RunBaseAsync()
+    {
         if (_session.BaseImageFile is not { } file)
         {
             Message = "기준 이미지를 먼저 지정하세요";

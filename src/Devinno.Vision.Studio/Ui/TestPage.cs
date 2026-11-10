@@ -99,7 +99,11 @@ public sealed partial class TestPage : DvPage
         SelectedSet = 0;
     }
 
-    public async void Run() => await RunAsync();
+    public async void Run()
+    {
+        try { await RunAsync(); }
+        catch (Exception ex) { Message = $"오류: {ex.Message}"; }
+    }
 
     /// <summary>선택한 폴더를 돌린다 (테스트가 기다릴 수 있게 Task).</summary>
     public async Task RunAsync()
@@ -136,6 +140,12 @@ public sealed partial class TestPage : DvPage
     }
 
     private async Task ShowItemAsync(int index)
+    {
+        try { await ShowItemCoreAsync(index); }
+        catch (Exception ex) { FailureDetail = $"오류: {ex.Message}"; Invalidate(); }
+    }
+
+    private async Task ShowItemCoreAsync(int index)
     {
         if (_session.TestItemFile(index) is not { } file)
             return;
