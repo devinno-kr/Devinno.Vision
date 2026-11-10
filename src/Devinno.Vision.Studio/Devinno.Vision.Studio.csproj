@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Devinno.Vision.Studio</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Devinno.Vision\Devinno.Vision.csproj" />
+    <ProjectReference Include="..\Devinno.Vision.UI\Devinno.Vision.UI.csproj" />
+    <!-- 개발 중에는 Devinno.UI 를 로컬 프로젝트로 참조한다 -->
+    <ProjectReference Include="..\..\..\Devinno.UI\src\Devinno.UI.WinForms\Devinno.UI.WinForms.csproj" />
+    <ProjectReference Include="..\..\..\Devinno.UI\src\Devinno.UI.Generators\Devinno.UI.Generators.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <AdditionalFiles Include="**/*.dvml" Exclude="$(DefaultItemExcludes)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
+    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.13.0.20261107" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Devinno.Vision.Studio.Tests" />
+  </ItemGroup>
+
+</Project>

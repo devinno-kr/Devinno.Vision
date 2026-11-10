@@ -1,12 +1,15 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Devinno.Vision.FlashCap/Devinno.Vision.FlashCap.csproj" />
+    <Project Path="src/Devinno.Vision.Studio/Devinno.Vision.Studio.csproj" />
     <Project Path="src/Devinno.Vision.UI/Devinno.Vision.UI.csproj" />
     <Project Path="src/Devinno.Vision/Devinno.Vision.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Devinno.Vision.Studio.Tests/Devinno.Vision.Studio.Tests.csproj" />
     <Project Path="tests/Devinno.Vision.Tests/Devinno.Vision.Tests.csproj" />
   </Folder>
   <Project Path="../Devinno.UI/src/Devinno.UI.Generators/Devinno.UI.Generators.csproj" />
   <Project Path="../Devinno.UI/src/Devinno.UI/Devinno.UI.csproj" />
+  <Project Path="../Devinno.UI/src/Devinno.UI.WinForms/Devinno.UI.WinForms.csproj" />
 </Solution>

@@ -1,0 +1,9 @@
+<DvPageFrame vm="Devinno.Vision.Studio.Ui.EditPage" title="편집">
+  <DvGrid columns="1fr 3fr 1fr" rows="1fr" grow="1">
+    <DvBox/>
+    <DvCard>
+      <DvLabel class="body muted" text="{EmptyText}"/>
+    </DvCard>
+    <DvBox/>
+  </DvGrid>
+</DvPageFrame>
