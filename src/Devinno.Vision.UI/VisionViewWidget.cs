@@ -130,10 +130,11 @@ internal sealed class VisionViewWidget : DvWidget
             var at = o.Kind == VisionOverlayKind.Line && pts.Length >= 2 ? new SKPoint((pts[0].X + pts[1].X) / 2, (pts[0].Y + pts[1].Y) / 2 - 4) : new SKPoint(pts[0].X + 2, pts[0].Y - 4);
             // 회색 이미지 위에서도 읽히게 어두운 받침
             var bold = o.Kind == VisionOverlayKind.Roi;
-            var w = ctx.MeasureText(label, 12, bold);
-            using var back = new SKPaint { Color = new SKColor(0, 0, 0, 160) };
-            canvas.DrawRect(new SKRect(at.X - 2, at.Y - 12, at.X + w + 2, at.Y + 3), back);
-            ctx.DrawText(canvas, label, at.X, at.Y, 12, pen.Color, bold: bold);
+            const float size = 15;   // 12 → 15: 실제 창에서 길이 라벨이 안 읽혀 키움
+            var w = ctx.MeasureText(label, size, bold);
+            using var back = new SKPaint { Color = new SKColor(0, 0, 0, 170) };
+            canvas.DrawRect(new SKRect(at.X - 3, at.Y - size, at.X + w + 3, at.Y + 4), back);
+            ctx.DrawText(canvas, label, at.X, at.Y, size, pen.Color, bold: bold);
         }
     }
 
