@@ -33,7 +33,9 @@ internal static class TestRunner
     public static TestReport Fail(string message) => new(false, message, [], [], 0, 0);
 
     /// <summary>폴더에서 이미지 목록과 라벨을 읽는다. 이미지 확장자가 아닌 파일은 건너뛴다.</summary>
-    public static List<TestImage> Collect(TestSet set)
+    /// <param name="set">테스트 폴더.</param>
+    /// <param name="exclude">빼는 파일 (프로젝트 안 폴더일 때 기준 이미지 사본).</param>
+    public static List<TestImage> Collect(TestSet set, string? exclude = null)
     {
         var list = new List<TestImage>();
         if (set.Rule == LabelRule.Folder)
@@ -47,6 +49,8 @@ internal static class TestRunner
             foreach (var f in Images(set.Folder))
                 list.Add(Image(f, LabelFromName(f), set));
         }
+        if (exclude is not null)
+            list.RemoveAll(i => string.Equals(Path.GetFullPath(i.File), Path.GetFullPath(exclude), StringComparison.OrdinalIgnoreCase));
         return list;
     }
 
@@ -71,14 +75,14 @@ internal static class TestRunner
         .Order(StringComparer.Ordinal);
 
     /// <summary>한 장씩 돌린다. 한 장의 실패(깨진 이미지 등)는 그 항목만 Error 로 남기고 계속한다.</summary>
-    public static async Task<TestReport> RunAsync(VisionJob job, TestSet set, IProgress<int>? progress, CancellationToken ct)
+    public static async Task<TestReport> RunAsync(VisionJob job, TestSet set, IProgress<int>? progress, CancellationToken ct, string? exclude = null)
     {
         if (!Directory.Exists(set.Folder))
             return Fail($"테스트 폴더가 없습니다: {set.Folder}");
         List<TestImage> files;
         try
         {
-            files = Collect(set);
+            files = Collect(set, exclude);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

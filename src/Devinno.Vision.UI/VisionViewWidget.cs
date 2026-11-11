@@ -1,4 +1,4 @@
-using Devinno.UI.Widgets;
+﻿using Devinno.UI.Widgets;
 using OpenCvSharp;
 using SkiaSharp;
 
@@ -14,6 +14,7 @@ internal sealed class VisionViewWidget : DvWidget
     private bool _hasImage;
 
     // 끌기 상태
+    private const double MinSize = 4;   // 새로 그리거나 줄일 때 이보다 작으면 무시 (이미지 px)
     private enum Drag { None, Move, Corner, New }
     private Drag _drag;
     private int _corner;
@@ -176,7 +177,15 @@ internal sealed class VisionViewWidget : DvWidget
                 }
             }
         }
-        _drag = !roi.IsEmpty && Inside(roi, _start) ? Drag.Move : Drag.New;
+        // ROI 가 있으면 옮기기(안쪽) · 크기(모서리)만. 바깥을 눌러 새로 그리면 실수 한 번에 설정이 날아간다 (2026-11-11 사용자)
+        if (!roi.IsEmpty)
+        {
+            if (!Inside(roi, _start))
+                return false;
+            _drag = Drag.Move;
+            return true;
+        }
+        _drag = Drag.New;
         return true;
     }
 
@@ -184,11 +193,17 @@ internal sealed class VisionViewWidget : DvWidget
 
     public override void OnPointerUp(DvWidgetContext ctx, SKPoint point)
     {
+        var drag = _drag;
         var result = Apply(ToImage(point));
         _preview = null;
         _drag = Drag.None;
-        if (result is { IsEmpty: false } r && ctx.Value("source") is DvVisionView view)
-            view.CommitRoi(r);
+        if (result is not { IsEmpty: false } r || ctx.Value("source") is not DvVisionView view)
+            return;
+        if (r == _origin)
+            return;   // 제자리에서 누르고 뗌 — 바꾼 것이 없다
+        if (drag is Drag.New or Drag.Corner && (r.Width < MinSize || r.Height < MinSize))
+            return;   // 실수로 눌린 아주 작은 사각형
+        view.CommitRoi(r);
     }
 
     public override void OnPointerCancel(DvWidgetContext ctx)

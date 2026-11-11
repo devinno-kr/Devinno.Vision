@@ -10,8 +10,9 @@ namespace Devinno.Vision.UI;
 /// <remarks>
 /// <para>The view keeps its own display copy (scaled-down BGRA), so the result and the frame can be disposed right after <see cref="Show(VisionResult)"/>.
 /// All members can be called from any thread.</para>
-/// <para><b>Teaching</b>: set <see cref="EditRoi"/> while showing the base image; the operator drags the rectangle (move inside, resize at the corners, draw a new one outside)
-/// and <see cref="RoiChanged"/> reports the new ROI in image coordinates. Rotated ROIs can be moved but not resized yet.</para>
+/// <para><b>Teaching</b>: set <see cref="EditRoi"/> while showing the base image; the operator drags the rectangle (move inside, resize at the corners).
+/// A new rectangle is drawn only when the ROI is empty — clicking outside an existing ROI does nothing, so a stray click cannot replace it;
+/// a click without moving, or a rectangle smaller than 4 px, is ignored. <see cref="RoiChanged"/> reports the new ROI in image coordinates. Rotated ROIs can be moved but not resized yet.</para>
 /// </remarks>
 public sealed class DvVisionView
 {

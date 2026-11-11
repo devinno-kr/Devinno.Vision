@@ -393,20 +393,35 @@ public sealed partial class StudioSession
     public IReadOnlyList<TestImage> TestImages(int setIndex)
     {
         TestSet set;
+        string? baseImage;
         lock (_gate)
         {
             if (_project is not { } p || setIndex < 0 || setIndex >= p.TestSets.Count)
                 return [];
             set = p.TestSets[setIndex];
+            baseImage = p.BaseImagePath;
         }
         try
         {
-            return Directory.Exists(set.Folder) ? TestRunner.Collect(set) : [];
+            return Directory.Exists(set.Folder) ? TestRunner.Collect(set, baseImage) : [];
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return [];
         }
+    }
+
+    // 이미지 폴더로 쓸 수 없는 곳: 프로젝트 폴더 자체 · 그 위 폴더 (studio.json · 모델이 섞인다) · models 폴더. 프로젝트 안의 다른 하위 폴더는 된다
+    // (2026-11-11 사용자 프로젝트: images/ 에 테스트 이미지, train_good/ 에 양품). 잠금 안에서. 문제가 없으면 null
+    private string? NotAnImageFolder(string full, string what)
+    {
+        var project = _project!.Folder;
+        static string Norm(string p) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(p)) + Path.DirectorySeparatorChar;
+        if (Norm(project).StartsWith(Norm(full), StringComparison.OrdinalIgnoreCase))
+            return $"프로젝트 폴더나 그 위 폴더는 {what}로 쓸 수 없습니다 (studio.json · 모델이 섞입니다): {full}";
+        if (Norm(full).StartsWith(Norm(Path.Combine(project, "models")), StringComparison.OrdinalIgnoreCase))
+            return $"models 폴더는 {what}로 쓸 수 없습니다: {full}";
+        return null;
     }
 
     // 두 폴더가 같거나 한쪽이 다른 쪽 안에 있는가
@@ -435,8 +450,8 @@ public sealed partial class StudioSession
             return CommandResult.Fail($"폴더가 없습니다: {folder}");
         var sets = _project!.TestSets;
         var full = Path.GetFullPath(folder);
-        if (Overlaps(full, _project.Folder))
-            return CommandResult.Fail($"프로젝트 폴더(그 안이나 위 폴더 포함)는 테스트 폴더로 쓸 수 없습니다 — 기준 이미지 사본이 섞입니다: {full}");
+        if (NotAnImageFolder(full, "테스트 폴더") is { } refuse)
+            return CommandResult.Fail(refuse);
         if (sets.Any(t => string.Equals(Path.GetFullPath(t.Folder), full, StringComparison.OrdinalIgnoreCase) && t.Rule == rule))
             return CommandResult.Fail($"이미 있는 테스트 폴더입니다: {full}");
         sets.Add(new TestSet { Folder = full, Rule = rule });
@@ -456,6 +471,7 @@ public sealed partial class StudioSession
     public async Task<TestReport> RunTestAsync(int setIndex, IProgress<int>? progress = null, CancellationToken ct = default)
     {
         VisionJob job;
+        string? baseImage;
         TestSet set;
         lock (_gate)
         {
@@ -469,10 +485,11 @@ public sealed partial class StudioSession
                 return TestRunner.Fail(p.TestSets.Count == 0 ? "테스트 폴더가 없습니다 (add_test_set)" : $"테스트 폴더 번호는 0 ~ {p.TestSets.Count - 1} 입니다 (받은 값 {setIndex})");
             if (TryCreateJob(p, out job) is { } error)
                 return TestRunner.Fail(error);
+            baseImage = p.BaseImagePath;
             var s = p.TestSets[setIndex];
             set = new TestSet { Folder = s.Folder, Rule = s.Rule, GoodLabel = s.GoodLabel };
         }
-        var report = await TestRunner.RunAsync(job, set, progress, ct).ConfigureAwait(false);
+        var report = await TestRunner.RunAsync(job, set, progress, ct, baseImage).ConfigureAwait(false);   // 프로젝트 안 폴더면 기준 이미지 사본은 뺀다
         lock (_gate)
             _lastReport = report;
         ProjectChanged?.Invoke();   // 화면이 보고서를 다시 그리게

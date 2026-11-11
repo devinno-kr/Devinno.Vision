@@ -292,6 +292,56 @@ public class RoiDrawingTests
     }
 
     [Fact]
+    public void An_existing_roi_is_only_moved_or_resized_and_stray_clicks_change_nothing()
+    {
+        using var dir = new TempDir();
+        var s = new StudioSession();
+        Assert.True(s.NewProject(dir.Sub("p"), "t").Ok);
+        Assert.True(s.SetBaseImage(Samples.Bracket("01_good.bmp")).Ok);
+        var id = s.AddCheck("BlobCount", "구멍").Id!;
+        var set = VisionRoi.Rect(300, 220, 60, 40);   // 이미지 가운데 근처
+        Assert.True(s.SetRoi(id, set).Ok);
+        Assert.True(s.SaveProject().Ok);
+        var app = StudioApp.Create(s, new NullDialogs());
+        var edit = app.Pages.OfType<EditPage>().Single();
+        edit.SelectedId = id;
+        app.Invalidate();
+        app.Surface.Layout(1280, 800);
+        var v = edit.ViewBounds;
+
+        Drag(app, v, -v.Width / 2 + 20, -v.Height / 2 + 20, -v.Width / 2 + 60, -v.Height / 2 + 60);   // ROI 바깥에서 끌기
+        Assert.Equal(set, s.GetCheck(id)!.Roi);
+
+        Drag(app, v, 0, 0, 0, 0);   // ROI 안을 누르고 그대로 뗌
+        Assert.Equal(set, s.GetCheck(id)!.Roi);
+        Assert.False(s.IsDirty);
+
+        Drag(app, v, 0, 0, 30, 0);   // 안쪽을 끌면 옮겨진다
+        var moved = s.GetCheck(id)!.Roi;
+        Assert.True(moved.X > set.X, moved.ToString());
+        Assert.Equal((set.Width, set.Height), (moved.Width, moved.Height));
+    }
+
+    [Fact]
+    public void A_click_without_dragging_does_not_make_a_tiny_roi()
+    {
+        using var dir = new TempDir();
+        var s = new StudioSession();
+        Assert.True(s.NewProject(dir.Sub("p"), "t").Ok);
+        Assert.True(s.SetBaseImage(Samples.Bracket("01_good.bmp")).Ok);
+        var id = s.AddCheck("BlobCount", "구멍").Id!;
+        var app = StudioApp.Create(s, new NullDialogs());
+        var edit = app.Pages.OfType<EditPage>().Single();
+        edit.SelectedId = id;
+        app.Invalidate();
+        app.Surface.Layout(1280, 800);
+
+        Drag(app, edit.ViewBounds, 0, 0, 1, 1);
+
+        Assert.True(s.GetCheck(id)!.Roi.IsEmpty);
+    }
+
+    [Fact]
     public void The_good_model_region_is_drawn_by_dragging()
     {
         using var dir = new TempDir();

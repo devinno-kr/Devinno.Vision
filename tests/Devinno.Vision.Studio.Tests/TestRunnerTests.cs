@@ -174,7 +174,7 @@ public class TestRunnerTests
     }
 
     [Fact]
-    public void Project_folder_cannot_be_a_test_folder()
+    public void Project_folder_itself_cannot_be_a_test_folder_but_a_subfolder_can()
     {
         using var dir = new TempDir();
         var images = dir.Sub("images");
@@ -189,9 +189,11 @@ public class TestRunnerTests
 
         Assert.False(self.Ok);
         Assert.Contains("프로젝트 폴더", self.Message);
-        Assert.False(inside.Ok);
+        Assert.True(inside.Ok, inside.Message);   // 프로젝트 안 images/ (기준 이미지 사본이 있는 곳) — 사본은 목록에서 뺀다
         Assert.False(above.Ok);
         Assert.True(sibling.Ok, sibling.Message);
-        Assert.Single(s.TestSets);
+        Assert.Equal(2, s.TestSets.Count);
+        Assert.DoesNotContain(s.TestImages(0), i => string.Equals(i.File, s.BaseImageFile, StringComparison.OrdinalIgnoreCase));
+        Assert.False(s.AddTestSet(Path.Combine(project, "models"), LabelRule.FileName).Ok);
     }
 }

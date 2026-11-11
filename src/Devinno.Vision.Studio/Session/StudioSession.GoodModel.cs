@@ -96,15 +96,15 @@ public sealed partial class StudioSession
         if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
             return CommandResult.Fail($"폴더가 없습니다: {folder}");
         var full = Path.GetFullPath(folder);
-        if (Overlaps(full, _project!.Folder))
-            return CommandResult.Fail($"프로젝트 폴더(그 안이나 위 폴더 포함)는 양품 폴더로 쓸 수 없습니다: {full}");
+        if (NotAnImageFolder(full, "양품 폴더") is { } refuse)
+            return CommandResult.Fail(refuse);
         var count = ImagesIn(full).Count;
         if (count == 0)
             return CommandResult.Fail($"이미지가 없습니다: {full} (png · bmp · jpg · tif)");
         _goods.Folder = full;
         if (SaveGoodSet() is { } error)
             return CommandResult.Fail(error);
-        var warnings = string.Concat(_project.TestSets.Select(t => OverlapWarning(full, t.Folder, "테스트 폴더")));
+        var warnings = string.Concat(_project!.TestSets.Select(t => OverlapWarning(full, t.Folder, "테스트 폴더")));
         return CommandResult.Done($"양품 폴더: {full} ({count}장){FewWarning(count + _goods.Extra.Count)}{warnings}");
     }, markDirty: false);
 
@@ -281,6 +281,8 @@ public sealed partial class StudioSession
     private List<string> GoodImagesCore()
     {
         var list = _goods.Folder is { } f && Directory.Exists(f) ? ImagesIn(f) : [];
+        if (_project?.BaseImagePath is { } b)
+            list.RemoveAll(x => string.Equals(Path.GetFullPath(x), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase));   // 기준 이미지 사본
         foreach (var e in _goods.Extra)
             if (File.Exists(e) && !list.Contains(e, StringComparer.OrdinalIgnoreCase))
                 list.Add(e);

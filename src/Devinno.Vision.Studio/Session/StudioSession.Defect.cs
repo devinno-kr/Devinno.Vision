@@ -96,8 +96,8 @@ public sealed partial class StudioSession
         if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
             return CommandResult.Fail($"폴더가 없습니다: {folder}");
         var full = Path.GetFullPath(folder);
-        if (Overlaps(full, _project!.Folder))
-            return CommandResult.Fail($"프로젝트 폴더(그 안이나 위 폴더 포함)는 쓸 수 없습니다: {full}");
+        if (NotAnImageFolder(full, "불량 폴더") is { } refuse)
+            return CommandResult.Fail(refuse);
         var labels = LabelsIn(full);
         if (!labels.ContainsKey(GoodLabel) || labels.Count < 2)
             return CommandResult.Fail($"하위 폴더 '{GoodLabel}'(양품)와 불량 종류 폴더가 1개 이상 있어야 합니다 (있는 것: {(labels.Count == 0 ? "없음" : string.Join(", ", labels.Keys))})");
@@ -105,7 +105,7 @@ public sealed partial class StudioSession
         if (SaveGoodSet() is { } error)
             return CommandResult.Fail(error);
         var few = labels.Where(kv => kv.Value < 10).Select(kv => $"{kv.Key} {kv.Value}장").ToList();
-        var warnings = string.Concat(_project.TestSets.Select(t => OverlapWarning(full, t.Folder, "테스트 폴더")));
+        var warnings = string.Concat(_project!.TestSets.Select(t => OverlapWarning(full, t.Folder, "테스트 폴더")));
         return CommandResult.Done($"{o.Name} 불량 폴더: {full} ({string.Join(", ", labels.Select(kv => $"{kv.Key} {kv.Value}장"))})" +
                                   (few.Count > 0 ? $" — 주의: 적은 라벨이 있습니다 ({string.Join(", ", few)})" : "") + warnings);
     }, markDirty: false);

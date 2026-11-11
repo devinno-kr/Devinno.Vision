@@ -309,7 +309,7 @@ public class UiTests
 
         s.App.Show(s.Test);
         s.Frame();
-        s.Dialogs.Folders.Enqueue(Path.Combine(dir.Path, "images"));   // 프로젝트 자신의 images 폴더
+        s.Dialogs.Folders.Enqueue(dir.Path);   // 프로젝트 폴더 자신 (안의 하위 폴더는 된다)
         s.Tap(() => s.Test.AddSetBounds);
         s.PressDialog("ok");
         s.Until(() => s.Status.IsError);
