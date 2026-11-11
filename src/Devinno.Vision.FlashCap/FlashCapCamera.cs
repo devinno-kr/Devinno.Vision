@@ -10,6 +10,16 @@ namespace Devinno.Vision.FlashCap;
 /// The camera streams continuously. <see cref="Grab"/> returns the first frame that arrives after the call (never an old buffered one);
 /// <see cref="WaitFrame"/> (free mode) returns the latest frame not returned yet. Frames are decoded only when asked for.
 /// </remarks>
+/// <example>
+/// <code>
+/// foreach (var name in FlashCapCamera.Devices())
+///     Console.WriteLine(name);
+///
+/// await using var camera = await FlashCapCamera.OpenAsync(width: 1280, height: 720);
+/// using var img = await camera.Grab(ct);          // the first frame that arrives after this call
+/// using var r = await job.RunAsync(img, ct);
+/// </code>
+/// </example>
 public sealed class FlashCapCamera : IVisionCamera
 {
     private readonly object _gate = new();

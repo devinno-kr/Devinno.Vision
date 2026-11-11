@@ -1,0 +1,49 @@
+<Project>
+  <!-- 패키지 공통 (Devinno.UI 의 src/Directory.Build.props 와 같은 방식). 버전 · 설명 등은 각 csproj 에 둔다.
+       IsPackable=false 인 프로젝트(Studio)와 llms.txt 가 없는 프로젝트에서는 아무 일도 하지 않는다. -->
+
+  <!-- Korean IntelliSense: the compiler XML (English, from the source comments) is the package default; i18n/ko/{Assembly}.xml
+       goes to lib/{tfm}/ko/ (Visual Studio in Korean shows it). Kept in sync by XmlDocI18nTests / tools/XmlDocI18n. -->
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);_DvPackKoreanDocs</TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+  <Target Name="_DvPackKoreanDocs">
+    <ItemGroup Condition="Exists('$(MSBuildThisFileDirectory)..\i18n\ko\$(AssemblyName).xml')">
+      <BuildOutputInPackage Include="$(MSBuildThisFileDirectory)..\i18n\ko\$(AssemblyName).xml" TargetPath="ko\$(AssemblyName).xml" />
+    </ItemGroup>
+  </Target>
+
+  <!-- AI entry point: each package's llms.txt (default: llms.txt in the project folder; Devinno.Vision uses the repo root one) goes to docs/llms.txt,
+       with the {{VERSION}} on its first line replaced by the pack version. A copy is written to obj/ (works for pack with and without build). -->
+  <PropertyGroup>
+    <DevinnoLlmsFile>$(MSBuildProjectDirectory)\llms.txt</DevinnoLlmsFile>
+  </PropertyGroup>
+  <Target Name="_DvVersionedLlms" BeforeTargets="_GetPackageFiles" Condition="'$(IsPackable)' != 'false' and Exists('$(DevinnoLlmsFile)')">
+    <PropertyGroup>
+      <_DvLlmsOut>$(IntermediateOutputPath)llms.txt</_DvLlmsOut>
+      <_DvLlmsText>$([System.IO.File]::ReadAllText('$(DevinnoLlmsFile)').Replace('{{VERSION}}', '$(PackageVersion)').TrimEnd())</_DvLlmsText>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(_DvLlmsOut)" Lines="$([MSBuild]::Escape($(_DvLlmsText)))" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <None Include="$(_DvLlmsOut)" Pack="true" PackagePath="docs\" Visible="false" />
+    </ItemGroup>
+  </Target>
+
+  <!-- Docs copy for consuming projects: build/{PackageId}.targets (from Devinno.CopyDocs.targets.template, id filled in) + buildTransitive/{PackageId}.targets
+       that imports it. On build, the consuming project gets .devinno/{PackageId}/ (docs/ + English XML); off with DevinnoCopyDocs=false. -->
+  <Target Name="_DvCopyDocsTargets" BeforeTargets="_GetPackageFiles" Condition="'$(IsPackable)' != 'false' and Exists('$(DevinnoLlmsFile)')">
+    <PropertyGroup>
+      <_DvCopyDocsOut>$(IntermediateOutputPath)$(PackageId).targets</_DvCopyDocsOut>
+      <_DvCopyDocsTransitiveOut>$(IntermediateOutputPath)transitive\$(PackageId).targets</_DvCopyDocsTransitiveOut>
+      <_DvIdN>$(PackageId.Replace('.', '_'))</_DvIdN>
+      <_DvCopyDocsText>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)Devinno.CopyDocs.targets.template').Replace('__IDN__', '$(_DvIdN)').Replace('__ID__', '$(PackageId)').TrimEnd())</_DvCopyDocsText>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(_DvCopyDocsOut)" Lines="$([MSBuild]::Escape($(_DvCopyDocsText)))" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <WriteLinesToFile File="$(_DvCopyDocsTransitiveOut)" Overwrite="true" WriteOnlyWhenDifferent="true"
+                      Lines="$([MSBuild]::Escape('&lt;Project&gt;&lt;Import Project=&quot;..\build\$(PackageId).targets&quot; /&gt;&lt;/Project&gt;'))" />
+    <ItemGroup>
+      <None Include="$(_DvCopyDocsOut)" Pack="true" PackagePath="build\" Visible="false" />
+      <None Include="$(_DvCopyDocsTransitiveOut)" Pack="true" PackagePath="buildTransitive\" Visible="false" />
+    </ItemGroup>
+  </Target>
+</Project>

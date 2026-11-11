@@ -11,7 +11,29 @@ namespace Devinno.Vision;
 /// (moved and rotated by the difference from the base image). With one alignment there is nothing more to write; with several, choose with <c>follow:</c>.
 /// <c>follow: ""</c> keeps a ROI fixed.</para>
 /// <para><b>Errors</b>: <see cref="RunAsync"/> never throws for inspection problems — exceptions, timeouts and missing poses end up in the result.</para>
+/// <para><b>Threads</b>: make the job once and reuse it. It runs one image at a time: a call while it is still running returns Error ("Busy") at once.
+/// Steps may be added, enabled and disabled between runs; a run uses the steps and settings it found when it started.</para>
 /// </remarks>
+/// <example>
+/// Two faces of one part share one data object:
+/// <code>
+/// public sealed class PartData { public double? TopWidth; public double? SideWidth; }
+///
+/// var top = new VisionJob&lt;TopSetup, PartData&gt;("top") { Setup = topSetup }
+///     .Add("width", roi: s =&gt; s.Width, (ctx, s, d) =&gt;
+///     {
+///         var e = Edge.Caliper(ctx.Image);
+///         ctx.Draw(e);
+///         if (ctx.Value("width", e.Distance, min: 405, max: 417, code: "WIDTH"))
+///             d.TopWidth = e.Distance;
+///     });
+///
+/// var data = new PartData();                      // one object per part
+/// using var r1 = await top.RunAsync(topImage, data);
+/// using var r2 = await side.RunAsync(sideImage, data);
+/// var state = VisionResult.Worst(r1, r2);         // Error &gt; Ng &gt; Ok
+/// </code>
+/// </example>
 public sealed class VisionJob<TSetup, TData> where TSetup : class
 {
     private readonly JobCore _core;
@@ -116,6 +138,8 @@ public sealed class VisionJob<TSetup, TData> where TSetup : class
     /// <param name="data">The part's data object — required: jobs inspecting the same part share one object; a new part needs a new object.</param>
     /// <param name="ct">Cancels the run (remaining steps are skipped; the result is Error).</param>
     /// <returns>The result. Returns only after every step has really finished, even after a timeout.</returns>
+    /// <remarks><inheritdoc cref="VisionJob.RunAsync" path="/remarks"/></remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="image"/> or <paramref name="data"/> is <see langword="null"/>.</exception>
     public Task<VisionResult> RunAsync(VisionImage image, TData data, CancellationToken ct = default)
     {
         if (data is null)
@@ -138,6 +162,39 @@ public sealed class VisionJob<TSetup, TData> where TSetup : class
 
 /// <summary>A job with a setup class and no per-part data. See <see cref="VisionJob{TSetup, TData}"/>.</summary>
 /// <typeparam name="TSetup">The app's setup class.</typeparam>
+/// <remarks>
+/// The setup class is the app's own class with the ROIs, parameters, limits and taught references of one product; the app saves it as JSON.
+/// Set <see cref="Setup"/> before the first run (a run without it ends in Error). To change values while the line runs, edit a copy
+/// (<see cref="VisionSetup.Copy{T}"/>) and assign the copy — never change the setup in use in place.
+/// </remarks>
+/// <example>
+/// <code>
+/// public sealed class BracketSetup
+/// {
+///     public BlobParams Body { get; set; } = new() { MinArea = 20000 };
+///     public VisionPose? BodyRef { get; set; }                               // taught on the base image
+///     public VisionRoi HoleL { get; set; } = VisionRoi.Rect(194, 251, 60, 60);
+///     public BlobParams Hole { get; set; } = new() { Mode = ThresholdMode.Fixed, Threshold = 80, Invert = true, MinArea = 300 };
+/// }
+///
+/// var job = new VisionJob&lt;BracketSetup&gt;("bracket") { Setup = new BracketSetup() }
+///     .Add("align", pose: "body", (ctx, s) =&gt;
+///     {
+///         var part = Blob.Find(ctx.Image, s.Body).FirstOrDefault();
+///         if (part is null) { ctx.Fail("part not found"); return; }
+///         ctx.SetPose(VisionPose.FromBlob(part, s.BodyRef), s.BodyRef);
+///     })
+///     .Add("left hole", roi: s =&gt; s.HoleL, (ctx, s) =&gt;
+///     {
+///         var holes = Blob.Find(ctx.Image, s.Hole);
+///         ctx.Draw(holes);
+///         ctx.Value("left holes", holes.Length, min: 1, max: 1, code: "HOLE");
+///     });
+///
+/// using var img = VisionImage.Load(path);
+/// using var r = await job.RunAsync(img);
+/// </code>
+/// </example>
 public sealed class VisionJob<TSetup> where TSetup : class
 {
     private readonly JobCore _core;
@@ -234,6 +291,8 @@ public sealed class VisionJob<TSetup> where TSetup : class
     /// <param name="image">The image (stays yours; the result borrows it).</param>
     /// <param name="ct">Cancels the run.</param>
     /// <returns>The result, after every step has really finished.</returns>
+    /// <remarks><inheritdoc cref="VisionJob.RunAsync" path="/remarks"/></remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="image"/> is <see langword="null"/>.</exception>
     public Task<VisionResult> RunAsync(VisionImage image, CancellationToken ct = default)
         => _core.RunAsync(image, Setup, null, needsSetup: true, ct);
 
@@ -250,7 +309,33 @@ public sealed class VisionJob<TSetup> where TSetup : class
     }
 }
 
-/// <summary>A job without setup or per-part data — for quick inspections and tests. See <see cref="VisionJob{TSetup, TData}"/>.</summary>
+/// <summary>A job without setup or per-part data — for quick inspections and tests, and the job a recipe makes (<see cref="VisionRecipe.CreateJob"/>).
+/// See <see cref="VisionJob{TSetup, TData}"/>.</summary>
+/// <remarks>
+/// <para>One image → one job → one result. Each step is one check item; a step with <c>roi:</c> gets its region cut out as <c>ctx.Image</c>.</para>
+/// <para>Make the job once and reuse it. It runs one image at a time: a call while it is still running returns Error ("Busy") at once.</para>
+/// </remarks>
+/// <example>
+/// <code>
+/// var job = new VisionJob("bracket")
+///     .Add("align", pose: "body", ctx =&gt;
+///     {
+///         var part = Blob.Find(ctx.Image, minArea: 20000).FirstOrDefault();
+///         if (part is null) { ctx.Fail("part not found"); return; }
+///         ctx.SetPose(VisionPose.FromBlob(part), reference: new VisionPose(330.4, 256.0, 0));
+///     })
+///     .Add("left hole", roi: () =&gt; VisionRoi.Rect(194, 251, 60, 60), ctx =&gt;
+///     {
+///         var holes = Blob.Find(ctx.Image, ThresholdMode.Fixed, threshold: 80, invert: true, minArea: 300);
+///         ctx.Draw(holes);
+///         ctx.Value("left holes", holes.Length, min: 1, max: 1, code: "HOLE");
+///     });
+///
+/// using var img = VisionImage.Load(path);
+/// using var r = await job.RunAsync(img);
+/// Console.WriteLine($"{r.State} [{string.Join(", ", r.Codes)}] {r.Error}");
+/// </code>
+/// </example>
 public sealed class VisionJob
 {
     private readonly JobCore _core;
@@ -275,11 +360,12 @@ public sealed class VisionJob
     /// <summary>When reason steps (<see cref="StepRole.Reason"/>) run. Default <see cref="ReasonRun.WhenNg"/>: only after the judging steps made the result NG.</summary>
     public ReasonRun ReasonSteps { get => _core.ReasonSteps; set => _core.ReasonSteps = value; }
 
-    /// <summary>Adds a step.</summary>
-    /// <param name="name">Step name.</param>
-    /// <param name="step">The step code.</param>
-    /// <param name="timeout">Time limit of this step.</param>
+    /// <summary>Adds a step that looks at the whole image.</summary>
+    /// <param name="name">Step name (unique in the job; it is the key in <see cref="VisionResult.Steps"/>).</param>
+    /// <param name="step">The step code. Record values and judgments through its context; a step that records nothing is OK. An exception makes the step Error.</param>
+    /// <param name="timeout">Time limit of this step; <see langword="null"/> = <see cref="Timeout"/>.</param>
     /// <returns>This job.</returns>
+    /// <exception cref="ArgumentException">The name is empty, or the job already has a step with this name.</exception>
     public VisionJob Add(string name, Action<VisionContext> step, TimeSpan? timeout = null)
         => Add(name, null, null, null, Wrap(step), timeout);
 
@@ -287,21 +373,25 @@ public sealed class VisionJob
     public VisionJob Add(string name, Func<VisionContext, Task> step, TimeSpan? timeout = null)
         => Add(name, null, null, null, step, timeout);
 
-    /// <summary>Adds an alignment step.</summary>
+    /// <summary>Adds an alignment step: it finds the part and calls <c>ctx.SetPose(current, reference)</c>; the ROIs of later steps follow the pose.</summary>
     /// <param name="name">Step name.</param>
     /// <param name="pose">The pose name this step makes.</param>
     /// <param name="step">The step code.</param>
     /// <param name="timeout">Time limit of this step.</param>
     /// <returns>This job.</returns>
+    /// <remarks>When the step does not set the pose (the part is missing, the step failed or is disabled), the steps that follow it are Skipped and the result is Error.</remarks>
+    /// <exception cref="ArgumentException">The name is empty, or the job already has a step with this name.</exception>
     public VisionJob Add(string name, string pose, Action<VisionContext> step, TimeSpan? timeout = null)
         => Add(name, null, pose, null, Wrap(step), timeout);
 
-    /// <summary>Adds a step with a ROI.</summary>
+    /// <summary>Adds a step with a ROI. Inside the step, <c>ctx.Image</c> is the ROI, upright and following the part's pose.</summary>
     /// <param name="name">Step name.</param>
-    /// <param name="roi">Returns the ROI (base image coordinates).</param>
+    /// <param name="roi">Returns the ROI (base image coordinates). It is called at every run. An empty ROI makes the step Error ("The ROI is not set.").</param>
     /// <param name="step">The step code.</param>
     /// <param name="timeout">Time limit of this step.</param>
     /// <returns>This job.</returns>
+    /// <remarks>With one alignment step before it, the ROI follows that pose without anything more to write. The ROI border is drawn automatically.</remarks>
+    /// <exception cref="ArgumentException">The name is empty, or the job already has a step with this name.</exception>
     public VisionJob Add(string name, Func<VisionRoi> roi, Action<VisionContext> step, TimeSpan? timeout = null)
         => Add(name, roi, null, null, Wrap(step), timeout);
 
@@ -316,6 +406,7 @@ public sealed class VisionJob
     /// <param name="step">The step code.</param>
     /// <param name="timeout">Time limit of this step.</param>
     /// <returns>This job.</returns>
+    /// <exception cref="ArgumentException">The name is empty or already used, or earlier steps declare poses and none of them is <paramref name="follow"/>.</exception>
     public VisionJob Add(string name, Func<VisionRoi> roi, string follow, Action<VisionContext> step, TimeSpan? timeout = null)
         => Add(name, roi, null, follow, Wrap(step), timeout);
 
@@ -327,6 +418,9 @@ public sealed class VisionJob
     /// <param name="timeout">Time limit of this step.</param>
     /// <param name="role">Whether the step judges (default) or only gives the reason for an NG (<see cref="StepRole.Reason"/>).</param>
     /// <returns>This job.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="step"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">The step name is empty or already used, <paramref name="follow"/> names a pose no earlier step declares,
+    /// or a reason step is given a <paramref name="pose"/>.</exception>
     public VisionJob Add(IVisionStep step, Func<VisionRoi>? roi = null, string? pose = null, string? follow = null, TimeSpan? timeout = null, StepRole role = StepRole.Judge)
     {
         ArgumentNullException.ThrowIfNull(step);
@@ -348,8 +442,27 @@ public sealed class VisionJob
 
     /// <summary>Runs the job on an image. Never throws for inspection problems.</summary>
     /// <param name="image">The image (stays yours; the result borrows it).</param>
-    /// <param name="ct">Cancels the run.</param>
-    /// <returns>The result, after every step has really finished.</returns>
+    /// <param name="ct">Cancels the run (remaining steps are skipped; the result is Error).</param>
+    /// <returns>The result, after every step has really finished. Receive it with <c>using</c>, before the image is disposed.</returns>
+    /// <remarks>
+    /// <para>The steps run on a thread-pool thread, so the calling thread (for example the UI thread) is not blocked; <c>await</c> the task and do not block on it.</para>
+    /// <para>Whatever happens in the steps ends up in the result: an exception or <c>ctx.Fail</c> makes it Error, a time limit makes it Error after the step has really ended,
+    /// a missing alignment makes the steps that follow it Skipped and the result Error. Handle all three states (<see cref="VisionState"/>).</para>
+    /// <para>If the job is still running, the call returns at once with Error and <see cref="VisionResult.Error"/> = "Busy". For parallel runs use one job per run.</para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// using var img = await camera.Grab(ct);
+    /// using var r = await job.RunAsync(img, ct);
+    /// switch (r.State)
+    /// {
+    ///     case VisionState.Ok: break;
+    ///     case VisionState.Ng: Console.WriteLine(string.Join(", ", r.Codes)); break;
+    ///     case VisionState.Error: Console.WriteLine(r.Error); break;          // could not inspect — not the same as a reject
+    /// }
+    /// </code>
+    /// </example>
+    /// <exception cref="ArgumentNullException"><paramref name="image"/> is <see langword="null"/>.</exception>
     public Task<VisionResult> RunAsync(VisionImage image, CancellationToken ct = default)
         => _core.RunAsync(image, null, null, needsSetup: false, ct);
 

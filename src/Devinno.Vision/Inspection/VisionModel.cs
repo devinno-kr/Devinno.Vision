@@ -11,6 +11,19 @@ namespace Devinno.Vision;
 /// After a recipe change the old model is not disposed by the app: a running inspection may still use it, and the garbage collector frees it later
 /// (the one exception to "images are not left to the GC").
 /// </remarks>
+/// <example>
+/// <code>
+/// public sealed class LabelSetup { public VisionModel Logo { get; set; } = new(); public VisionRoi LogoRoi { get; set; } }
+///
+/// // Teaching: cut the region out of the base image, save it under the recipe folder, swap the setup
+/// var edit = VisionSetup.Copy(job.Setup!);
+/// edit.Logo = VisionModel.Teach(baseImage, edit.LogoRoi, recipeFolder, "models/logo.png");
+/// job.Setup = edit;
+///
+/// // Startup: after reading the setup JSON
+/// setup.Logo.Load(recipeFolder);
+/// </code>
+/// </example>
 [JsonConverter(typeof(VisionModelConverter))]
 public sealed class VisionModel
 {
@@ -37,6 +50,9 @@ public sealed class VisionModel
     /// <param name="root">The root folder (for example the recipe folder).</param>
     /// <param name="path">The file path relative to <paramref name="root"/> (use .png); folders are created.</param>
     /// <returns>A new model with <see cref="Path"/> and <see cref="Image"/> set. Put it in the setup copy and swap the setup in.</returns>
+    /// <exception cref="ArgumentException">The ROI is not set.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Less than half of the ROI is inside the image.</exception>
+    /// <exception cref="IOException">The file cannot be written.</exception>
     public static VisionModel Teach(VisionImage image, VisionRoi roi, string root, string path)
     {
         ArgumentNullException.ThrowIfNull(image);
@@ -91,7 +107,17 @@ public static class VisionSetup
     /// <typeparam name="T">The app's setup class.</typeparam>
     /// <param name="setup">The setup in use.</param>
     /// <returns>A copy to edit; then replace the job's setup with it as a whole (the next run uses the new values).</returns>
-    /// <remarks>A run keeps the setup reference it took when it started. Changing properties of the setup in use in place changes a running inspection too — edit a copy instead.</remarks>
+    /// <remarks>
+    /// <para>A run keeps the setup reference it took when it started. Changing properties of the setup in use in place changes a running inspection too — edit a copy instead.</para>
+    /// <para>The setup class must survive a <c>System.Text.Json</c> round trip with default options: public properties with setters (fields are not copied).</para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var edit = VisionSetup.Copy(job.Setup!);
+    /// edit.Hole.Threshold = 90;
+    /// job.Setup = edit;            // the next run uses the new values
+    /// </code>
+    /// </example>
     public static T Copy<T>(T setup) where T : class
     {
         ArgumentNullException.ThrowIfNull(setup);

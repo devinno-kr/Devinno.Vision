@@ -44,6 +44,11 @@ public sealed class StepResult
     public StepState State { get; internal set; }
 
     /// <summary>Why it is NG, Error or Skipped; <see langword="null"/> when OK.</summary>
+    /// <remarks>
+    /// NG: the NG codes, joined with ", ". Error: the exception message, the <c>ctx.Fail</c> reason, "Timeout (limit … ms, took … ms)" or "Canceled".
+    /// Skipped: "Disabled", "Pose '…' missing (…)", "Stopped after NG in …", "Skipped after timeout in …", "Canceled",
+    /// and for reason steps "Not needed (judged OK)" or "Not run (judgment is Error)".
+    /// </remarks>
     public string? Reason { get; internal set; }
 
     /// <summary>Time the step took.</summary>
@@ -56,7 +61,8 @@ public sealed class StepResult
     public VisionImage? Image { get; internal set; }
 }
 
-/// <summary>Step results in run order, also looked up by name: <c>r.Steps["Holes"]</c>.</summary>
+/// <summary>Step results in the order the steps were added, also looked up by name: <c>r.Steps["Holes"]</c>.</summary>
+/// <remarks>Every step of the job has an entry, also the ones that did not run (<see cref="StepState.Skipped"/>).</remarks>
 public sealed class StepResultList : IReadOnlyList<StepResult>
 {
     private readonly List<StepResult> _items = [];

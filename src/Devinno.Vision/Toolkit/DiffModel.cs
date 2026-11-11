@@ -14,7 +14,23 @@ namespace Devinno.Vision;
 /// <para>A pixel differs when <c>|value − mean| &gt; k · (spread + minSpread)</c>. Where good parts vary (edges, texture) the spread is large, so they do not trigger.
 /// With <c>color: true</c> the saturation is checked too (colored stains on a gray part).</para>
 /// <para>In a setup only <see cref="Path"/> is saved (like <see cref="VisionModel"/>); <see cref="Save"/> writes the model folder (JSON + 16-bit PNG).</para>
+/// <para>The comparison is per pixel, so the alignment must be good to the pixel. Where that is not possible, use <see cref="AnomalyModel"/>.</para>
 /// </remarks>
+/// <example>
+/// <code>
+/// // Teaching: the same ROI crop of every good part
+/// var trained = DiffModel.Train(goodCrops);
+/// trained.Save(recipeFolder, "models/diff");
+///
+/// // A step whose ROI is the one used for training (s.Diff was read with s.Diff.Load(recipeFolder))
+/// job.Add("surface", roi: s =&gt; s.SurfaceRoi, (ctx, s) =&gt;
+/// {
+///     var d = s.Diff.Compare(ctx.Image);
+///     ctx.Draw(d.Regions);
+///     ctx.Value("largest difference", d.MaxArea, max: 30, code: "SURFACE", unit: "px²");
+/// });
+/// </code>
+/// </example>
 [JsonConverter(typeof(DiffModelConverter))]
 public sealed class DiffModel
 {
@@ -92,6 +108,7 @@ public sealed class DiffModel
     /// <summary>Saves the model to a folder (model.json + 16-bit PNG), and sets <see cref="Path"/>.</summary>
     /// <param name="root">The root folder (for example the recipe folder).</param>
     /// <param name="path">The model folder relative to <paramref name="root"/>; created if missing.</param>
+    /// <exception cref="InvalidOperationException">The model is not trained.</exception>
     public void Save(string root, string path)
     {
         if (_meanGray is null || _stdGray is null)
@@ -111,6 +128,10 @@ public sealed class DiffModel
 
     /// <summary>Reads the model folder at <see cref="Path"/>.</summary>
     /// <param name="root">The folder <see cref="Path"/> is relative to.</param>
+    /// <exception cref="InvalidOperationException"><see cref="Path"/> is not set.</exception>
+    /// <exception cref="FileNotFoundException">A file of the model folder is missing or cannot be read.</exception>
+    /// <exception cref="DirectoryNotFoundException">The model folder does not exist.</exception>
+    /// <exception cref="InvalidDataException">The folder is not a difference model.</exception>
     public void Load(string root)
     {
         if (string.IsNullOrEmpty(Path))

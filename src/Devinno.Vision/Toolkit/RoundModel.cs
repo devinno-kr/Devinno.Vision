@@ -13,6 +13,22 @@ namespace Devinno.Vision;
 /// then <see cref="Find"/> gives the pose; pass it to <c>ctx.SetPose(match.Pose, model.ReferencePose)</c> and the ROIs follow the rotation.</para>
 /// <para>Saved as JSON (<see cref="Save"/> / <see cref="Load"/>, or as a setup property).</para>
 /// </remarks>
+/// <example>
+/// <code>
+/// // Teaching, once, on the base image
+/// var model = RoundModel.Train(baseImage, center: new Point2d(350, 350), innerRadius: 120, outerRadius: 200);
+///
+/// job.Add("align", pose: "nut", ctx =&gt;
+/// {
+///     var hole = Blob.Find(ctx.Image, ThresholdMode.Fixed, 60, invert: true, minArea: 2000).FirstOrDefault();
+///     if (hole is null) { ctx.Fail("part not found"); return; }
+///     var match = model.Find(ctx.Image, hole.Center);
+///     ctx.Value("match", match.Score, min: 0.5, code: "ALIGN");
+///     ctx.Judge(!match.Mirrored, "FLIPPED");
+///     ctx.SetPose(match.Pose, model.ReferencePose);
+/// });
+/// </code>
+/// </example>
 public sealed class RoundModel
 {
     /// <summary>Angular resolution of the signature: 720 steps = 0.5°.</summary>
@@ -43,6 +59,7 @@ public sealed class RoundModel
     /// <param name="innerRadius">Inner radius of the band (px).</param>
     /// <param name="outerRadius">Outer radius of the band (px).</param>
     /// <returns>The model.</returns>
+    /// <exception cref="ArgumentException">The band is not 0 ≤ inner &lt; outer (the outer radius must be more than 1 px larger).</exception>
     public static RoundModel Train(VisionImage image, Point2d center, double innerRadius, double outerRadius)
     {
         ArgumentNullException.ThrowIfNull(image);
@@ -63,6 +80,7 @@ public sealed class RoundModel
     /// <param name="image">The image.</param>
     /// <param name="center">The part's center in <paramref name="image"/> (px).</param>
     /// <returns>The match: pose in the original image, score, mirror score.</returns>
+    /// <exception cref="InvalidOperationException">The model is not trained.</exception>
     public RoundMatch Find(VisionImage image, Point2d center)
     {
         ArgumentNullException.ThrowIfNull(image);
@@ -89,6 +107,9 @@ public sealed class RoundModel
     /// <summary>Loads a model saved with <see cref="Save"/>.</summary>
     /// <param name="path">The file path.</param>
     /// <returns>The model.</returns>
+    /// <exception cref="FileNotFoundException">The file does not exist.</exception>
+    /// <exception cref="System.Text.Json.JsonException">The file is not valid JSON.</exception>
+    /// <exception cref="InvalidDataException">The file holds no model.</exception>
     public static RoundModel Load(string path) => JsonSerializer.Deserialize<RoundModel>(File.ReadAllText(path)) ?? throw new InvalidDataException($"Not a RoundModel: {path}");
 
     // 극좌표로 펼쳐 (행 = 각도, 화면에서 시계방향으로 증가) 대역의 평균 밝기

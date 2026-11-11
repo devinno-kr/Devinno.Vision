@@ -1,9 +1,30 @@
 namespace Devinno.Vision;
 
 /// <summary>
-/// A step as an object, for steps that are not lambdas (reusable classes, and later the teaching tool's standard and script steps).
+/// A step as an object, for steps that are not lambdas (reusable classes; the checks of a recipe are steps of this kind).
 /// It runs exactly like a lambda step: same context, same result format.
 /// </summary>
+/// <remarks>
+/// Add it with <c>job.Add(step, roi: …)</c>. One step object may be used by several runs one after another, so keep per-run state in local variables, not in fields.
+/// </remarks>
+/// <example>
+/// <code>
+/// public sealed class HoleCount(string name, int expected) : IVisionStep
+/// {
+///     public string Name { get; } = name;
+///
+///     public Task RunAsync(VisionContext ctx)
+///     {
+///         var holes = Blob.Find(ctx.Image, ThresholdMode.Fixed, threshold: 80, invert: true, minArea: 300);
+///         ctx.Draw(holes);
+///         ctx.Value(Name, holes.Length, min: expected, max: expected, code: "HOLE");
+///         return Task.CompletedTask;
+///     }
+/// }
+///
+/// job.Add(new HoleCount("left hole", 1), roi: () =&gt; VisionRoi.Rect(194, 251, 60, 60));
+/// </code>
+/// </example>
 public interface IVisionStep
 {
     /// <summary>The step name (unique in the job; shown in results and on screen).</summary>

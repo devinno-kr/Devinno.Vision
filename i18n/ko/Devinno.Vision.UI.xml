@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<doc>
+    <assembly>
+        <name>Devinno.Vision.UI</name>
+    </assembly>
+    <members><member name="T:Devinno.Vision.UI.DvVisionView" en-hash="2f1d9203920ad45c">
+             <summary>
+             비전 뷰가 표시하는 내용입니다. 결과(이미지 + 오버레이 + 판정) 또는 단순 이미지, 그리고 티칭 중인 ROI입니다.
+             뷰 모델에 하나를 두고 마크업에서 바인딩합니다: <c>&lt;VisionView source="{FrontView}"/&gt;</c> (태그는 <see cref="M:Devinno.Vision.UI.DvVisionView.Register(Devinno.UI.Components.ComponentRegistry)" />로 한 번 등록합니다).
+             </summary>
+             <remarks>
+             <para>뷰는 자체 표시용 복사본(축소한 BGRA)을 보관하므로 <see cref="M:Devinno.Vision.UI.DvVisionView.Show(Devinno.Vision.VisionResult)" /> 직후에 결과와 프레임을 해제할 수 있습니다.
+             모든 멤버는 어느 스레드에서나 호출할 수 있습니다.</para>
+             <para><b>티칭</b>: 기준 이미지를 표시한 상태에서 <see cref="P:Devinno.Vision.UI.DvVisionView.EditRoi" />를 설정합니다. 작업자가 사각형을 드래그합니다(안쪽에서 이동, 모서리에서 크기 조절).
+             새 사각형은 ROI가 비어 있을 때만 그려집니다. 기존 ROI의 바깥을 클릭해도 아무 일도 일어나지 않으므로 실수로 한 클릭이 ROI를 바꾸지 못합니다.
+             움직이지 않은 클릭이나 4 px보다 작은 사각형은 무시합니다. <see cref="E:Devinno.Vision.UI.DvVisionView.RoiChanged" />가 새 ROI를 이미지 좌표로 알려 줍니다. 회전 ROI는 이동할 수 있지만 크기 조절은 아직 지원하지 않습니다.</para>
+             </remarks>
+             <example>
+             <code>
+             // Once, before the app shows a page
+             var registry = new ComponentRegistry();
+             DvVisionView.Register(registry);
+             app.Registry = registry;
+            
+             // Markup of the page:  &lt;VisionView source="{FrontView}"/&gt;
+             public sealed partial class MainPage : DvPage
+             {
+                 public DvVisionView FrontView { get; } = new();
+            
+                 public async Task InspectAsync(VisionJob job, IVisionCamera camera, CancellationToken ct)
+                 {
+                     using var img = await camera.Grab(ct);
+                     using var r = await job.RunAsync(img, ct);
+                     FrontView.Show(r);          // any thread; the view keeps its own copy, so r and img can be disposed
+                 }
+             }
+             </code>
+             </example>
+        </member><member name="F:Devinno.Vision.UI.DvVisionView.Tag" en-hash="d44b33782f2049de">
+            <summary><see cref="M:Devinno.Vision.UI.DvVisionView.Register(Devinno.UI.Components.ComponentRegistry)" />가 등록하는 마크업 태그입니다. (Devinno.UI는 "Dv"로 시작하는 태그를 기본 제공 요소용으로 예약합니다.)</summary>
+        </member><member name="M:Devinno.Vision.UI.DvVisionView.Register(Devinno.UI.Components.ComponentRegistry)" en-hash="36700ffba23d9307">
+            <summary><c>VisionView</c> 마크업 태그를 등록합니다.</summary>
+            <param name="registry">앱의 컴포넌트 레지스트리입니다(<c>app.Registry</c>로 설정합니다).</param>
+        </member><member name="P:Devinno.Vision.UI.DvVisionView.MaxDisplaySize" en-hash="1b2b4dc366f923ac">
+            <summary>표시용 복사본의 가장 긴 변(px)입니다(기본값 1600). 더 큰 이미지는 표시할 때 축소합니다.</summary>
+        </member><member name="P:Devinno.Vision.UI.DvVisionView.ShowDisabledWarning" en-hash="f40ecc567c8fe5ad">
+            <summary>결과에 비활성화된 단계가 있으면 경고를 표시합니다(기본값 켜짐). 비활성화된 단계는 판정에 영향을 주지 않으므로 검사 없이 생산품이 통과할 수 있습니다.</summary>
+        </member><member name="P:Devinno.Vision.UI.DvVisionView.DisabledWarningFormat" en-hash="bcaef400b96cddd5">
+            <summary>경고 문구입니다. {0} = 개수, {1} = 이름. 기본값은 <c>"Disabled steps ({0}): {1}"</c>입니다.</summary>
+        </member><member name="P:Devinno.Vision.UI.DvVisionView.Step" en-hash="026f3cfbbf6feee6">
+            <summary>현장에서 튜닝할 수 있도록 검사한 이미지 대신 이 단계의 이미지(<see cref="P:Devinno.Vision.StepResult.Image" />, 단계가 마지막으로 만든 이미지 — 예: 이진화한 이미지)를 표시합니다.
+            다음 <see cref="M:Devinno.Vision.UI.DvVisionView.Show(Devinno.Vision.VisionResult)" />부터 적용됩니다. <see langword="null" /> = 검사한 이미지.</summary>
+        </member><member name="P:Devinno.Vision.UI.DvVisionView.EditRoi" en-hash="69f535a5f35f0281">
+            <summary>티칭 중인 ROI(이미지 좌표)이며 핸들과 함께 그려집니다. <see langword="null" /> = 편집하지 않음.
+            <see cref="F:Devinno.Vision.VisionRoiShape.None" />인 ROI를 설정하면 작업자가 새 사각형을 그릴 수 있습니다.</summary>
+        </member><member name="E:Devinno.Vision.UI.DvVisionView.RoiChanged" en-hash="f22fb52024ef641a">
+            <summary>작업자가 ROI 드래그를 마치면 발생합니다(UI 스레드에서). 값은 이미지 좌표입니다.</summary>
+        </member><member name="M:Devinno.Vision.UI.DvVisionView.Show(Devinno.Vision.VisionResult)" en-hash="c4401c2ef1ffd2e8">
+            <summary>결과를 표시합니다. 이미지(또는 <see cref="P:Devinno.Vision.UI.DvVisionView.Step" /> 이미지), 단계 상태에 따라 색을 입힌 ROI 테두리, 오버레이, 판정 및 경고입니다.</summary>
+            <param name="result">결과입니다. 이 호출 직후에 해제해도 됩니다.</param>
+        </member><member name="M:Devinno.Vision.UI.DvVisionView.Show(Devinno.Vision.VisionImage)" en-hash="d996a3502b83f7cc">
+            <summary>결과 없이 이미지를 표시합니다(예: 티칭 중의 기준 이미지 또는 획득한 프레임).</summary>
+            <param name="image">이미지입니다. 이 호출 직후에 해제해도 됩니다.</param>
+        </member><member name="M:Devinno.Vision.UI.DvVisionView.Show(OpenCvSharp.Mat)" en-hash="511beae546059ccd">
+            <summary>Mat(8비트 그레이 또는 BGR)을 그대로 표시합니다.</summary>
+            <param name="mat">Mat입니다. 이 호출 직후에 해제해도 됩니다.</param>
+        </member><member name="M:Devinno.Vision.UI.DvVisionView.Clear" en-hash="de2a3b4337f582ef">
+            <summary>뷰를 지웁니다.</summary>
+        </member></members>
+</doc>

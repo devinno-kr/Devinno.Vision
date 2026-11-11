@@ -1,0 +1,15 @@
+# Devinno.Vision.UI {{VERSION}}
+
+> Result view for Devinno.Vision on Devinno.UI screens: `DvVisionView` shows a result (image, ROI borders colored by step state, overlays, judgment, disabled-step warning) or a plain image, and lets the operator drag a ROI when teaching.
+
+1. Devinno.Vision.UI.xml (`lib/net9.0/` in the package; the same folder as this file in `.devinno/Devinno.Vision.UI/`): C# API reference for `DvVisionView` — `Register`, `Show(result)` / `Show(image)` / `Show(mat)`, `Clear`, `Step`, `ShowDisabledWarning`, `DisabledWarningFormat`, `MaxDisplaySize`, `EditRoi`, `RoiChanged`.
+2. How to inspect images is documented in the core package: read `.devinno/Devinno.Vision/llms.txt` (in the Devinno.Vision package: `docs/llms.txt`) first. How to write screens: `.devinno/Devinno.UI/llms.txt`.
+
+Use:
+
+- Register the markup tag once, before the app shows a page: `var registry = new ComponentRegistry(); DvVisionView.Register(registry); app.Registry = registry;` (`ComponentRegistry` is `Devinno.UI.Components`).
+- Keep a `DvVisionView` in the view model and bind it in markup: `<VisionView source="{FrontView}"/>`. The tag is `VisionView` (`DvVisionView.Tag`), not `DvVisionView` — Devinno.UI reserves tags starting with `Dv` for its built-in elements.
+- Show from any thread: `FrontView.Show(r);`. The view keeps its own display copy, so the result and the frame can be disposed right after the call.
+- Teaching: set `EditRoi` while showing the base image; `RoiChanged` reports the dragged ROI in image coordinates (raised on the UI thread). A ROI with `Shape == None` lets the operator draw a new rectangle. Rotated ROIs can be moved but not resized.
+
+Nothing that is not in these files exists.

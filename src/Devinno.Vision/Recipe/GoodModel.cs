@@ -4,7 +4,10 @@ namespace Devinno.Vision.Recipes;
 /// The good-part model of a recipe: a reference learned from good images (<see cref="AnomalyModel"/>).
 /// It judges whether the part looks like the good parts; standard checks can then name the defect (<see cref="StepRole.Reason"/>).
 /// </summary>
-/// <remarks>Made by <see cref="VisionRecipe.TrainGoodModelAsync"/>. The model files are in <see cref="Path"/> under the recipe folder.</remarks>
+/// <remarks>
+/// Made by <see cref="VisionRecipe.TrainGoodModelAsync"/>. The model files are in <see cref="Path"/> under the recipe folder.
+/// In the job it is the step <see cref="VisionRecipe.GoodModelStepName"/>, which runs after the alignment check and records the value "양품 모델 점수" (the anomaly score).
+/// </remarks>
 public sealed class GoodModel
 {
     /// <summary>The model folder, relative to the recipe folder (models/good-…).</summary>

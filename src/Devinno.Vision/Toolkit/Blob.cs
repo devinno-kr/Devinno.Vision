@@ -38,6 +38,17 @@ public sealed class BlobParams
 /// A connected region found by thresholding: area, center, bounding box, outline, and the rotated box around it (angle, length, width).
 /// Coordinates are in the image it was found in; drawing it with <c>ctx.Draw</c> converts them to the original image.
 /// </summary>
+/// <example>
+/// Count the holes in a ROI (dark blobs):
+/// <code>
+/// job.Add("holes", roi: () =&gt; roi, ctx =&gt;
+/// {
+///     var holes = Blob.Find(ctx.Image, ThresholdMode.Fixed, threshold: 80, invert: true, minArea: 300);
+///     ctx.Draw(holes);
+///     ctx.Value("holes", holes.Length, min: 4, max: 4, code: "HOLE");
+/// });
+/// </code>
+/// </example>
 public sealed class Blob
 {
     private Blob(double area, Point2d center, Rect bounds, Point[] contour, double angle, double length, double width, Affine toSource)
@@ -83,6 +94,11 @@ public sealed class Blob
     /// <param name="minArea">Smallest area to keep (px²).</param>
     /// <param name="maxArea">Largest area to keep (px²).</param>
     /// <returns>The blobs, largest first (empty when none).</returns>
+    /// <remarks>
+    /// Only outer outlines are found (a hole inside a blob is not a blob of its own). Automatic thresholding (<see cref="ThresholdMode.Otsu"/>) always splits the image in two,
+    /// so when the object may be missing it reports parts of the background: use <see cref="ThresholdMode.Fixed"/> for presence checks.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="image"/> is <see langword="null"/>.</exception>
     public static Blob[] Find(VisionImage image, ThresholdMode mode = ThresholdMode.Otsu, int threshold = 128, bool invert = false, int minArea = 50, int maxArea = int.MaxValue)
     {
         ArgumentNullException.ThrowIfNull(image);
@@ -125,6 +141,15 @@ public sealed class Blob
 }
 
 /// <summary>Brightness measurements (presence checks, surface checks). Color images are converted to gray.</summary>
+/// <example>
+/// <code>
+/// job.Add("tab", roi: () =&gt; roi, ctx =&gt;
+/// {
+///     ctx.Value("mean", Brightness.Mean(ctx.Image), min: 120, max: 220, code: "BRIGHT");
+///     ctx.Value("dark pixels", Brightness.Count(ctx.Image, 0, 100), max: 200, code: "DISCOLOR");
+/// });
+/// </code>
+/// </example>
 public static class Brightness
 {
     /// <summary>Mean brightness (0–255).</summary>

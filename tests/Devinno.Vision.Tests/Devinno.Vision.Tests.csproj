@@ -22,6 +22,13 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- 한국어 IntelliSense(i18n/ko) 가 영어 주석과 맞는지 보는 도구 코드 (XmlDocI18nTests). 빌드 순서를 위해 화면 · 드라이버 패키지도 먼저 빌드한다 -->
+  <ItemGroup>
+    <Compile Include="..\..\tools\XmlDocI18n\XmlDocI18n.cs" Link="Tools\XmlDocI18n.cs" />
+    <ProjectReference Include="..\..\src\Devinno.Vision.UI\Devinno.Vision.UI.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\Devinno.Vision.FlashCap\Devinno.Vision.FlashCap.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
   <ItemGroup>
     <None Include="Samples\**\*" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Models\**\*" CopyToOutputDirectory="PreserveNewest" />

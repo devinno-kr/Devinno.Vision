@@ -3,6 +3,19 @@ namespace Devinno.Vision;
 /// <summary>
 /// A camera that returns the image files of a folder in name order — for replaying saved images and for tests. The same code that uses a real camera runs unchanged.
 /// </summary>
+/// <remarks>Files with the extensions .png, .bmp, .jpg, .jpeg, .tif and .tiff are used; subfolders are not read. Each frame's <see cref="VisionImageInfo.Camera"/> is "file".</remarks>
+/// <example>
+/// Run a job on every saved image and print the judgments:
+/// <code>
+/// await using var camera = new FileCamera(@"C:\images\bracket", loop: false);
+/// foreach (var _ in camera.Files)
+/// {
+///     using var img = await camera.Grab(default);
+///     using var r = await job.RunAsync(img);
+///     Console.WriteLine($"{Path.GetFileName(camera.LastFile)}: {r.State} [{string.Join(", ", r.Codes)}] {r.Error}");
+/// }
+/// </code>
+/// </example>
 public sealed class FileCamera : IVisionCamera
 {
     private static readonly string[] s_extensions = [".png", ".bmp", ".jpg", ".jpeg", ".tif", ".tiff"];
@@ -51,6 +64,8 @@ public sealed class FileCamera : IVisionCamera
     /// <param name="ct">Not used (reading is immediate).</param>
     /// <returns>The image, owned by the caller.</returns>
     /// <exception cref="InvalidOperationException">The last file was already returned and <see cref="Loop"/> is off.</exception>
+    /// <exception cref="FileNotFoundException">The file cannot be read as an image.</exception>
+    /// <exception cref="NotSupportedException">The file has a pixel format that is not supported (for example 16-bit).</exception>
     public Task<VisionImage> Grab(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();

@@ -1,0 +1,19 @@
+# Devinno.Vision.FlashCap {{VERSION}}
+
+> USB (UVC) camera driver for Devinno.Vision, based on FlashCap: `FlashCapCamera` implements `IVisionCamera` for USB webcams and laptop cameras.
+
+1. Devinno.Vision.FlashCap.xml (`lib/net9.0/` in the package; the same folder as this file in `.devinno/Devinno.Vision.FlashCap/`): C# API reference for `FlashCapCamera` — `Devices()`, `OpenAsync(device, width, height, gray, ct)`, `Name`, `Mode`, `Trigger`, `Grab`, `WaitFrame`.
+2. The camera interface and how to inspect images are documented in the core package: read `.devinno/Devinno.Vision/llms.txt` (in the Devinno.Vision package: `docs/llms.txt`) first.
+
+Use:
+
+```csharp
+await using var camera = await FlashCapCamera.OpenAsync();      // the first device, its largest mode; throws InvalidOperationException when there is none
+using var img = await camera.Grab(ct);                           // the first frame that arrives after this call
+```
+
+- `FlashCapCamera.Devices()` lists the device names; `OpenAsync(device: "part of the name", width: 1280, height: 720, gray: true)` picks one.
+- Trigger modes: `CameraTrigger.Software` (`Grab`) and `CameraTrigger.Free` (`WaitFrame`: the latest frame not returned yet). Setting `CameraTrigger.Hardware` throws `NotSupportedException`.
+- Exposure and gain are not controlled: `ExposureUs` and `Gain` read `double.NaN`, and setting them throws `NotSupportedException`.
+
+Nothing that is not in these files exists.

@@ -12,6 +12,18 @@ namespace Devinno.Vision;
 /// The reference pose is the pose found on the base (teaching) image; the ROIs are drawn on that image.
 /// At run time the ROIs move by the difference: <c>p' = current.origin + R(current.Angle − reference.Angle)·(p − reference.origin)</c>.
 /// </remarks>
+/// <example>
+/// Teach the reference pose on the base image, then use it:
+/// <code>
+/// setup.BodyRef = null;                                        // this image is the base
+/// using (var r = await job.RunAsync(baseImage))
+///     if (r.Poses.TryGetValue("body", out var pose))
+///         setup.BodyRef = pose;                                // save the setup afterwards
+///
+/// // in the alignment step
+/// ctx.SetPose(VisionPose.FromBlob(part, s.BodyRef), s.BodyRef);
+/// </code>
+/// </example>
 public readonly record struct VisionPose(double X, double Y, double Angle)
 {
     /// <summary>Pose from a blob: its center and the direction of its long axis.</summary>

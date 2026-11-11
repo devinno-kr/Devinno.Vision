@@ -3,7 +3,20 @@ using System.Text.Json.Serialization;
 namespace Devinno.Vision.Recipes;
 
 /// <summary>The definition of one check in a recipe (data). When a job is made it becomes an <see cref="IVisionStep"/>.</summary>
-/// <remarks>The kind names and property names are the recipe file format (studio.json); they do not change once published.</remarks>
+/// <remarks>
+/// <para>The kind names and property names are the recipe file format (studio.json); they do not change once published.</para>
+/// <para>The kinds are a closed list (<see cref="Kinds"/>): an app cannot add its own kind. An app that only loads and runs a recipe does not need these types;
+/// they are for tools that show or edit a recipe.</para>
+/// </remarks>
+/// <example>
+/// <code>
+/// using var recipe = VisionRecipe.Load(folder, loadModels: false);
+/// foreach (var c in recipe.Checks)
+///     Console.WriteLine($"{c.Name} ({c.Kind}, {c.Role}) roi {c.Roi.Shape}");
+/// if (recipe.Checks.OfType&lt;LengthCheck&gt;().FirstOrDefault() is { } len)
+///     Console.WriteLine($"{len.Name}: {len.Nominal} +{len.Plus} / -{len.Minus}");
+/// </code>
+/// </example>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "Kind")]
 [JsonDerivedType(typeof(BlobAlignCheck), BlobAlignCheck.KindName)]
 [JsonDerivedType(typeof(BlobCountCheck), BlobCountCheck.KindName)]
@@ -37,7 +50,7 @@ public abstract class CheckDef
     [JsonIgnore]
     public string Kind => GetType().Name[..^"Check".Length];
 
-    /// <summary>The kind name shown in a list on screen.</summary>
+    /// <summary>The kind name shown in a list on screen (Korean text).</summary>
     [JsonIgnore]
     public string KindLabel => Label;
 
@@ -50,7 +63,7 @@ public abstract class CheckDef
     public abstract IVisionStep CreateStep(VisionRecipe recipe);
 
     /// <summary>Checks that this definition can run.</summary>
-    /// <returns>What is wrong, or <see langword="null"/> when nothing is.</returns>
+    /// <returns>What is wrong (a Korean sentence starting with the check name), or <see langword="null"/> when nothing is.</returns>
     public string? Validate()
     {
         if (string.IsNullOrWhiteSpace(Name))
@@ -69,7 +82,7 @@ public abstract class CheckDef
         };
     }
 
-    /// <summary>이 검사가 부품 위치(Pose)를 만드는가.</summary>
+    /// <summary>Whether this check makes the part pose.</summary>
     internal virtual bool MakesPose => false;
 
     /// <summary>Makes an empty check of a kind.</summary>

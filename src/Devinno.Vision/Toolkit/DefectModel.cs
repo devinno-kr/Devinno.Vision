@@ -10,7 +10,21 @@ namespace Devinno.Vision;
 /// The model folder holds <c>model.onnx</c> (input [1, 3, H, W], output [1, N] scores, one per label) and <c>model.json</c>:
 /// <code>{ "Labels": ["good", "scratch", …], "GoodLabel": "good", "InputWidth": 224, "InputHeight": 224, "Normalize": "ImageNet" }</code>
 /// <c>Normalize</c> is <c>ImageNet</c> (default), <c>Unit</c> or <c>Gray</c> (<see cref="VisionTensorFormat"/>). Studio's training writes this folder.
+/// <para>Training needs real, labelled defect images; the library only runs the model. In a recipe the ONNX check uses it.
+/// The exception messages of this class are Korean.</para>
 /// </remarks>
+/// <example>
+/// <code>
+/// using var model = DefectModel.Load(@"C:\recipes\nut\models\defect-1");
+///
+/// job.Add("defect", roi: () =&gt; roi, ctx =&gt;
+/// {
+///     DefectResult d = model.Classify(ctx.Image);
+///     ctx.DrawText(new Point2d(4, 16), $"{d.Label} {d.Probability:0.00}");
+///     ctx.Value("defect probability", d.DefectProbability, max: 0.5, code: d.Defect.ToUpperInvariant());
+/// });
+/// </code>
+/// </example>
 public sealed class DefectModel : IDisposable
 {
     /// <summary>The model file name in the folder.</summary>
@@ -46,9 +60,11 @@ public sealed class DefectModel : IDisposable
 
     /// <summary>Reads a model folder (model.onnx + model.json).</summary>
     /// <param name="folder">The model folder.</param>
-    /// <returns>The model.</returns>
+    /// <returns>The model. Dispose it when done.</returns>
+    /// <exception cref="ArgumentException"><paramref name="folder"/> is <see langword="null"/> or empty.</exception>
     /// <exception cref="FileNotFoundException">model.onnx or model.json is missing.</exception>
-    /// <exception cref="InvalidDataException">model.json is wrong.</exception>
+    /// <exception cref="InvalidDataException">model.json is wrong: broken JSON, fewer than two labels or repeated labels, the good label is not among the labels,
+    /// an input size that is not positive, or an unknown <c>Normalize</c>.</exception>
     public static DefectModel Load(string folder)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(folder);

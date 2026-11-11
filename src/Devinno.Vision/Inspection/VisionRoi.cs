@@ -21,8 +21,18 @@ public enum VisionRoiShape
 /// A region of interest of an inspection step, in the coordinates of the base (teaching) image. Saved as plain JSON with <c>System.Text.Json</c>.
 /// </summary>
 /// <remarks>
-/// When the job has an alignment step (<c>pose:</c>), the ROI follows the part: it is moved and rotated by the difference between the current pose and the reference pose.
+/// <para>When the job has an alignment step (<c>pose:</c>), the ROI follows the part: it is moved and rotated by the difference between the current pose and the reference pose.</para>
+/// <para>The default value is "not set" (<see cref="IsEmpty"/>); a step whose ROI is not set ends in Error. A ROI partly outside the image is allowed while at least half of it is inside
+/// (the outside is filled with the nearest edge pixels); with less inside the step is Error.</para>
 /// </remarks>
+/// <example>
+/// <code>
+/// var hole = VisionRoi.Rect(194, 251, 60, 60);                 // x, y = top-left corner
+/// var slanted = VisionRoi.Rotated(330, 320, 470, 30, 15);      // cx, cy = center; 15° clockwise on screen
+///
+/// job.Add("left hole", roi: () =&gt; hole, ctx =&gt; { /* ctx.Image is the 60×60 region */ });
+/// </code>
+/// </example>
 public readonly record struct VisionRoi
 {
     /// <summary>The shape. <see cref="VisionRoiShape.None"/> (the default value) means not set.</summary>

@@ -9,7 +9,17 @@ namespace Devinno.Vision;
 /// <para>The model must take one image input of shape [1, C, H, W] (float). The input is made with <see cref="VisionImage.ToTensor"/>:
 /// <see cref="InputWidth"/> × <see cref="InputHeight"/> and <see cref="Format"/> must match how the model was trained.</para>
 /// <para><see cref="Run"/> can be called from several threads at once. Dispose the model when done (it holds native memory).</para>
+/// <para>A wrong input size, channel order or normalization gives no error — only worse results.</para>
 /// </remarks>
+/// <example>
+/// <code>
+/// using var model = OnnxModel.Load(@"C:\models\classifier.onnx", inputWidth: 224, inputHeight: 224, VisionTensorFormat.ImageNet);
+///
+/// OnnxOutputs o = model.Run(image);
+/// OnnxTensor scores = o.Ordered[0];              // or o["output name"]; model.Outputs lists the names
+/// int best = Array.IndexOf(scores.Data, scores.Data.Max());
+/// </code>
+/// </example>
 public sealed class OnnxModel : IDisposable
 {
     private readonly InferenceSession _session;
@@ -47,8 +57,10 @@ public sealed class OnnxModel : IDisposable
     /// <param name="inputHeight">Input height (px).</param>
     /// <param name="format">Input channels and normalization; <see langword="null"/> = <see cref="VisionTensorFormat.ImageNet"/>.</param>
     /// <param name="threads">CPU threads for one run; 0 = all cores.</param>
-    /// <returns>The model.</returns>
+    /// <returns>The model. Dispose it when done.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="path"/> is <see langword="null"/>.</exception>
     /// <exception cref="FileNotFoundException">The file does not exist.</exception>
+    /// <exception cref="Microsoft.ML.OnnxRuntime.OnnxRuntimeException">The file is not a model ONNX Runtime can load.</exception>
     public static OnnxModel Load(string path, int inputWidth, int inputHeight, VisionTensorFormat? format = null, int threads = 0)
     {
         ArgumentNullException.ThrowIfNull(path);
@@ -67,7 +79,10 @@ public sealed class OnnxModel : IDisposable
 
     /// <summary>Runs the model on an image.</summary>
     /// <param name="image">The image (resized and converted to the model input).</param>
-    /// <returns>All outputs by name.</returns>
+    /// <returns>All outputs by name. The values are copied, so they stay valid after the model is disposed.</returns>
+    /// <remarks>Outputs must be float tensors.</remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="image"/> is <see langword="null"/>.</exception>
+    /// <exception cref="Microsoft.ML.OnnxRuntime.OnnxRuntimeException">The model rejected the input (for example a fixed input size that differs from <see cref="InputWidth"/> × <see cref="InputHeight"/>).</exception>
     public OnnxOutputs Run(VisionImage image)
     {
         ArgumentNullException.ThrowIfNull(image);
@@ -106,6 +121,7 @@ public sealed class OnnxOutputs
 
     /// <summary>The output with the given name.</summary>
     /// <param name="name">Output name (see <see cref="OnnxModel.Outputs"/>).</param>
+    /// <exception cref="KeyNotFoundException">The model has no output with this name.</exception>
     public OnnxTensor this[string name] => _map.TryGetValue(name, out var t) ? t : throw new KeyNotFoundException($"No output named '{name}'. Outputs: {string.Join(", ", _map.Keys)}");
 
     /// <summary>The outputs in model order.</summary>

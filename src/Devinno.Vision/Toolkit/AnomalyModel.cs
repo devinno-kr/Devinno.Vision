@@ -16,8 +16,31 @@ namespace Devinno.Vision;
 /// normally the step's ROI (<c>ctx.Image</c>), which already follows the part's pose.</para>
 /// <para><b>Size</b>: every position keeps only <c>representatives</c> patches (the most different ones), so the model stays tens of MB whatever the number of good images.
 /// In a setup only <see cref="Path"/> is saved; <see cref="Save"/> writes the folder (model.json, features.onnx, bank.bin).</para>
-/// <para>Tested on MVTec AD metal_nut: 200 good images, ResNet18 layer2+3, 48 per position → 97 % of 115 test images (docs/05).</para>
+/// <para>Tested on MVTec AD metal_nut: 200 good images, ResNet18 layer2+3, 48 per position → 97 % of 115 test images.</para>
+/// <para><b>Limit</b>: the score has no fixed scale. Score good images that were not used for training and set the limit a little above their highest score.</para>
+/// <para><b>Lifetime</b>: the model owns its feature model; disposing the model disposes it. <see cref="Score"/> does not change the model.
+/// In a recipe, the good-part model (<see cref="VisionRecipe.TrainGoodModelAsync"/>) does the training, the limit and the loading for you.</para>
 /// </remarks>
+/// <example>
+/// <code>
+/// // Teaching: aligned crops of good parts (the same ROI of each)
+/// var features = OnnxModel.Load(@"C:\models\features.onnx", 256, 256);
+/// using var trained = AnomalyModel.Train(features, goodCrops);
+/// trained.Save(recipeFolder, "models/surface");
+///
+/// // Startup
+/// var model = new AnomalyModel { Path = "models/surface" };
+/// model.Load(recipeFolder);
+///
+/// // A step whose ROI is the view used for training
+/// job.Add("surface", roi: () =&gt; roi, ctx =&gt;
+/// {
+///     var a = model.Score(ctx.Image);
+///     ctx.Draw(a);
+///     ctx.Value("anomaly", a.Score, max: 2.3, code: "SURFACE");
+/// });
+/// </code>
+/// </example>
 [JsonConverter(typeof(AnomalyModelConverter))]
 public sealed class AnomalyModel : IDisposable
 {
@@ -56,6 +79,8 @@ public sealed class AnomalyModel : IDisposable
     /// <param name="progress">Reports the number of images described so far.</param>
     /// <param name="ct">Cancels the training.</param>
     /// <returns>The model.</returns>
+    /// <exception cref="ArgumentException">Fewer than 2 good images, or the feature model gave different sizes for them.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="representatives"/> is below 1 or <paramref name="neighborhood"/> is negative.</exception>
     /// <exception cref="OperationCanceledException">Canceled.</exception>
     public static AnomalyModel Train(OnnxModel features, IEnumerable<VisionImage> goods, int representatives = 48, int neighborhood = 1,
                                      IProgress<int>? progress = null, CancellationToken ct = default)
@@ -135,6 +160,7 @@ public sealed class AnomalyModel : IDisposable
     /// <summary>Saves the model to a folder (model.json, features.onnx, bank.bin) and sets <see cref="Path"/>.</summary>
     /// <param name="root">The root folder (for example the recipe folder).</param>
     /// <param name="path">The model folder relative to <paramref name="root"/>; created if missing.</param>
+    /// <exception cref="InvalidOperationException">The model is not trained.</exception>
     public void Save(string root, string path)
     {
         if (_bank is null || _features is null)
@@ -163,6 +189,10 @@ public sealed class AnomalyModel : IDisposable
 
     /// <summary>Reads the model folder at <see cref="Path"/> (including its feature model).</summary>
     /// <param name="root">The folder <see cref="Path"/> is relative to.</param>
+    /// <exception cref="InvalidOperationException"><see cref="Path"/> is not set.</exception>
+    /// <exception cref="FileNotFoundException">A file of the model folder (model.json, bank.bin, features.onnx) is missing.</exception>
+    /// <exception cref="DirectoryNotFoundException">The model folder does not exist.</exception>
+    /// <exception cref="InvalidDataException">The folder is not an anomaly model, or bank.bin has an unknown format.</exception>
     public void Load(string root)
     {
         if (string.IsNullOrEmpty(Path))

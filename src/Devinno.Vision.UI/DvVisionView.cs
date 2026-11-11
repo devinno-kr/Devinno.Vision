@@ -14,6 +14,27 @@ namespace Devinno.Vision.UI;
 /// A new rectangle is drawn only when the ROI is empty — clicking outside an existing ROI does nothing, so a stray click cannot replace it;
 /// a click without moving, or a rectangle smaller than 4 px, is ignored. <see cref="RoiChanged"/> reports the new ROI in image coordinates. Rotated ROIs can be moved but not resized yet.</para>
 /// </remarks>
+/// <example>
+/// <code>
+/// // Once, before the app shows a page
+/// var registry = new ComponentRegistry();
+/// DvVisionView.Register(registry);
+/// app.Registry = registry;
+///
+/// // Markup of the page:  &lt;VisionView source="{FrontView}"/&gt;
+/// public sealed partial class MainPage : DvPage
+/// {
+///     public DvVisionView FrontView { get; } = new();
+///
+///     public async Task InspectAsync(VisionJob job, IVisionCamera camera, CancellationToken ct)
+///     {
+///         using var img = await camera.Grab(ct);
+///         using var r = await job.RunAsync(img, ct);
+///         FrontView.Show(r);          // any thread; the view keeps its own copy, so r and img can be disposed
+///     }
+/// }
+/// </code>
+/// </example>
 public sealed class DvVisionView
 {
     /// <summary>The markup tag registered by <see cref="Register"/>. (Devinno.UI reserves tags starting with "Dv" for built-in elements.)</summary>

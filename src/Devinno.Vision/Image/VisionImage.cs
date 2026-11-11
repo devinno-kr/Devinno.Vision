@@ -12,7 +12,20 @@ namespace Devinno.Vision;
 /// <para><b>Coordinates</b>: a derived image remembers how its pixels map to the original image; <see cref="ToSource"/> converts a point.
 /// Results drawn in a step are converted to the original image automatically.</para>
 /// <para><b>Going down to OpenCV</b>: <see cref="Mat"/> is the image itself; any OpenCV function can use it. <see cref="From"/> brings a Mat back.</para>
+/// <para><b>Formats</b>: 8-bit BGR and 8-bit gray only (<see cref="VisionPixelFormat"/>).</para>
 /// </remarks>
+/// <example>
+/// <code>
+/// using var img = VisionImage.Load(@"C:\images\part01.bmp");       // the app owns it
+/// using var r = await job.RunAsync(img);                           // images made inside the run are released by the run
+///
+/// // Outside a run, derived images belong to the caller
+/// using var gray = img.Gray();
+/// using var small = gray.Resize(320, 240);
+/// Cv2.GaussianBlur(small.Mat, small.Mat, new Size(5, 5), 0);       // any OpenCV call on the Mat
+/// var inOriginal = small.ToSource(new Point2d(10, 10));            // the same point in img
+/// </code>
+/// </example>
 public sealed class VisionImage : IDisposable
 {
     private readonly object _gate = new();
@@ -72,7 +85,9 @@ public sealed class VisionImage : IDisposable
 
     /// <summary>Loads an image file (PNG, BMP, JPEG, …). Gray files stay <see cref="VisionPixelFormat.Gray8"/>; color files become <see cref="VisionPixelFormat.Bgr8"/>.</summary>
     /// <param name="path">The file path.</param>
-    /// <returns>A new image owned by the caller.</returns>
+    /// <returns>A new image owned by the caller (dispose it, after the results that borrow it).</returns>
+    /// <remarks>A file with an alpha channel (8-bit BGRA) is loaded without the alpha. <see cref="Info"/> has the load time and no camera.</remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="path"/> is <see langword="null"/>.</exception>
     /// <exception cref="FileNotFoundException">The file does not exist or cannot be decoded.</exception>
     /// <exception cref="NotSupportedException">The file has a pixel format that is not supported yet (e.g. 16-bit).</exception>
     public static VisionImage Load(string path)
@@ -91,7 +106,16 @@ public sealed class VisionImage : IDisposable
     /// <param name="mat">An 8-bit BGR (<c>CV_8UC3</c>) or gray (<c>CV_8UC1</c>) Mat.</param>
     /// <param name="info">Capture information, or <see langword="null"/> for none.</param>
     /// <returns>A new image owned by the caller.</returns>
-    /// <exception cref="ArgumentException">The Mat is empty or has an unsupported type.</exception>
+    /// <remarks>Inside a step use <c>ctx.From(mat)</c> instead: that image belongs to the run and keeps the step's coordinates.</remarks>
+    /// <example>
+    /// <code>
+    /// using var mat = Cv2.ImRead(path, ImreadModes.Grayscale);     // or a frame from your own camera SDK
+    /// using var img = VisionImage.From(mat, new VisionImageInfo { Camera = "cam1", FrameNo = 42 });
+    /// using var r = await job.RunAsync(img);
+    /// </code>
+    /// </example>
+    /// <exception cref="ArgumentException">The Mat is empty.</exception>
+    /// <exception cref="NotSupportedException">The Mat is not 8-bit BGR (<c>CV_8UC3</c>) or 8-bit gray (<c>CV_8UC1</c>).</exception>
     public static VisionImage From(Mat mat, VisionImageInfo? info = null)
     {
         ArgumentNullException.ThrowIfNull(mat);
@@ -155,6 +179,7 @@ public sealed class VisionImage : IDisposable
     /// <param name="width">New width in px.</param>
     /// <param name="height">New height in px.</param>
     /// <returns>The resized image.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The size is not positive.</exception>
     public VisionImage Resize(int width, int height)
     {
         if (width < 1 || height < 1)
@@ -215,13 +240,15 @@ public sealed class VisionImage : IDisposable
 
     /// <summary>
     /// Makes a model input (for ONNX and other inference): resized, channels converted (BGR↔RGB, color↔gray), scaled and normalized, channels-first (CHW).
-    /// Devinno.Vision does not run models; pass the array to your inference code (e.g. an ONNX Runtime tensor of shape [1, C, height, width]).
+    /// <see cref="OnnxModel.Run"/> calls this itself; use it directly when you run a model with your own inference code (e.g. an ONNX Runtime tensor of shape [1, C, height, width]).
     /// </summary>
     /// <param name="width">Model input width (px).</param>
     /// <param name="height">Model input height (px).</param>
     /// <param name="format">Channels and normalization; <see langword="null"/> = <see cref="VisionTensorFormat.ImageNet"/>.</param>
     /// <returns><c>C × height × width</c> values, channel by channel.</returns>
     /// <remarks>To map model output back to this image, resize to the same size with <see cref="Resize"/> and draw with <c>from:</c> that image.</remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The size is not positive.</exception>
+    /// <exception cref="ArgumentException">The format does not have 1 or 3 channels, or its mean and std lengths differ.</exception>
     public float[] ToTensor(int width, int height, VisionTensorFormat? format = null)
     {
         format ??= VisionTensorFormat.ImageNet;
@@ -271,6 +298,19 @@ public sealed class VisionImage : IDisposable
 
     /// <summary>Takes this image out of the run so it survives the end of the run. It then belongs to the app, which must dispose it.</summary>
     /// <returns>This image.</returns>
+    /// <remarks>Call it inside the step, before the run ends. The pixels are not copied. Outside a run it does nothing.</remarks>
+    /// <example>
+    /// <code>
+    /// VisionImage? binary = null;
+    /// job.Add("holes", roi: () =&gt; roi, ctx =&gt;
+    /// {
+    ///     binary = ctx.Image.Threshold(ThresholdMode.Fixed, 80, invert: true).Keep();   // survives the run
+    /// });
+    /// using (var r = await job.RunAsync(img)) { }
+    /// using (binary) binary?.Save("binary.png");                                         // the app disposes it
+    /// </code>
+    /// </example>
+    /// <exception cref="ObjectDisposedException">The image was already disposed or released.</exception>
     public VisionImage Keep()
     {
         _ = Mat; // 해제된 이미지면 여기서 알린다

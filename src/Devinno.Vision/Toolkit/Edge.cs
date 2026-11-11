@@ -61,6 +61,21 @@ public static class Edge
     /// <param name="polarity">Which brightness change to look for.</param>
     /// <param name="minContrast">Weakest edge to accept (brightness change per px, after averaging).</param>
     /// <returns>The result; <see cref="CaliperResult.Found"/> is <see langword="false"/> when an edge is missing.</returns>
+    /// <remarks>
+    /// The result never throws for a missing edge: <see cref="CaliperResult.Distance"/> is then <see cref="double.NaN"/>, which <c>ctx.Value</c> judges NG.
+    /// For a vertical measurement use a rotated ROI (angle 90). For mm use <c>ctx.Mm(result)</c> with the job's calibration.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// job.Add("width", roi: () =&gt; VisionRoi.Rect(100, 305, 470, 30), ctx =&gt;
+    /// {
+    ///     var e = Edge.Caliper(ctx.Image, EdgePolarity.BrightObject, minContrast: 8);
+    ///     ctx.Draw(e);
+    ///     ctx.Value("width", e.Distance, min: 405, max: 417, code: "WIDTH", unit: "px");
+    /// });
+    /// </code>
+    /// </example>
+    /// <exception cref="ArgumentNullException"><paramref name="image"/> is <see langword="null"/>.</exception>
     public static CaliperResult Caliper(VisionImage image, EdgePolarity polarity = EdgePolarity.Both, double minContrast = 20)
     {
         ArgumentNullException.ThrowIfNull(image);

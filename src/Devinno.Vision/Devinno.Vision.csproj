@@ -15,7 +15,16 @@
     <Description>Thin vision inspection framework over OpenCvSharp4 — images with automatic disposal and coordinate tracking, inspection jobs with steps, ROI, timeouts and uniform results, a camera interface, a small toolkit, and a result view for Devinno.UI.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Copyright>Copyright (c) 2026 Devinno</Copyright>
+    <!-- docs/llms.txt 원본은 저장소 루트의 llms.txt (../Directory.Build.props 의 _DvVersionedLlms) -->
+    <DevinnoLlmsFile>$(MSBuildProjectDirectory)\..\..\llms.txt</DevinnoLlmsFile>
   </PropertyGroup>
+
+  <!-- 패키지 문서 (AI · 사람용): 규칙과 저장소 루트의 vision-*.md 전부. C# API 설명은 Devinno.Vision.xml.
+       참조한 프로젝트가 빌드하면 .devinno/Devinno.Vision/ 으로 복사된다 (../Directory.Build.props) -->
+  <ItemGroup>
+    <None Include="..\..\llm-rules.md" Pack="true" PackagePath="docs\" />
+    <None Include="..\..\vision-*.md" Pack="true" PackagePath="docs\" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="OpenCvSharp4" Version="4.13.0.20261107" />

@@ -1,0 +1,42 @@
+# Devinno.Vision {{VERSION}}
+
+> .NET 9 vision inspection library on OpenCvSharp4. One image → one job (a list of steps) → one result (OK / NG / Error, NG codes, measured values, overlays). An inspection is either loaded from a recipe made in the teaching tool (Devinno.Vision.Studio) or written in C# as steps. Images are released automatically inside a run, ROIs follow the part, and a run never throws for inspection problems. ONNX models run on CPU (ONNX Runtime).
+
+The documents below sit in the same folder as this file (the package's `docs/`, or `.devinno/Devinno.Vision/` in your project after a build; turned off when the project sets `<DevinnoCopyDocs>false</DevinnoCopyDocs>`). Assume anything not listed in them does not exist.
+
+## Always read
+
+1. [llm-rules.md](llm-rules.md): rules. **Read first.** Which way to use the library, which type to pick, MUST/NEVER rules (ownership and disposal, threads, results), symptom → cause → fix, how to verify, what is not supported.
+
+## Read when needed (question → page)
+
+| Question | Page |
+|---|---|
+| How do I set up the project (csproj, native runtime packages)? | [llm-rules.md#project-setup](llm-rules.md#project-setup) |
+| Run an inspection made in Studio: load a recipe folder or a `.dvpkg` package, make the job, run it | [vision-recipe.md#run-a-recipe](vision-recipe.md#run-a-recipe) |
+| What is in a result: judgment, NG codes, values, steps, poses, overlays, JSON | [vision-recipe.md#result](vision-recipe.md#result) |
+| Which step names, value names, NG codes and error texts does a recipe job produce? | [vision-recipe.md#recipe-names](vision-recipe.md#recipe-names) |
+| The recipe file (`studio.json`), the check kinds, format versions, what a package holds | [vision-recipe.md#recipe-file](vision-recipe.md#recipe-file), [#package](vision-recipe.md#package) |
+| Good-part model and reason checks in a recipe; training from code | [vision-recipe.md#good-model](vision-recipe.md#good-model) |
+| Write an inspection in C#: jobs, steps, `ctx`, setup class, per-part data | [vision-jobs.md#job](vision-jobs.md#job) |
+| ROI, alignment (pose), ROIs that follow the part | [vision-jobs.md#roi-and-pose](vision-jobs.md#roi-and-pose) |
+| Judging: values with limits, nominal ± tolerance, mm calibration, NG codes, Error | [vision-jobs.md#judging](vision-jobs.md#judging) |
+| How a run ends: step states, timeouts, cancel, disabled steps, reason steps | [vision-jobs.md#run-rules](vision-jobs.md#run-rules) |
+| Images: loading, OpenCV `Mat`, who disposes what, coordinates back to the original image | [vision-jobs.md#images](vision-jobs.md#images) |
+| Changing setup values while the line runs; teaching a reference image | [vision-jobs.md#setup](vision-jobs.md#setup) |
+| Toolkit: blobs, brightness, caliper (width/length), round-part alignment, difference against good parts | [vision-toolkit.md#blob](vision-toolkit.md#blob) |
+| ONNX: running a model, anomaly detection from good parts, defect classifier | [vision-toolkit.md#onnx](vision-toolkit.md#onnx) |
+| Cameras: the interface, image folders, RTSP streams, trigger modes | [vision-toolkit.md#cameras](vision-toolkit.md#cameras) |
+
+## Other packages
+
+Each has its own `llms.txt`.
+
+- **Devinno.Vision.UI** (`DvVisionView`): shows a result (image, overlays, judgment) on a Devinno.UI screen and lets the operator drag a ROI.
+- **Devinno.Vision.FlashCap** (`FlashCapCamera`): USB (UVC) cameras.
+
+## C# API
+
+Devinno.Vision.xml (`lib/net9.0/` in the package; the same folder as this file in `.devinno/Devinno.Vision/`): **part of this package and meant to be read** — plain XML, `<member name="T:…">`/`M:`/`P:` entries with `<summary>`, `<param>`, `<returns>`, `<exception>`, `<remarks>`, `<example>` (the same text IntelliSense shows; Korean: `lib/net9.0/ko/Devinno.Vision.xml`). It is the full API reference: every public type, method, overload and property. Search it for anything the documents above do not cover. The namespaces: [llm-rules.md#namespaces](llm-rules.md#namespaces).
+
+Nothing that is not in these files exists. Do not invent types, methods, properties or check kinds. If a document and the code disagree, the code is right.

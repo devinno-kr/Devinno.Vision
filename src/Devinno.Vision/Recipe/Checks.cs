@@ -13,6 +13,10 @@ internal sealed class CheckStep(string name, Action<VisionContext> run) : IVisio
 }
 
 /// <summary>Finds the part position (pose) from the largest blob. The ROIs of the checks after it follow the part.</summary>
+/// <remarks>
+/// Only the first check of a recipe may be an alignment check. It records no value. When no blob is found its step is Error with the reason "부품 없음" (part not found),
+/// the checks after it are Skipped and the result is Error.
+/// </remarks>
 public sealed class BlobAlignCheck : CheckDef
 {
     /// <summary>The <c>Kind</c> value in JSON.</summary>
@@ -49,6 +53,7 @@ public sealed class BlobAlignCheck : CheckDef
 }
 
 /// <summary>Judges the number of blobs in the ROI against a range.</summary>
+/// <remarks>Records the value "<c>&lt;check name&gt; 개수</c>" (count).</remarks>
 public sealed class BlobCountCheck : CheckDef
 {
     /// <summary>The <c>Kind</c> value in JSON.</summary>
@@ -81,6 +86,7 @@ public sealed class BlobCountCheck : CheckDef
 }
 
 /// <summary>Judges that the number of pixels in the ROI with brightness <see cref="Low"/>–<see cref="High"/> is at most <see cref="Max"/>.</summary>
+/// <remarks>Records the value "<c>&lt;check name&gt; 픽셀</c>" (pixels).</remarks>
 public sealed class PixelCountCheck : CheckDef
 {
     /// <summary>The <c>Kind</c> value in JSON.</summary>
@@ -108,6 +114,7 @@ public sealed class PixelCountCheck : CheckDef
 }
 
 /// <summary>Judges the mean brightness of the ROI against a range.</summary>
+/// <remarks>Records the value "<c>&lt;check name&gt; 밝기</c>" (brightness).</remarks>
 public sealed class BrightnessCheck : CheckDef
 {
     /// <summary>The <c>Kind</c> value in JSON.</summary>
@@ -135,6 +142,7 @@ public sealed class BrightnessCheck : CheckDef
 /// Judges the distance between two edges along the ROI's horizontal direction as nominal ± tolerance
 /// (mm when the recipe has a calibration, px otherwise).
 /// </summary>
+/// <remarks>Records one value named after the check, with the unit "mm" or "px". When the two edges are not found the value is NaN and the check is NG.</remarks>
 public sealed class LengthCheck : CheckDef
 {
     /// <summary>The <c>Kind</c> value in JSON.</summary>
@@ -178,6 +186,7 @@ public sealed class LengthCheck : CheckDef
 /// Classifies the ROI with a defect model (<see cref="DefectModel"/>, trained in Studio or imported) and judges by the probability that it is not good.
 /// The NG code is the most likely defect label in capitals (scratch → SCRATCH).
 /// </summary>
+/// <remarks>Records the value "<c>&lt;check name&gt; 불량 확률</c>" (defect probability, 0–1) and draws the most likely label with its probability.</remarks>
 public sealed class OnnxCheck : CheckDef
 {
     /// <summary>The <c>Kind</c> value in JSON.</summary>

@@ -5,7 +5,23 @@ namespace Devinno.Vision;
 /// <summary>
 /// What a step receives (<c>ctx</c>): its image, cancellation, and the calls that record values, judgments, poses and drawings.
 /// </summary>
-/// <remarks>Thread-safe: a step may record from several tasks it started (for example with <c>Task.WhenAll</c>), as long as they finish before the step returns.</remarks>
+/// <remarks>
+/// <para>Thread-safe: a step may record from several tasks it started (for example with <c>Task.WhenAll</c>), as long as they finish before the step returns.</para>
+/// <para>A step judges only through its context: <see cref="Value(string, double, double?, double?, string?, string?)"/> for a measured value,
+/// <see cref="Judge"/> for a direct judgment, <see cref="Fail"/> when it cannot inspect. A step that records nothing is OK; a step that throws is Error.</para>
+/// <para>Images made inside the step (<see cref="Image"/>, <see cref="Crop"/>, <see cref="From"/>, and images derived from them) are released when the run ends.
+/// A context is valid only while its step runs; do not keep it.</para>
+/// </remarks>
+/// <example>
+/// <code>
+/// job.Add("left hole", roi: () =&gt; VisionRoi.Rect(194, 251, 60, 60), ctx =&gt;
+/// {
+///     var holes = Blob.Find(ctx.Image, ThresholdMode.Fixed, threshold: 80, invert: true, minArea: 300);
+///     ctx.Draw(holes);                                                       // drawn at the right place on the original image
+///     ctx.Value("left holes", holes.Length, min: 1, max: 1, code: "HOLE");   // out of range → the step is NG with code HOLE
+/// });
+/// </code>
+/// </example>
 public sealed class VisionContext
 {
     private readonly JobRun _run;
@@ -50,6 +66,17 @@ public sealed class VisionContext
     /// <param name="code">NG code; <see langword="null"/> = the value name.</param>
     /// <param name="unit">Unit text for display, or <see langword="null"/>.</param>
     /// <returns>Whether the value is within the limits.</returns>
+    /// <remarks>
+    /// The value is always recorded (<see cref="VisionResult.Values"/>), good or bad, so it can be shown and logged. Without limits it is recorded only.
+    /// Several values in one step give several codes; each code appears once in <see cref="VisionResult.Codes"/>.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// ctx.Value("holes", blobs.Length, min: 4, max: 4, code: "HOLE");
+    /// ctx.Value("dark pixels", Brightness.Count(ctx.Image, 0, 100), max: 200, code: "DISCOLOR");
+    /// ctx.Value("mean", Brightness.Mean(ctx.Image));                          // recorded, not judged
+    /// </code>
+    /// </example>
     public bool Value(string name, double value, double? min = null, double? max = null, string? code = null, string? unit = null)
         => Record(name, value, min, max, code, unit, null);
 
@@ -76,6 +103,13 @@ public sealed class VisionContext
     /// <param name="code">NG code; <see langword="null"/> = the value name.</param>
     /// <param name="unit">Unit text for display, or <see langword="null"/>.</param>
     /// <returns>Whether the value is within the tolerance.</returns>
+    /// <example>
+    /// <code>
+    /// var e = Edge.Caliper(ctx.Image);
+    /// ctx.Value("width", ctx.Mm(e), nominal: 90, plus: 1, minus: 1, code: "WIDTH", unit: "mm");   // OK from 89 to 91
+    /// </code>
+    /// </example>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="plus"/> or <paramref name="minus"/> is negative.</exception>
     public bool Value(string name, double value, double nominal, double plus, double minus, string? code = null, string? unit = null)
     {
         if (plus < 0 || minus < 0)
@@ -133,7 +167,8 @@ public sealed class VisionContext
     }
 
     /// <summary>Marks the step as unable to inspect (Error) — for example when an alignment mark is missing on a machine that should stop rather than reject.</summary>
-    /// <param name="reason">Why.</param>
+    /// <param name="reason">Why. It becomes <see cref="StepResult.Reason"/> and, as "job/step: reason", <see cref="VisionResult.Error"/>.</param>
+    /// <remarks>The step keeps running after this call; return from it yourself. The first reason given wins. The following steps still run.</remarks>
     public void Fail(string reason)
     {
         lock (_gate)
@@ -145,6 +180,20 @@ public sealed class VisionContext
     /// <summary>Sets the part's pose. The name is the step's declared <c>pose:</c> (or the step name). Later steps' ROIs follow it.</summary>
     /// <param name="current">The pose found in this image.</param>
     /// <param name="reference">The pose on the base (teaching) image, from the setup. <see langword="null"/> = this image is the base (ROIs stay where they were drawn) — use it when teaching.</param>
+    /// <remarks>
+    /// The pose is also stored in <see cref="VisionResult.Poses"/>; when teaching, run the job on the base image with <paramref name="reference"/> = <see langword="null"/>
+    /// and save that pose as the reference. A step that should set a pose but does not (for example the part is missing) leaves the steps that follow it Skipped.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// job.Add("align", pose: "body", (ctx, s) =&gt;
+    /// {
+    ///     var part = Blob.Find(ctx.Image, s.Body).FirstOrDefault();
+    ///     if (part is null) { ctx.Fail("part not found"); return; }
+    ///     ctx.SetPose(VisionPose.FromBlob(part, s.BodyRef), s.BodyRef);
+    /// });
+    /// </code>
+    /// </example>
     public void SetPose(VisionPose current, VisionPose? reference) => SetPose(_entry.Pose ?? Step, current, reference);
 
     /// <summary>Sets a named pose (when a job aligns more than one thing, e.g. body and label).</summary>
@@ -162,6 +211,8 @@ public sealed class VisionContext
     /// <summary>Cuts another region out of the run's image — for steps that look at several regions. The region follows the same pose as the step's ROI, and its border is drawn.</summary>
     /// <param name="roi">The region, in base image coordinates.</param>
     /// <returns>The region, upright (released at the end of the run).</returns>
+    /// <exception cref="ArgumentException">The ROI is not set.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Less than half of the ROI is inside the image.</exception>
     public VisionImage Crop(VisionRoi roi)
     {
         var img = _run.Place(roi, _motion);
@@ -173,6 +224,15 @@ public sealed class VisionContext
     /// The pixels are shared; your Mat is not disposed.</summary>
     /// <param name="mat">An 8-bit BGR or gray Mat.</param>
     /// <returns>The image.</returns>
+    /// <example>
+    /// <code>
+    /// using var edges = new Mat();                 // your Mat: you dispose it
+    /// Cv2.Canny(ctx.Image.Mat, edges, 50, 150);
+    /// var img = ctx.From(edges);                   // same coordinates as ctx.Image
+    /// ctx.DrawBox(new Rect(10, 10, 20, 20), "here", from: img);
+    /// </code>
+    /// </example>
+    /// <exception cref="NotSupportedException">The Mat is not 8-bit BGR or 8-bit gray.</exception>
     public VisionImage From(Mat mat)
     {
         ArgumentNullException.ThrowIfNull(mat);

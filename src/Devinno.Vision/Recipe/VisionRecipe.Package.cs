@@ -16,7 +16,8 @@ public sealed partial class VisionRecipe
     /// <summary>The manifest entry name in a package.</summary>
     public const string ManifestFile = "manifest.json";
 
-    /// <summary>The package this recipe was loaded from, or <see langword="null"/> when it was loaded from a folder.</summary>
+    /// <summary>The package this recipe was loaded from, or <see langword="null"/> when it was loaded from a folder.
+    /// <see cref="Folder"/> is then the folder the package was unpacked to; do not write into it.</summary>
     [JsonIgnore]
     public string? PackagePath { get; private set; }
 
@@ -24,8 +25,24 @@ public sealed partial class VisionRecipe
     /// Writes the recipe as one package file (zip): <c>manifest.json</c> (library version, time, SHA-256 of every file), <c>studio.json</c> without the
     /// test folders, the base image and the model folders the recipe uses. Studio-only files (test folders, training folders and summaries) are left out.
     /// </summary>
-    /// <param name="file">The package file (.dvpkg). Overwritten if it exists.</param>
+    /// <param name="file">The package file (.dvpkg). Overwritten if it exists; its folder is created if missing.</param>
     /// <returns>The number of files packed (manifest not counted).</returns>
+    /// <remarks>
+    /// A package holds data and model files only — no code. <see cref="Load"/> opens it and checks every file against the manifest,
+    /// so a package that was changed after packing is refused. Save the recipe before packing: the model folders are read from <see cref="Folder"/>.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// using var recipe = VisionRecipe.Load(@"C:\recipes\bracket");
+    /// int files = recipe.Pack(@"C:\deploy\bracket.dvpkg");
+    ///
+    /// // On the line PC
+    /// using var onSite = VisionRecipe.Load(@"C:\deploy\bracket.dvpkg");
+    /// var job = onSite.CreateJob();
+    /// </code>
+    /// </example>
+    /// <exception cref="ArgumentException"><paramref name="file"/> is empty or does not end in .dvpkg.</exception>
+    /// <exception cref="ObjectDisposedException">The recipe was disposed.</exception>
     /// <exception cref="InvalidOperationException">The recipe cannot run as it is (no checks, a model to train again, an ONNX check without a model …).</exception>
     /// <exception cref="FileNotFoundException">A file the recipe needs is missing.</exception>
     public int Pack(string file)

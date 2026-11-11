@@ -12,15 +12,26 @@ namespace Devinno.Vision;
 /// An app loads the folder and runs the same inspection without Studio.
 /// </summary>
 /// <remarks>
-/// The reference is a base image (standard checks), a good-part model (<see cref="GoodModel"/>), or both.
-/// A recipe with a good-part model holds the loaded model: dispose the recipe when done. Jobs made from it stop working after that (their model step is Error).
+/// <para>The reference is a base image (standard checks), a good-part model (<see cref="GoodModel"/>), or both.</para>
+/// <para><b>Use</b>: load the recipe once (<see cref="Load"/>), make the job once (<see cref="CreateJob"/>) and run that job for every image.
+/// Loading reads the ONNX model files, so do not load per image.</para>
+/// <para><b>Lifetime</b>: a recipe holds the loaded models. Keep it alive as long as its jobs are used and dispose it afterwards;
+/// after <see cref="Dispose"/> the model steps of its jobs end in Error (a run in progress finishes first).</para>
+/// <para><b>Texts</b>: the exception messages of this class, the step name of the good-part model (<see cref="GoodModelStepName"/>) and the value names its checks record
+/// are Korean. Decide in code by exception type and by NG code (<see cref="VisionResult.Codes"/>), not by text.</para>
 /// </remarks>
 /// <example>
+/// Load a recipe folder (or a .dvpkg package) and run it:
 /// <code>
 /// using var recipe = VisionRecipe.Load(@"C:\recipes\bracket");
 /// var job = recipe.CreateJob();
+///
 /// using var img = VisionImage.Load(path);
 /// using var r = await job.RunAsync(img);
+/// if (r.State == VisionState.Ng)
+///     Console.WriteLine(string.Join(", ", r.Codes));   // for example "HOLE, LENGTH"
+/// else if (r.State == VisionState.Error)
+///     Console.WriteLine(r.Error);                      // could not inspect
 /// </code>
 /// </example>
 public sealed partial class VisionRecipe : IDisposable
@@ -35,6 +46,7 @@ public sealed partial class VisionRecipe : IDisposable
     public const string PoseName = "part";
 
     /// <summary>The step name of the good-part model in the job (<c>r.Steps[VisionRecipe.GoodModelStepName]</c>). A check cannot have this name.</summary>
+    /// <remarks>The text is Korean and is part of the result format; the step records one value, the anomaly score. Use this constant instead of typing the text.</remarks>
     public const string GoodModelStepName = "양품 모델";
 
     /// <summary>The JSON options <c>studio.json</c> is written and read with (for example to serialize one <see cref="CheckDef"/> the same way).</summary>
@@ -103,12 +115,32 @@ public sealed partial class VisionRecipe : IDisposable
     public static VisionRecipe Create(string folder, string name) => new() { Folder = Path.GetFullPath(folder), Name = name };
 
     /// <summary>Opens <c>studio.json</c> in a recipe folder, or a recipe package (.dvpkg, unpacked to the user's cache folder and checked against its manifest).</summary>
-    /// <param name="folder">The recipe folder (a Studio project folder) or a .dvpkg file.</param>
+    /// <param name="folder">The recipe folder (a Studio project folder — the folder that holds studio.json) or a .dvpkg file.</param>
     /// <param name="loadModels">Read the model files now (default). <see langword="false"/> opens a recipe whose models are missing or not trained yet (Studio);
     /// <see cref="CreateJob"/> then reads them.</param>
-    /// <returns>The recipe, with calibration, checks, the taught reference pose and the good-part model restored.</returns>
-    /// <exception cref="FileNotFoundException">There is no studio.json in the folder, or a model folder it names is missing.</exception>
-    /// <exception cref="InvalidDataException">The file content is wrong, was written by a newer format version, has a check kind this version does not know, or a model file cannot be read.</exception>
+    /// <returns>The recipe, with calibration, checks, the taught reference pose and the good-part model restored. Dispose it when its jobs are no longer used.</returns>
+    /// <remarks>
+    /// Call it once at startup or when the product changes, not per image. A package is unpacked once into the user's local application data folder
+    /// (<c>Devinno.Vision\packages\&lt;hash&gt;</c>); <see cref="Folder"/> is then that folder and <see cref="PackagePath"/> the package file.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// try
+    /// {
+    ///     using var recipe = VisionRecipe.Load(@"C:\deploy\bracket.dvpkg");
+    ///     var job = recipe.CreateJob();
+    ///     // ... run the job for every image while the recipe is alive
+    /// }
+    /// catch (Exception ex) when (ex is FileNotFoundException or InvalidDataException or InvalidOperationException)
+    /// {
+    ///     Console.WriteLine(ex.Message);   // the message says what is wrong with the recipe
+    /// }
+    /// </code>
+    /// </example>
+    /// <exception cref="ArgumentException"><paramref name="folder"/> is <see langword="null"/> or empty.</exception>
+    /// <exception cref="FileNotFoundException">There is no studio.json in the folder, the package file does not exist, or a model folder the recipe names is missing.</exception>
+    /// <exception cref="InvalidDataException">The file content is wrong, was written by a newer format version, has a check kind this version does not know, a model file cannot be read,
+    /// or a package does not match its manifest (it was changed after packing).</exception>
     public static VisionRecipe Load(string folder, bool loadModels = true)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(folder);
@@ -213,6 +245,24 @@ public sealed partial class VisionRecipe : IDisposable
 
     /// <summary>Makes the job that runs this recipe: the alignment check, then the good-part model, then the other checks, with the calibration set.</summary>
     /// <returns>A new job. It holds copies of the current values, so editing the recipe afterwards does not change it — make a new job instead.</returns>
+    /// <remarks>
+    /// <para>The job is named after the recipe (<see cref="Name"/>; "studio" when the name is empty). Each check becomes one step named after the check,
+    /// the good-part model becomes the step <see cref="GoodModelStepName"/>, and the alignment check makes the pose <see cref="PoseName"/> that the other ROIs follow.</para>
+    /// <para>A job runs one image at a time (a second call while it runs returns Error "Busy"); for parallel runs call this method once per run. The jobs share the loaded models.</para>
+    /// <para>A recipe with nothing to run would pass every part, so no job is made for it.</para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// using var recipe = VisionRecipe.Load(folder);
+    /// var job = recipe.CreateJob();
+    /// job.Timeout = TimeSpan.FromSeconds(2);          // optional: time limit per step
+    ///
+    /// using var img = VisionImage.Load(path);
+    /// using var r = await job.RunAsync(img);
+    /// foreach (var v in r.Values)
+    ///     Console.WriteLine($"{v.Step}: {v.Name} = {v.Value:0.##} {v.Unit} ({(v.Ok ? "OK" : v.Code)})");
+    /// </code>
+    /// </example>
     /// <exception cref="InvalidOperationException">The recipe has nothing to run, a check cannot run, or the good-part model must be trained again (the alignment or its region changed).</exception>
     /// <exception cref="FileNotFoundException">The good-part model folder is missing.</exception>
     /// <exception cref="InvalidDataException">The good-part model cannot be read.</exception>
@@ -316,8 +366,10 @@ public sealed partial class VisionRecipe : IDisposable
     /// <param name="image">The image.</param>
     /// <param name="roi">The region in base image coordinates.</param>
     /// <param name="ct">Cancels.</param>
-    /// <returns>The cut image, owned by the caller.</returns>
+    /// <returns>The cut image, owned by the caller (dispose it).</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="image"/> is <see langword="null"/>.</exception>
     /// <exception cref="InvalidOperationException">The part was not found (the message says why), or the region is empty.</exception>
+    /// <exception cref="OperationCanceledException">Canceled.</exception>
     public async Task<VisionImage> CropAsync(VisionImage image, VisionRoi roi, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(image);
@@ -351,9 +403,29 @@ public sealed partial class VisionRecipe : IDisposable
     /// <param name="progress">Reports each image.</param>
     /// <param name="ct">Cancels the training; the recipe is then unchanged.</param>
     /// <returns>What was learned, the limit and the time per image.</returns>
-    /// <remarks>Save the recipe to keep it. Until then the old model folder stays; <see cref="Save"/> removes good-model folders the recipe no longer uses.</remarks>
+    /// <remarks>
+    /// <para>Save the recipe to keep it. Until then the old model folder stays; <see cref="Save"/> removes good-model folders the recipe no longer uses.</para>
+    /// <para>Jobs made before the training keep the old model, which is closed: make a new job with <see cref="CreateJob"/>.</para>
+    /// <para>Learn the part, not the whole frame: set <see cref="GoodModelTraining.Roi"/> to the part. Use 100 or more good images when possible.</para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// using var recipe = VisionRecipe.Load(folder, loadModels: false);
+    /// var result = await recipe.TrainGoodModelAsync(new GoodModelTraining
+    /// {
+    ///     Images = Directory.GetFiles(@"C:\images\good", "*.png"),
+    ///     Features = @"C:\models\features.onnx",
+    ///     Roi = VisionRoi.Rect(100, 150, 470, 250),
+    /// });
+    /// recipe.Save();
+    /// Console.WriteLine($"learned {result.Learned}, limit {result.Model.Max}, skipped {result.Skipped.Count}");
+    /// </code>
+    /// </example>
     /// <exception cref="ArgumentException">Too few good images (3 or more are needed), or too few left after cutting.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><see cref="GoodModelTraining.CalibrationShare"/> is not above 0 and at most 0.5.</exception>
     /// <exception cref="FileNotFoundException">The feature model does not exist.</exception>
+    /// <exception cref="InvalidOperationException">The recipe has no folder.</exception>
+    /// <exception cref="ObjectDisposedException">The recipe was disposed.</exception>
     /// <exception cref="OperationCanceledException">Canceled.</exception>
     public async Task<GoodModelResult> TrainGoodModelAsync(GoodModelTraining training, IProgress<GoodModelProgress>? progress = null, CancellationToken ct = default)
     {
@@ -490,6 +562,12 @@ public sealed partial class VisionRecipe : IDisposable
     /// Saves to studio.json in <see cref="Folder"/> (indented). The folder is created if missing. The format version is 2 when the recipe uses a good-part model,
     /// reason checks or ONNX checks, otherwise 1. Model folders made by training (models/good-…, models/defect-…) the recipe no longer uses are removed.
     /// </summary>
+    /// <remarks>
+    /// The text is written to a temporary file first and then moved over studio.json, so an interrupted save leaves the old file.
+    /// A model folder another program holds open is left and removed at a later save.
+    /// </remarks>
+    /// <exception cref="IOException">The file cannot be written.</exception>
+    /// <exception cref="UnauthorizedAccessException">The folder is not writable.</exception>
     public void Save()
     {
         Directory.CreateDirectory(Folder);

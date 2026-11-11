@@ -9,7 +9,26 @@ namespace Devinno.Vision;
 /// <para>Decoding uses OpenCV's FFmpeg backend (included in OpenCvSharp4.runtime.win). TCP transport is used unless <c>OPENCV_FFMPEG_CAPTURE_OPTIONS</c> is already set.</para>
 /// <para>Modes: <see cref="CameraTrigger.Software"/> (<see cref="Grab"/> returns a frame decoded after the call) and <see cref="CameraTrigger.Free"/>
 /// (<see cref="WaitFrame"/> returns the next new frame). A stream has no hardware trigger, exposure or gain.</para>
+/// <para><b>Delay</b>: a stream shows the scene with a delay (encoding, network, decoding). When another signal says the part is in place,
+/// a frame grabbed at once can still show the scene before it; allow for the stream's delay before grabbing.</para>
+/// <para><b>Lost stream</b>: when the stream stops, <see cref="Grab"/> and <see cref="WaitFrame"/> throw <see cref="IOException"/> from then on.
+/// The camera does not reconnect; dispose it and open a new one.</para>
+/// <para>Frames are BGR. The exception messages of this class are Korean.</para>
 /// </remarks>
+/// <example>
+/// <code>
+/// await using var camera = await RtspCamera.OpenAsync("rtsp://192.168.0.10:8554/studio");
+/// try
+/// {
+///     using var img = await camera.Grab(ct);      // a frame decoded after this call
+///     using var r = await job.RunAsync(img, ct);
+/// }
+/// catch (IOException ex)
+/// {
+///     Console.WriteLine(ex.Message);              // the stream stopped: dispose the camera and open it again
+/// }
+/// </code>
+/// </example>
 public sealed class RtspCamera : IVisionCamera
 {
     private const int ReadTimeoutMs = 5000;
@@ -42,8 +61,11 @@ public sealed class RtspCamera : IVisionCamera
     /// <param name="url">For example <c>rtsp://192.168.0.10:8554/studio</c>.</param>
     /// <param name="timeout">How long to wait for the first frame; default 10 s.</param>
     /// <param name="ct">Cancels the wait.</param>
-    /// <returns>The camera.</returns>
+    /// <returns>The camera. Dispose it with <c>await using</c>.</returns>
+    /// <remarks>Opening is retried until the time limit, so a camera that is still starting up, or a stream that is not published yet, is waited for.</remarks>
+    /// <exception cref="ArgumentException"><paramref name="url"/> is <see langword="null"/> or empty.</exception>
     /// <exception cref="IOException">The stream cannot be opened or sends no frame in time.</exception>
+    /// <exception cref="OperationCanceledException">Canceled.</exception>
     public static async Task<RtspCamera> OpenAsync(string url, TimeSpan? timeout = null, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(url);
@@ -172,6 +194,7 @@ public sealed class RtspCamera : IVisionCamera
     }
 
     /// <summary>Stops reading and closes the stream.</summary>
+    /// <returns>A task that completes when the reader thread has ended (it waits for a read in progress, up to a few seconds on a stalled stream).</returns>
     public async ValueTask DisposeAsync()
     {
         _closing = true;

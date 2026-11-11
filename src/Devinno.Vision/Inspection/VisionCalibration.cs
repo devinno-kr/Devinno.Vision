@@ -5,7 +5,16 @@ namespace Devinno.Vision;
 /// and re-mounting the camera must not require re-teaching every product). Set it on the job: <c>job.Calibration = …</c>; use it in steps with <c>ctx.Mm</c>.
 /// </summary>
 /// <param name="MmPerPx">Millimetres per pixel of the original image.</param>
-/// <remarks>A single scale assumes the camera looks straight at a flat part and the lens has little distortion. Lens distortion and perspective are a later stage.</remarks>
+/// <remarks>A single scale assumes the camera looks straight at a flat part and the lens has little distortion. Lens distortion and perspective are not corrected.</remarks>
+/// <example>
+/// <code>
+/// job.Calibration = VisionCalibration.FromLength(px: 410.9, mm: 90.0);   // a gauge of 90 mm measured as 410.9 px
+///
+/// // in a step
+/// var e = Edge.Caliper(ctx.Image);
+/// ctx.Value("width", ctx.Mm(e), nominal: 90, plus: 1, minus: 1, code: "WIDTH", unit: "mm");
+/// </code>
+/// </example>
 public sealed record VisionCalibration(double MmPerPx)
 {
     /// <summary>A calibration from a known scale.</summary>
@@ -23,6 +32,7 @@ public sealed record VisionCalibration(double MmPerPx)
     /// <param name="px">The measured length in pixels of the original image.</param>
     /// <param name="mm">The real length in millimetres.</param>
     /// <returns>The calibration.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">A length is not positive.</exception>
     public static VisionCalibration FromLength(double px, double mm)
     {
         if (!(px > 0) || !(mm > 0))
