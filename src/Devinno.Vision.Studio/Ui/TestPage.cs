@@ -401,8 +401,17 @@ public sealed partial class TestPage : DvPage
         {
             var progress = new Progress<int>(n => { Progress = $"{n} / {total}"; Invalidate(); });
             var r = await _session.RunTestAsync(_selectedSet, progress);
-            if (r.Ok) _status.Ok($"테스트: {r.Message}");
-            else _status.Fail(r.Message);
+            if (r.Ok)
+            {
+                _status.Ok($"테스트: {r.Message}");
+                // 틀린 게 있으면 바로 그것만, 없으면 [전체] — 빈 목록을 보여 주지 않는다.
+                // 고른 이미지는 필터 밖이어도 계속 고른 채로 둔다 (Filter 세터의 "필터 밖이면 첫 항목" 을 거치지 않음)
+                _filter = r.Items.Any(i => i.Correct == false) ? TestFilter.Wrong : TestFilter.All;
+            }
+            else
+            {
+                _status.Fail(r.Message);
+            }
         }
         finally
         {

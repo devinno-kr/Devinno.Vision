@@ -381,4 +381,93 @@ public class UiTests
         Assert.True(s.Status.IsError);
         Assert.Contains("dialog broke", s.Status.Notice);
     }
+
+    // 실행 뒤 필터: 틀린 게 0장이면 [전체] 그대로 (빈 목록 금지), 1장 이상이면 [틀림] 으로. 고른 이미지는 계속 고른 채로
+    private static Studio RunReady(TempDir dir, double nominal)
+    {
+        var session = new StudioSession();
+        BracketStudioTests.BuildBracket(session, dir.Path);
+        var len = session.Checks.Single(c => c.Name == "길이").Id;
+        session.UpdateCheck(len, System.Text.Json.Nodes.JsonNode.Parse($$"""{"Nominal":{{nominal}}}""")!.AsObject());
+        var s = new Studio(session);
+        s.App.Show(s.Test);
+        s.Frame();
+        return s;
+    }
+
+    private static void PickAndRun(Studio s, int row, TestFilter before = TestFilter.All)
+    {
+        s.Test.Filter = before;
+        s.Test.SelectedRow = s.Test.Rows[row];
+        s.Until(() => s.Test.Showing.IsCompleted);
+        s.Tap(() => s.Test.RunBounds);
+        s.Until(() => s.Test.HasReport && !s.Test.Running);
+        s.Until(() => s.Test.Showing.IsCompleted);
+        s.Frame();
+    }
+
+    [Fact]
+    public void Run_with_no_wrong_images_keeps_the_all_filter_and_the_selection()
+    {
+        using var dir = new TempDir();
+        var s = RunReady(dir, 411);
+        var picked = s.Test.Rows[3].File;
+
+        PickAndRun(s, 3);
+
+        Assert.Equal("18/18 맞음", s.Test.Summary);
+        Assert.Equal(TestFilter.All, s.Test.Filter);
+        Assert.Equal(18, s.Test.Rows.Count);
+        Assert.Equal(picked, s.Test.SelectedRow?.File);
+        Assert.Equal("4 / 18", s.Test.Position);
+        Assert.Equal("맞음", s.Test.JudgeBadge);   // 고른 이미지의 판정이 새로 보인다
+    }
+
+    [Fact]
+    public void Run_with_no_wrong_images_returns_from_another_filter_to_all()
+    {
+        using var dir = new TempDir();
+        var s = RunReady(dir, 411);
+        s.Tap(() => s.Test.RunBounds);                     // 한 번 돌려 필터를 고를 수 있게
+        s.Until(() => s.Test.HasReport && !s.Test.Running);
+
+        PickAndRun(s, 0, before: TestFilter.Ng);           // NG 필터에서 다시 실행
+
+        Assert.Equal(TestFilter.All, s.Test.Filter);
+        Assert.Equal(18, s.Test.Rows.Count);
+        Assert.False(s.Test.NoRows);
+    }
+
+    [Fact]
+    public void Run_with_wrong_images_switches_to_wrong_and_keeps_the_selection()
+    {
+        using var dir = new TempDir();
+        var s = RunReady(dir, 380);                          // 양품 9장이 길이로 틀린다
+        var picked = s.Test.Rows[1].File;                    // 02_missinghole — 이 이미지는 맞힌다 (틀림 목록 밖)
+
+        PickAndRun(s, 1);
+
+        Assert.Equal(TestFilter.Wrong, s.Test.Filter);
+        Assert.True(s.Test.Rows.Count >= 9, $"{s.Test.Rows.Count}");
+        Assert.All(s.Test.Rows, r => Assert.Equal("틀림", r.Judge));
+        Assert.True(s.Test.HasSelection);
+        Assert.Equal(Path.GetFileName(picked), s.Test.ViewerTitle);   // 고른 이미지를 계속 보여 준다
+        Assert.Equal("맞음", s.Test.JudgeBadge);
+        Assert.True(s.Errors.Count == 0, s.Errs);
+    }
+
+    [Fact]
+    public void Run_with_wrong_images_keeps_a_wrong_selection_in_the_list()
+    {
+        using var dir = new TempDir();
+        var s = RunReady(dir, 380);
+        var picked = s.Test.Rows[0].File;                    // 01_good — 길이로 틀린다
+
+        PickAndRun(s, 0);
+
+        Assert.Equal(TestFilter.Wrong, s.Test.Filter);
+        Assert.Equal(picked, s.Test.SelectedRow?.File);
+        Assert.StartsWith("1 / ", s.Test.Position);
+        Assert.Equal("틀림", s.Test.JudgeBadge);
+    }
 }
