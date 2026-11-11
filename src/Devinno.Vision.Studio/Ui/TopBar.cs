@@ -97,6 +97,17 @@ public sealed partial class TopBar : DvBar
 
     public void Save() => _status.Report(_session.SaveProject());
 
+    /// <summary>저장된 로직을 레시피 패키지(.dvpkg)로 — 현장 앱이 여는 파일.</summary>
+    public void Pack()
+    {
+        if (_session.Project is not { } p)
+            return;
+        if (_dialogs.PickPackage($"{(string.IsNullOrWhiteSpace(p.Name) ? "recipe" : p.Name)}.dvpkg") is { } file)
+            _status.Report(_session.PackProject(file));
+        else
+            _status.Ok("패키지: 취소함");
+    }
+
     public void ShowEdit() => App.Show<EditPage>();
 
     public void ShowTest() => App.Show<TestPage>();

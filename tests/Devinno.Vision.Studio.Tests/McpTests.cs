@@ -13,7 +13,7 @@ public class McpTests
         "add_check", "remove_check", "move_check", "set_roi", "update_check", "teach_base", "run_image",
         "add_test_set", "run_test", "get_failures", "view_test_item",
         "set_good_folder", "set_good_roi", "train_good_model", "cancel_training", "remove_good_model", "add_good_image",
-        "set_defect_folder", "train_defect_model", "import_onnx", "setup_python",
+        "set_defect_folder", "train_defect_model", "import_onnx", "setup_python", "pack_project",
     ];
 
     private sealed class Server : IAsyncDisposable

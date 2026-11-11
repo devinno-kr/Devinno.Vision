@@ -10,7 +10,7 @@ using ModelContextProtocol.Server;
 namespace Devinno.Vision.Studio.Mcp;
 
 /// <summary>
-/// MCP 도구 27개. 모두 <see cref="StudioSession"/> 의 같은 명령을 부른다 (화면과 같은 입구).
+/// MCP 도구 28개. 모두 <see cref="StudioSession"/> 의 같은 명령을 부른다 (화면과 같은 입구).
 /// 실패는 IsError=true 와 고칠 방법이 든 문구로 돌려준다.
 /// </summary>
 internal sealed class StudioTools(StudioSession session)
@@ -30,7 +30,8 @@ internal sealed class StudioTools(StudioSession session)
         "After changing the alignment or the model region, train again. add_good_image adds a good image that was judged NG. " +
         "Check kind Onnx classifies its ROI with a defect model: set_defect_folder (subfolders good + one per defect kind) -> train_defect_model " +
         "(PyTorch via Python; setup_python installs it once, several hundred MB) or import_onnx (an .onnx with a .json describing Labels/GoodLabel/InputWidth/InputHeight/Normalize). " +
-        "It is NG when the probability of not good is above Threshold (0-1) and its NG code is the defect name.";
+        "It is NG when the probability of not good is above Threshold (0-1) and its NG code is the defect name. " +
+        "When the logic is done: save_project, then pack_project writes a .dvpkg for the field app.";
 
     public static McpServerTool[] Create(StudioTools t) =>
     [
@@ -60,10 +61,11 @@ internal sealed class StudioTools(StudioSession session)
         McpServerTool.Create(t.SetDefectFolder, Opt("set_defect_folder", "Set an ONNX check's defect folder", "For an Onnx check: a folder with a subfolder 'good' and one subfolder per defect kind (the subfolder name is the label).", readOnly: false, idempotent: true)),
         McpServerTool.Create(t.TrainDefectModel, Opt("train_defect_model", "Train an ONNX check's defect model", "Cut every image of the defect folder like a run does (alignment, then the check's ROI), train a classifier with PyTorch and attach the resulting model.onnx to the check. Takes minutes; cancel_training stops it.", readOnly: false)),
         McpServerTool.Create(t.ImportOnnx, Opt("import_onnx", "Import an ONNX model", "Attach an existing .onnx to an Onnx check. A description file (same name .json, or model.json in the same folder) must give Labels, GoodLabel, InputWidth, InputHeight and Normalize (ImageNet, Unit or Gray). Output: one score per label [1, N].", readOnly: false)),
+        McpServerTool.Create(t.PackProject, Opt("pack_project", "Pack the logic", "Write the saved logic as one recipe package (.dvpkg: manifest with SHA-256 of every file, studio.json without test folders, base image, model folders). A field app opens it with VisionRecipe.Load(path). Save first.", readOnly: false, idempotent: true)),
         McpServerTool.Create(t.SetupPython, Opt("setup_python", "Set up Python for training", "Create Studio's Python environment and install PyTorch (CPU), onnx, numpy and pillow. Downloads several hundred MB; ask the user first.", readOnly: false)),
     ];
 
-    public const int Count = 27;
+    public const int Count = 28;
 
     public CallToolResult NewProject(
         [Description("Project folder (absolute path).")] string folder,
@@ -141,6 +143,8 @@ internal sealed class StudioTools(StudioSession session)
     public CallToolResult ImportOnnx([Description("Onnx check id.")] string id, [Description(".onnx file path.")] string path) => Of(session.ImportOnnx(id, path));
 
     public async Task<CallToolResult> SetupPython() => Of(await session.SetupPythonAsync());
+
+    public CallToolResult PackProject([Description("Package file path (.dvpkg).")] string path) => Of(session.PackProject(path));
 
     public async Task<CallToolResult> RunImage([Description("Image file path.")] string path)
     {

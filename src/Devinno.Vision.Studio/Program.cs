@@ -150,6 +150,12 @@ internal static class Program
             return d.ShowDialog(owner) == DialogResult.OK ? d.FileName : null;
         });
 
+        public string? PickPackage(string suggestedName) => OnUi(() =>
+        {
+            using var d = new SaveFileDialog { Title = "레시피 패키지 저장", Filter = "레시피 패키지|*.dvpkg", FileName = suggestedName, DefaultExt = "dvpkg", AddExtension = true };
+            return d.ShowDialog(owner) == DialogResult.OK ? d.FileName : null;
+        });
+
         private string? OnUi(Func<string?> show) => owner.InvokeRequired ? (string?)owner.Invoke(show) : show();
     }
 }

@@ -11,4 +11,7 @@ public interface IFileDialogs
 
     /// <summary>ONNX 모델 파일 하나를 고른다. 취소하면 null (기본: 고르기 없음).</summary>
     string? PickModel() => null;
+
+    /// <summary>패키지 파일(.dvpkg)을 저장할 곳을 고른다. 취소하면 null (기본: 고르기 없음).</summary>
+    string? PickPackage(string suggestedName) => null;
 }

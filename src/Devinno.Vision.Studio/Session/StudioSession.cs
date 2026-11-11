@@ -171,6 +171,38 @@ public sealed partial class StudioSession
         return CommandResult.Done(mmPerPx is { } x ? $"캘리브레이션: {x} mm/px (길이 단위 mm)" : "캘리브레이션 없음 (길이 단위 px)");
     });
 
+    /// <summary>
+    /// 저장된 로직을 레시피 패키지(.dvpkg) 하나로 묶는다 — 현장 앱은 VisionRecipe.Load(파일) 로 연다.
+    /// 테스트 폴더 · 양품/불량 폴더 · 학습 요약 같은 Studio 전용 정보는 넣지 않는다.
+    /// </summary>
+    public CommandResult PackProject(string file)
+    {
+        lock (_gate)
+        {
+            if (_project is not { } p)
+                return CommandResult.Fail(NoProject);
+            if (_training is not null)
+                return CommandResult.Fail(Training);
+            if (_dirty)
+                return CommandResult.Fail("저장하지 않은 변경이 있습니다 — 먼저 저장하세요 (save_project). 패키지는 저장된 로직을 묶습니다");
+            if (string.IsNullOrWhiteSpace(file))
+                return CommandResult.Fail("패키지 파일 경로를 주세요 (.dvpkg)");
+            var full = Path.GetFullPath(file);
+            if (Overlaps(Path.GetDirectoryName(full)!, p.Folder) && full.StartsWith(Path.TrimEndingDirectorySeparator(p.Folder) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                return CommandResult.Fail($"패키지를 프로젝트 폴더 안에 만들 수 없습니다: {full}");
+            try
+            {
+                var n = p.Pack(full);
+                var size = new FileInfo(full).Length;
+                return CommandResult.Done($"패키지: {full} (파일 {n}개, {size / 1024.0 / 1024.0:0.#} MB) — 현장 앱: VisionRecipe.Load(\"{Path.GetFileName(full)}\")");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or IOException or UnauthorizedAccessException)
+            {
+                return CommandResult.Fail($"패키지를 만들 수 없습니다: {ex.Message}");
+            }
+        }
+    }
+
     // ── 검사 ─────────────────────────────────────────────
 
     public CommandResult AddCheck(string kind, string name) => Change(() =>

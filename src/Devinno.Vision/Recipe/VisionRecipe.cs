@@ -23,7 +23,7 @@ namespace Devinno.Vision;
 /// using var r = await job.RunAsync(img);
 /// </code>
 /// </example>
-public sealed class VisionRecipe : IDisposable
+public sealed partial class VisionRecipe : IDisposable
 {
     /// <summary>The recipe file name in the recipe folder.</summary>
     public const string FileName = "studio.json";
@@ -102,8 +102,8 @@ public sealed class VisionRecipe : IDisposable
     /// <returns>The new recipe.</returns>
     public static VisionRecipe Create(string folder, string name) => new() { Folder = Path.GetFullPath(folder), Name = name };
 
-    /// <summary>Opens <c>studio.json</c> in a recipe folder.</summary>
-    /// <param name="folder">The recipe folder (a Studio project folder).</param>
+    /// <summary>Opens <c>studio.json</c> in a recipe folder, or a recipe package (.dvpkg, unpacked to the user's cache folder and checked against its manifest).</summary>
+    /// <param name="folder">The recipe folder (a Studio project folder) or a .dvpkg file.</param>
     /// <param name="loadModels">Read the model files now (default). <see langword="false"/> opens a recipe whose models are missing or not trained yet (Studio);
     /// <see cref="CreateJob"/> then reads them.</param>
     /// <returns>The recipe, with calibration, checks, the taught reference pose and the good-part model restored.</returns>
@@ -112,6 +112,14 @@ public sealed class VisionRecipe : IDisposable
     public static VisionRecipe Load(string folder, bool loadModels = true)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(folder);
+        string? package = null;
+        if (folder.EndsWith(PackageExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!File.Exists(folder))
+                throw new FileNotFoundException($"패키지가 없습니다: {Path.GetFullPath(folder)}", folder);
+            package = Path.GetFullPath(folder);
+            folder = Unpack(package);
+        }
         var full = Path.GetFullPath(folder);
         var file = Path.Combine(full, FileName);
         if (!File.Exists(file))
@@ -136,6 +144,7 @@ public sealed class VisionRecipe : IDisposable
         if (p.Problem() is { } problem)
             throw new InvalidDataException($"{FileName}: {problem}");
         p.Folder = full;
+        p.PackagePath = package;
         if (loadModels)
         {
             try
@@ -484,7 +493,7 @@ public sealed class VisionRecipe : IDisposable
     public void Save()
     {
         Directory.CreateDirectory(Folder);
-        FormatVersion = GoodModel is not null || Checks.Any(c => c.Role != StepRole.Judge || c is OnnxCheck) ? 2 : 1;
+        FormatVersion = Version();
         var file = Path.Combine(Folder, FileName);
         var tmp = file + ".tmp";
         File.WriteAllText(tmp, JsonSerializer.Serialize(this, JsonOptions));

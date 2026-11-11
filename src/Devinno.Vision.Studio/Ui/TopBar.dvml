@@ -18,6 +18,7 @@
   <DvButton id="btnNew" variant="ghost" icon="fa-file-circle-plus" text="새 로직" onclick="New"/>
   <DvButton id="btnOpen" variant="ghost" icon="fa-folder-open" text="열기" onclick="Open"/>
   <DvButton id="btnSave" variant="ghost" icon="fa-floppy-disk" text="저장" onclick="Save"/>
+  <DvButton id="btnPack" variant="ghost" icon="fa-box-archive" text="패키지" onclick="Pack" disabled="{NoProject}"/>
   <DvSpacer/>
   <DvButton class="{EditClass}" icon="fa-sliders" text="편집" onclick="ShowEdit"/>
   <DvButton class="{TestClass}" icon="fa-flask" text="테스트" onclick="ShowTest"/>
