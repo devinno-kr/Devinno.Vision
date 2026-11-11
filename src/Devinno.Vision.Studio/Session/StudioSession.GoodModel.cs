@@ -42,6 +42,9 @@ public sealed partial class StudioSession
     {
         public string? Folder { get; set; }
         public List<string> Extra { get; set; } = [];
+
+        /// <summary>ONNX 검사 id → 불량 폴더.</summary>
+        public Dictionary<string, string> Defects { get; set; } = [];
     }
 
     // ── 상태 (화면 · MCP 가 읽는다) ───────────────────────

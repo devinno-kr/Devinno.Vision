@@ -36,4 +36,12 @@
     <None Include="../../tools/models/features.onnx" Link="models/features.onnx" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- 불량 학습: 스크립트는 저장소에 있고, ImageNet ResNet18 가중치(45 MB, git 제외)는 있으면 같이 둔다 (없으면 스크립트가 내려받기를 시도) -->
+  <ItemGroup>
+    <None Include="../../tools/train_defect.py" Link="train/train_defect.py" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup Condition="Exists('../../tools/models/resnet18-f37072fd.pth')">
+    <None Include="../../tools/models/resnet18-f37072fd.pth" Link="models/resnet18-f37072fd.pth" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

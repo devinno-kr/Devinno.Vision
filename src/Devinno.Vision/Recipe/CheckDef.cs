@@ -10,11 +10,12 @@ namespace Devinno.Vision.Recipes;
 [JsonDerivedType(typeof(PixelCountCheck), PixelCountCheck.KindName)]
 [JsonDerivedType(typeof(BrightnessCheck), BrightnessCheck.KindName)]
 [JsonDerivedType(typeof(LengthCheck), LengthCheck.KindName)]
+[JsonDerivedType(typeof(OnnxCheck), OnnxCheck.KindName)]
 public abstract class CheckDef
 {
     /// <summary>All <c>Kind</c> values of the file format, in registration order.</summary>
     public static IReadOnlyList<string> Kinds { get; } =
-        [BlobAlignCheck.KindName, BlobCountCheck.KindName, PixelCountCheck.KindName, BrightnessCheck.KindName, LengthCheck.KindName];
+        [BlobAlignCheck.KindName, BlobCountCheck.KindName, PixelCountCheck.KindName, BrightnessCheck.KindName, LengthCheck.KindName, OnnxCheck.KindName];
 
     /// <summary>The id of this check, unique within a recipe.</summary>
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..8];
@@ -61,6 +62,8 @@ public abstract class CheckDef
         return this switch
         {
             BlobAlignCheck { Blob: null } or BlobCountCheck { Blob: null } => $"{Name}: Blob 설정이 없습니다",
+            OnnxCheck { Model: null } => $"{Name}: Model 이 없습니다 (학습 전이면 빈 문자열)",
+            OnnxCheck { Threshold: < 0 or > 1 } o => $"{Name}: Threshold 는 0 ~ 1 입니다 (받은 값 {o.Threshold})",
             BlobCountCheck { Code: null } or PixelCountCheck { Code: null } or BrightnessCheck { Code: null } or LengthCheck { Code: null } => $"{Name}: Code 가 없습니다",
             _ => null,
         };
@@ -79,6 +82,7 @@ public abstract class CheckDef
         PixelCountCheck.KindName => new PixelCountCheck(),
         BrightnessCheck.KindName => new BrightnessCheck(),
         LengthCheck.KindName => new LengthCheck(),
+        OnnxCheck.KindName => new OnnxCheck(),
         _ => null,
     };
 }

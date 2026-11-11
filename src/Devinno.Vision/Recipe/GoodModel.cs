@@ -74,7 +74,7 @@ public sealed record GoodModelResult(GoodModel Model, int Learned, IReadOnlyList
                                      double MsPerImage, TimeSpan Elapsed);
 
 // 레시피가 가진 모델 — 쓰는 중에 닫혀도 쓰던 호출이 끝난 뒤에 해제한다
-internal sealed class SharedModel(string path, AnomalyModel model) : IDisposable
+internal sealed class SharedModel<T>(string path, T model) : IDisposable where T : class, IDisposable
 {
     private readonly object _gate = new();
     private int _users;
@@ -82,12 +82,12 @@ internal sealed class SharedModel(string path, AnomalyModel model) : IDisposable
 
     public string Path { get; } = path;
 
-    public T Use<T>(Func<AnomalyModel, T> use)
+    public TResult Use<TResult>(Func<T, TResult> use)
     {
         lock (_gate)
         {
             if (_closed)
-                throw new InvalidOperationException("양품 모델이 닫혔습니다 (레시피를 닫았거나 다시 학습했습니다). Job 을 다시 만드세요.");
+                throw new InvalidOperationException($"{(model is AnomalyModel ? "양품" : "불량")} 모델이 닫혔습니다 (레시피를 닫았거나 다시 학습했습니다). Job 을 다시 만드세요.");
             _users++;
         }
         try
@@ -116,7 +116,7 @@ internal sealed class SharedModel(string path, AnomalyModel model) : IDisposable
 }
 
 // 양품 모델 단계: 영역의 이상 점수를 문턱으로 판정
-internal sealed class GoodModelStep(SharedModel model, double max, string code) : IVisionStep
+internal sealed class GoodModelStep(SharedModel<AnomalyModel> model, double max, string code) : IVisionStep
 {
     public string Name => VisionRecipe.GoodModelStepName;
 

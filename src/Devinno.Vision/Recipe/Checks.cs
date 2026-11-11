@@ -173,3 +173,37 @@ public sealed class LengthCheck : CheckDef
         });
     }
 }
+
+/// <summary>
+/// Classifies the ROI with a defect model (<see cref="DefectModel"/>, trained in Studio or imported) and judges by the probability that it is not good.
+/// The NG code is the most likely defect label in capitals (scratch → SCRATCH).
+/// </summary>
+public sealed class OnnxCheck : CheckDef
+{
+    /// <summary>The <c>Kind</c> value in JSON.</summary>
+    public const string KindName = "Onnx";
+    private protected override string Label => "ONNX 검사";
+
+    /// <summary>The model folder relative to the recipe folder (models/defect-…), or empty before training.</summary>
+    public string Model { get; set; } = "";
+
+    /// <summary>NG when the probability that the part is not good is above this (0–1).</summary>
+    public double Threshold { get; set; } = 0.5;
+
+    /// <inheritdoc/>
+    /// <exception cref="InvalidOperationException">No model yet.</exception>
+    public override IVisionStep CreateStep(VisionRecipe recipe)
+    {
+        ArgumentNullException.ThrowIfNull(recipe);
+        if (string.IsNullOrWhiteSpace(Model))
+            throw new InvalidOperationException($"{Name}: 불량 모델이 없습니다 — [학습] 하거나 ONNX 를 가져오세요.");
+        var model = recipe.DefectModelAt(Model);
+        var (name, threshold) = (Name, Threshold);
+        return new CheckStep(name, ctx =>
+        {
+            var r = model.Use(m => m.Classify(ctx.Image));
+            ctx.DrawText(new OpenCvSharp.Point2d(4, 16), $"{r.Label} {r.Probability:0.00}");
+            ctx.Value($"{name} 불량 확률", r.DefectProbability, max: threshold, code: r.Defect.ToUpperInvariant());
+        });
+    }
+}

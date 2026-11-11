@@ -8,4 +8,7 @@ public interface IFileDialogs
 
     /// <summary>폴더 하나를 고른다. 취소하면 null.</summary>
     string? PickFolder();
+
+    /// <summary>ONNX 모델 파일 하나를 고른다. 취소하면 null (기본: 고르기 없음).</summary>
+    string? PickModel() => null;
 }

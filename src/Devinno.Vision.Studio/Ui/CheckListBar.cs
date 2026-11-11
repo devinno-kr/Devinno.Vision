@@ -49,6 +49,7 @@ public sealed partial class CheckListBar : DvBar
         PixelCountCheck => "fa-braille",
         BrightnessCheck => "fa-sun",
         LengthCheck => "fa-ruler-horizontal",
+        OnnxCheck => "fa-brain",
         _ => "fa-square",
     };
 
@@ -59,6 +60,8 @@ public sealed partial class CheckListBar : DvBar
             return a.Reference is null ? ("티칭 필요", "warning") : ("티칭됨", "info");
         if (c.Roi.IsEmpty)
             return ("ROI 없음", "warning");
+        if (c is OnnxCheck { Model.Length: 0 })
+            return ("학습 필요", "warning");
         var (badge, tone) = Range(c, mm);
         return c.Role == StepRole.Reason ? ($"사유 · {badge}", "neutral") : (badge, tone);
     }
@@ -71,6 +74,7 @@ public sealed partial class CheckListBar : DvBar
             PixelCountCheck p => ($"≤{p.Max}", "neutral"),
             BrightnessCheck br => ($"{br.Min:0.#}~{br.Max:0.#}", "neutral"),
             LengthCheck l => ($"{l.Nominal:0.##} {(mm ? "mm" : "px")}", "neutral"),
+            OnnxCheck o => ($"≤{o.Threshold:0.##}", "neutral"),
             _ => ("", "neutral"),
         };
     }

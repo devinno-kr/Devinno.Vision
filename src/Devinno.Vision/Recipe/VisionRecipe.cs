@@ -49,7 +49,8 @@ public sealed class VisionRecipe : IDisposable
     private static readonly JsonSerializerOptions BasisJson = new(JsonOptions) { WriteIndented = false };
 
     private readonly object _gate = new();
-    private SharedModel? _good;
+    private SharedModel<AnomalyModel>? _good;
+    private readonly Dictionary<string, SharedModel<DefectModel>> _defects = new(StringComparer.OrdinalIgnoreCase);
     private bool _disposed;
 
     /// <summary>The recipe name. It becomes the job name.</summary>
@@ -135,8 +136,21 @@ public sealed class VisionRecipe : IDisposable
         if (p.Problem() is { } problem)
             throw new InvalidDataException($"{FileName}: {problem}");
         p.Folder = full;
-        if (loadModels && p.GoodModel is not null)
-            p.EnsureGoodModel();
+        if (loadModels)
+        {
+            try
+            {
+                if (p.GoodModel is not null)
+                    p.EnsureGoodModel();
+                foreach (var o in p.Checks.OfType<OnnxCheck>().Where(o => !string.IsNullOrWhiteSpace(o.Model)))
+                    p.DefectModelAt(o.Model);
+            }
+            catch
+            {
+                p.Dispose();
+                throw;
+            }
+        }
         return p;
     }
 
@@ -228,7 +242,7 @@ public sealed class VisionRecipe : IDisposable
     }
 
     // 양품 모델을 읽어 둔다 (경로가 바뀌었으면 다시)
-    private SharedModel EnsureGoodModel()
+    private SharedModel<AnomalyModel> EnsureGoodModel()
     {
         var g = GoodModel ?? throw new InvalidOperationException("양품 모델이 없습니다.");
         lock (_gate)
@@ -253,9 +267,64 @@ public sealed class VisionRecipe : IDisposable
                 throw new InvalidDataException($"양품 모델을 읽을 수 없습니다: {dir} ({ex.Message})", ex);
             }
             _good?.Dispose();
-            _good = new SharedModel(g.Path, model);
+            _good = new SharedModel<AnomalyModel>(g.Path, model);
             return _good;
         }
+    }
+
+    // 불량 모델을 경로별로 읽어 둔다 (검사 속성을 고쳐 검사 객체가 바뀌어도 모델은 그대로)
+    internal SharedModel<DefectModel> DefectModelAt(string path)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_defects.TryGetValue(path, out var cur))
+                return cur;
+            var dir = Path.GetFullPath(Path.Combine(Folder, path));
+            if (!Directory.Exists(dir))
+                throw new FileNotFoundException($"불량 모델이 없습니다: {dir}", dir);
+            DefectModel model;
+            try
+            {
+                model = DefectModel.Load(dir);
+            }
+            catch (FileNotFoundException ex)
+            {
+                throw new FileNotFoundException($"불량 모델 파일이 없습니다: {ex.FileName ?? dir}", ex.FileName ?? dir, ex);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException and not InvalidDataException)
+            {
+                throw new InvalidDataException($"불량 모델을 읽을 수 없습니다: {dir} ({ex.Message})", ex);
+            }
+            return _defects[path] = new SharedModel<DefectModel>(path, model);
+        }
+    }
+
+    /// <summary>
+    /// Cuts a region out of an image the way a job does: the alignment check finds the part, then the region (base image coordinates) is cut where the part is.
+    /// For preparing training images.
+    /// </summary>
+    /// <param name="image">The image.</param>
+    /// <param name="roi">The region in base image coordinates.</param>
+    /// <param name="ct">Cancels.</param>
+    /// <returns>The cut image, owned by the caller.</returns>
+    /// <exception cref="InvalidOperationException">The part was not found (the message says why), or the region is empty.</exception>
+    public async Task<VisionImage> CropAsync(VisionImage image, VisionRoi roi, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+        if (roi.IsEmpty)
+            throw new InvalidOperationException("자를 영역이 비었습니다.");
+        VisionImage? captured = null;
+        var cut = new VisionJob("crop") { Calibration = Calibration };
+        if (Checks.Count > 0 && Checks[0] is BlobAlignCheck align)
+            cut.Add(align.CreateStep(this), roi: align.Roi.IsEmpty ? null : () => align.Roi, pose: PoseName);
+        cut.Add(new CaptureStep(img => captured = img), roi: () => roi);
+        using var r = await cut.RunAsync(image, ct).ConfigureAwait(false);
+        ct.ThrowIfCancellationRequested();
+        if (captured is not null && r.State == VisionState.Ok)
+            return captured;
+        captured?.Dispose();
+        throw new InvalidOperationException(r.Error ?? r.State.ToString());
     }
 
     // 정렬 검사 · 기준 위치 · 영역 — 바뀌면 자른 이미지가 달라진다
@@ -301,11 +370,6 @@ public sealed class VisionRecipe : IDisposable
         // 1. Job 과 같은 방식으로 자르기
         var crops = new List<(string File, VisionImage Image)>();
         var skipped = new List<(string File, string Reason)>();
-        var cut = new VisionJob("good-model-crop") { Calibration = Calibration };
-        VisionImage? captured = null;
-        if (Checks.Count > 0 && Checks[0] is BlobAlignCheck align)
-            cut.Add(align.CreateStep(this), roi: align.Roi.IsEmpty ? null : () => align.Roi, pose: PoseName);
-        cut.Add(new CaptureStep(img => captured = img), roi: () => roi);
         OnnxModel? features = null;
         AnomalyModel? model = null;
         try
@@ -313,20 +377,13 @@ public sealed class VisionRecipe : IDisposable
             for (var i = 0; i < images.Count; i++)
             {
                 ct.ThrowIfCancellationRequested();
-                captured = null;
                 try
                 {
                     using var img = VisionImage.Load(images[i]);
-                    using var r = await cut.RunAsync(img, ct).ConfigureAwait(false);
-                    if (captured is not null && r.State == VisionState.Ok)
-                        crops.Add((images[i], captured));
-                    else
-                    {
-                        captured?.Dispose();
-                        skipped.Add((images[i], r.Error ?? r.State.ToString()));
-                    }
+                    crops.Add((images[i], await CropAsync(img, roi, ct).ConfigureAwait(false)));
                 }
-                catch (Exception ex) when (ex is IOException or ArgumentException or OpenCvSharp.OpenCVException)
+                catch (Exception ex) when (ex is IOException or ArgumentException or OpenCvSharp.OpenCVException
+                                           || (ex is InvalidOperationException && ex is not ObjectDisposedException))
                 {
                     skipped.Add((images[i], ex.Message));
                 }
@@ -370,7 +427,7 @@ public sealed class VisionRecipe : IDisposable
             {
                 ObjectDisposedException.ThrowIf(_disposed, this);
                 _good?.Dispose();
-                _good = new SharedModel(rel, model);
+                _good = new SharedModel<AnomalyModel>(rel, model);
                 GoodModel = g;
             }
             model = null;      // 레시피가 가졌다
@@ -421,29 +478,34 @@ public sealed class VisionRecipe : IDisposable
     }
 
     /// <summary>
-    /// Saves to studio.json in <see cref="Folder"/> (indented). The folder is created if missing. The format version is 2 when the recipe uses a good-part model
-    /// or reason checks, otherwise 1. Good-model folders (models/good-…) the recipe no longer uses are removed.
+    /// Saves to studio.json in <see cref="Folder"/> (indented). The folder is created if missing. The format version is 2 when the recipe uses a good-part model,
+    /// reason checks or ONNX checks, otherwise 1. Model folders made by training (models/good-…, models/defect-…) the recipe no longer uses are removed.
     /// </summary>
     public void Save()
     {
         Directory.CreateDirectory(Folder);
-        FormatVersion = GoodModel is not null || Checks.Any(c => c.Role != StepRole.Judge) ? 2 : 1;
+        FormatVersion = GoodModel is not null || Checks.Any(c => c.Role != StepRole.Judge || c is OnnxCheck) ? 2 : 1;
         var file = Path.Combine(Folder, FileName);
         var tmp = file + ".tmp";
         File.WriteAllText(tmp, JsonSerializer.Serialize(this, JsonOptions));
         File.Move(tmp, file, overwrite: true);   // 쓰다 끊겨도 원래 파일은 남게
-        RemoveUnusedGoodModels();
+        RemoveUnusedModels();
     }
 
-    private void RemoveUnusedGoodModels()
+    // 학습 · 가져오기가 만든 폴더(models/good-… · models/defect-…) 중 레시피가 안 쓰는 것
+    private void RemoveUnusedModels()
     {
         var models = Path.Combine(Folder, "models");
         if (!Directory.Exists(models))
             return;
-        var used = GoodModel is { } g ? Path.GetFullPath(Path.Combine(Folder, g.Path)) : null;
-        foreach (var dir in Directory.EnumerateDirectories(models, "good-*"))
+        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (GoodModel is { } g)
+            used.Add(Path.GetFullPath(Path.Combine(Folder, g.Path)));
+        foreach (var o in Checks.OfType<OnnxCheck>().Where(o => !string.IsNullOrWhiteSpace(o.Model)))
+            used.Add(Path.GetFullPath(Path.Combine(Folder, o.Model)));
+        foreach (var dir in Directory.EnumerateDirectories(models, "good-*").Concat(Directory.EnumerateDirectories(models, "defect-*")))
         {
-            if (string.Equals(Path.GetFullPath(dir), used, StringComparison.OrdinalIgnoreCase))
+            if (used.Contains(Path.GetFullPath(dir)))
                 continue;
             try
             {
@@ -466,6 +528,9 @@ public sealed class VisionRecipe : IDisposable
             _disposed = true;
             _good?.Dispose();
             _good = null;
+            foreach (var d in _defects.Values)
+                d.Dispose();
+            _defects.Clear();
         }
     }
 }

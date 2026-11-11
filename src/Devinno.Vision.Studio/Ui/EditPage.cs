@@ -104,8 +104,88 @@ public sealed partial class EditPage : DvPage
     public bool IsPixelCount => Selected is PixelCountCheck;
     public bool IsBrightness => Selected is BrightnessCheck;
     public bool IsLength => Selected is LengthCheck;
+    public bool IsOnnx => Selected is OnnxCheck;
     public bool HasBlob => IsBlobAlign || IsBlobCount;
-    public bool HasCode => HasSelection && !IsBlobAlign;
+
+    // ── ONNX 검사 (불량 모델) ─────────────────────────────
+
+    public double OnnxThreshold { get => (Selected as OnnxCheck)?.Threshold ?? 0.5; set => Update("Threshold", value); }
+
+    public string DefectFolderText => _selectedId is { } id && _session.DefectFolder(id) is { } f
+        ? $"불량 폴더: {(f.Length <= 40 ? f : "…" + f[^39..])}"
+        : "불량 폴더 없음 — 하위 폴더 good(양품) · 불량 종류별 폴더";
+
+    public string DefectStatusText
+    {
+        get
+        {
+            if (_session.TrainingProgress is { } t && IsOnnx)
+                return t.Stage == "crop" ? $"학습 중 — 자르기 {t.Done}/{t.Total}" : $"학습 중 — 에폭 {t.Done}/{t.Total}";
+            if (Selected is not OnnxCheck o)
+                return "";
+            if (o.Model.Length == 0)
+                return _session.HasPython ? "모델 없음 — [학습] 하거나 [ONNX 가져오기]" : "모델 없음 — 학습하려면 [Python 준비] 가 먼저 필요합니다 (또는 [ONNX 가져오기])";
+            var labels = _session.DefectLabels(o.Id);
+            var s = _session.DefectSummary(o.Id);
+            return $"모델: {string.Join(" · ", labels)}" + (s?.Accuracy is { } a ? $"  ·  검증 정확도 {a * 100:0.#}%" : "");
+        }
+    }
+
+    public bool CannotTrainDefect => IsTraining || _selectedId is not { } id || _session.DefectFolder(id) is null || !_session.HasPython;
+    public bool NoPython => IsOnnx && !_session.HasPython;
+    public bool SettingUpPython { get; private set; }
+
+    public void PickDefectFolder()
+    {
+        if (_selectedId is not { } id)
+            return;
+        if (_dialogs.PickFolder() is { } folder)
+            Report(_session.SetDefectFolder(id, folder));
+        else
+            _status.Ok("불량 폴더: 취소함");
+    }
+
+    public void ImportOnnx()
+    {
+        if (_selectedId is not { } id)
+            return;
+        if (_dialogs.PickModel() is { } file)
+            Report(_session.ImportOnnx(id, file));
+        else
+            _status.Ok("ONNX 가져오기: 취소함");
+    }
+
+    public async void TrainDefect()
+    {
+        try
+        {
+            if (_selectedId is { } id)
+            {
+                _status.Ok("불량 모델 학습을 시작합니다 (Python)…");
+                Report(await _session.TrainDefectModelAsync(id));
+            }
+        }
+        catch (Exception ex) { _status.Fail(ex.Message); }
+    }
+
+    public async void SetupPython()
+    {
+        if (SettingUpPython)
+            return;
+        SettingUpPython = true;
+        try
+        {
+            var r = await _session.SetupPythonAsync(new Progress<string>(line => _status.Ok($"Python 준비: {line}")));
+            Report(r);
+        }
+        catch (Exception ex) { _status.Fail(ex.Message); }
+        finally
+        {
+            SettingUpPython = false;
+            try { App.Invalidate(); } catch (InvalidOperationException) { }
+        }
+    }
+    public bool HasCode => HasSelection && !IsBlobAlign && !IsOnnx;   // ONNX 검사의 NG 코드는 불량 이름
 
     /// <summary>판정 / 사유 (정렬 검사는 늘 판정).</summary>
     public bool CanHaveRole => HasSelection && !IsBlobAlign;

@@ -169,6 +169,25 @@
           </DvRow>
         </DvStack>
 
+        <DvStack gap="sm" visible="{IsOnnx}">
+          <DvLabel class="meta" text="{DefectFolderText}"/>
+          <DvRow gap="sm">
+            <DvButton variant="secondary" icon="fa-folder-open" text="불량 폴더" onclick="PickDefectFolder" disabled="{IsTraining}" style="flex:1; width:0"/>
+            <DvButton id="btnTrainDefect" variant="primary" icon="fa-graduation-cap" text="학습" onclick="TrainDefect" disabled="{CannotTrainDefect}" style="flex:1; width:0"/>
+          </DvRow>
+          <DvRow gap="sm">
+            <DvButton variant="secondary" icon="fa-file-import" text="ONNX 가져오기" onclick="ImportOnnx" disabled="{IsTraining}" style="flex:1; width:0"/>
+            <DvButton variant="secondary" icon="fa-stop" text="취소" onclick="CancelTrain" visible="{IsTraining}"/>
+          </DvRow>
+          <DvButton variant="secondary" icon="fa-download" text="Python 준비 (PyTorch 내려받기)" onclick="SetupPython" visible="{NoPython}" disabled="{SettingUpPython}"/>
+          <DvLabel class="sub" text="{DefectStatusText}"/>
+          <DvRow gap="sm">
+            <DvLabel class="field" text="불량 확률"/>
+            <DvInput value="{Bind OnnxThreshold}" keyboard-type="numeric" min="0" max="1" style="flex:1; width:0"/>
+          </DvRow>
+          <DvLabel class="meta" text="이 값보다 크면 NG (0~1). NG 코드는 가장 그럴듯한 불량 이름"/>
+        </DvStack>
+
         <DvRow gap="sm" visible="{HasCode}">
           <DvLabel class="field" text="NG 코드"/>
           <DvInput value="{Bind Code}" style="flex:1; width:0"/>

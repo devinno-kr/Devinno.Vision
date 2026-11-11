@@ -10,7 +10,7 @@ using ModelContextProtocol.Server;
 namespace Devinno.Vision.Studio.Mcp;
 
 /// <summary>
-/// MCP 도구 23개. 모두 <see cref="StudioSession"/> 의 같은 명령을 부른다 (화면과 같은 입구).
+/// MCP 도구 27개. 모두 <see cref="StudioSession"/> 의 같은 명령을 부른다 (화면과 같은 입구).
 /// 실패는 IsError=true 와 고칠 방법이 든 문구로 돌려준다.
 /// </summary>
 internal sealed class StudioTools(StudioSession session)
@@ -27,7 +27,10 @@ internal sealed class StudioTools(StudioSession session)
         "The reference can also (or instead) be a good-part model learned from good images: set_good_folder (a folder whose images are all good parts) -> optionally set_good_roi -> " +
         "train_good_model (takes a while; cancel_training stops it). The model then judges OK/NG first; standard checks can be given the role Reason " +
         "(update_check {\"Role\":\"Reason\"}) so they only name the defect when the part is NG and can no longer turn a good part into NG. " +
-        "After changing the alignment or the model region, train again. add_good_image adds a good image that was judged NG.";
+        "After changing the alignment or the model region, train again. add_good_image adds a good image that was judged NG. " +
+        "Check kind Onnx classifies its ROI with a defect model: set_defect_folder (subfolders good + one per defect kind) -> train_defect_model " +
+        "(PyTorch via Python; setup_python installs it once, several hundred MB) or import_onnx (an .onnx with a .json describing Labels/GoodLabel/InputWidth/InputHeight/Normalize). " +
+        "It is NG when the probability of not good is above Threshold (0-1) and its NG code is the defect name.";
 
     public static McpServerTool[] Create(StudioTools t) =>
     [
@@ -54,9 +57,13 @@ internal sealed class StudioTools(StudioSession session)
         McpServerTool.Create(t.CancelTraining, Opt("cancel_training", "Cancel training", "Cancel a running train_good_model. The previous model stays.", readOnly: false)),
         McpServerTool.Create(t.RemoveGoodModel, Opt("remove_good_model", "Remove the good model", "Remove the good-part model from the logic (its files are deleted on save_project). Reason checks then no longer judge; change them to Judge if needed.", readOnly: false, destructive: true)),
         McpServerTool.Create(t.AddGoodImage, Opt("add_good_image", "Add a good image", "Add one good image (for example a good part that run_test judged NG) to the good-part model's training images. Train again to use it.", readOnly: false)),
+        McpServerTool.Create(t.SetDefectFolder, Opt("set_defect_folder", "Set an ONNX check's defect folder", "For an Onnx check: a folder with a subfolder 'good' and one subfolder per defect kind (the subfolder name is the label).", readOnly: false, idempotent: true)),
+        McpServerTool.Create(t.TrainDefectModel, Opt("train_defect_model", "Train an ONNX check's defect model", "Cut every image of the defect folder like a run does (alignment, then the check's ROI), train a classifier with PyTorch and attach the resulting model.onnx to the check. Takes minutes; cancel_training stops it.", readOnly: false)),
+        McpServerTool.Create(t.ImportOnnx, Opt("import_onnx", "Import an ONNX model", "Attach an existing .onnx to an Onnx check. A description file (same name .json, or model.json in the same folder) must give Labels, GoodLabel, InputWidth, InputHeight and Normalize (ImageNet, Unit or Gray). Output: one score per label [1, N].", readOnly: false)),
+        McpServerTool.Create(t.SetupPython, Opt("setup_python", "Set up Python for training", "Create Studio's Python environment and install PyTorch (CPU), onnx, numpy and pillow. Downloads several hundred MB; ask the user first.", readOnly: false)),
     ];
 
-    public const int Count = 23;
+    public const int Count = 27;
 
     public CallToolResult NewProject(
         [Description("Project folder (absolute path).")] string folder,
@@ -126,6 +133,14 @@ internal sealed class StudioTools(StudioSession session)
     public CallToolResult RemoveGoodModel() => Of(session.RemoveGoodModel());
 
     public CallToolResult AddGoodImage([Description("Image file path.")] string path) => Of(session.AddGoodImage(path));
+
+    public CallToolResult SetDefectFolder([Description("Onnx check id.")] string id, [Description("Folder with subfolders good and one per defect kind.")] string folder) => Of(session.SetDefectFolder(id, folder));
+
+    public async Task<CallToolResult> TrainDefectModel([Description("Onnx check id.")] string id) => Of(await session.TrainDefectModelAsync(id));
+
+    public CallToolResult ImportOnnx([Description("Onnx check id.")] string id, [Description(".onnx file path.")] string path) => Of(session.ImportOnnx(id, path));
+
+    public async Task<CallToolResult> SetupPython() => Of(await session.SetupPythonAsync());
 
     public async Task<CallToolResult> RunImage([Description("Image file path.")] string path)
     {

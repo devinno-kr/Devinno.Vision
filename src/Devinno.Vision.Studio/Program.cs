@@ -144,6 +144,12 @@ internal static class Program
             return d.ShowDialog(owner) == DialogResult.OK ? d.SelectedPath : null;
         });
 
+        public string? PickModel() => OnUi(() =>
+        {
+            using var d = new OpenFileDialog { Title = "ONNX 모델 고르기 (같은 폴더에 설명 .json 필요)", Filter = "ONNX 모델|*.onnx" };
+            return d.ShowDialog(owner) == DialogResult.OK ? d.FileName : null;
+        });
+
         private string? OnUi(Func<string?> show) => owner.InvokeRequired ? (string?)owner.Invoke(show) : show();
     }
 }

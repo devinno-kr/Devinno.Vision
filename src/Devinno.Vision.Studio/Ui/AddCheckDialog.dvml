@@ -8,6 +8,7 @@
     <DvOption value="PixelCount" text="픽셀 수"/>
     <DvOption value="Brightness" text="평균 밝기"/>
     <DvOption value="Length" text="폭/길이"/>
+    <DvOption value="Onnx" text="ONNX 검사 (불량 모델)"/>
   </DvSelect>
   <DvRow gap="sm">
     <DvSpacer/>
