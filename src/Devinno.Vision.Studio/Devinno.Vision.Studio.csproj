@@ -13,6 +13,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Devinno.Vision\Devinno.Vision.csproj" />
     <ProjectReference Include="..\Devinno.Vision.UI\Devinno.Vision.UI.csproj" />
+    <!-- 카메라 에뮬레이터의 Modbus TCP 슬레이브 -->
+    <ProjectReference Include="../../../Devinno.Communication/src/Devinno.Communication/Devinno.Communication.csproj" />
     <!-- 개발 중에는 Devinno.UI 를 로컬 프로젝트로 참조한다 -->
     <ProjectReference Include="..\..\..\Devinno.UI\src\Devinno.UI.WinForms\Devinno.UI.WinForms.csproj" />
     <ProjectReference Include="..\..\..\Devinno.UI\src\Devinno.UI.Generators\Devinno.UI.Generators.csproj"
@@ -39,6 +41,10 @@
   <!-- 불량 학습: 스크립트는 저장소에 있고, ImageNet ResNet18 가중치(45 MB, git 제외)는 있으면 같이 둔다 (없으면 스크립트가 내려받기를 시도) -->
   <ItemGroup>
     <None Include="../../tools/train_defect.py" Link="train/train_defect.py" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <!-- 카메라 에뮬레이터의 RTSP 서버 (MediaMTX v1.21.3, MIT, git 제외 — tools/mediamtx 에 둔다) -->
+  <ItemGroup Condition="Exists('../../tools/mediamtx/mediamtx.exe')">
+    <None Include="../../tools/mediamtx/mediamtx.exe;../../tools/mediamtx/LICENSE" Link="tools/mediamtx/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup Condition="Exists('../../tools/models/resnet18-f37072fd.pth')">
     <None Include="../../tools/models/resnet18-f37072fd.pth" Link="models/resnet18-f37072fd.pth" CopyToOutputDirectory="PreserveNewest" />

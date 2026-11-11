@@ -38,3 +38,6 @@ __pycache__/
 
 # AI 작업 문서(설계 기록) — 로컬에만 둔다 (형제 저장소와 같은 방식)
 docs/
+
+# 카메라 에뮬레이터의 RTSP 서버 실행 파일 (MediaMTX 릴리스에서 받는다, 57 MB)
+tools/mediamtx/

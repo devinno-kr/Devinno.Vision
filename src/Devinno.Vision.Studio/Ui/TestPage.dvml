@@ -50,6 +50,12 @@
         </DvRepeat>
       </DvCard>
 
+      <DvCard title="가상 카메라" badge="{EmulatorBadge}">
+        <DvButton id="btnEmulator" variant="secondary" icon="fa-tower-broadcast" text="{EmulatorButton}" onclick="ToggleEmulator" disabled="{CannotEmulate}"/>
+        <DvLabel class="meta" text="{EmulatorUrl}" style="white-space:nowrap" visible="{EmulatorRunning}"/>
+        <DvLabel class="sub" text="{EmulatorText}"/>
+      </DvCard>
+
       <DvCard title="이미지" grow="1" style="height:0">
         <DvSegment value="{Bind Filter}" fill="true" disabled="{NoReport}" visible="{HasSets}">
           <DvOption value="All" text="{FilterAllText}"/>

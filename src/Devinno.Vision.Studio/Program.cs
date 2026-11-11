@@ -93,6 +93,8 @@ internal static class Program
             if (e.Cancel && session.IsDirty)
                 app.Invalidate();
         };
+        // 가상 카메라의 자식 프로세스(ffmpeg · MediaMTX)가 남지 않게
+        form.FormClosed += (_, _) => session.StopEmulator();
         form.Controls.Add(new ViewControl { Dock = DockStyle.Fill, App = app });
 
         McpHost? mcp = null;

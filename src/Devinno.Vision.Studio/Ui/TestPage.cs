@@ -374,6 +374,28 @@ public sealed partial class TestPage : DvPage
     // ── 명령 ─────────────────────────────────────────────
 
     /// <summary>폴더 고르기 → 라벨 읽는 법 고르기 → 추가 → 그 폴더의 이미지 목록이 바로 뜬다.</summary>
+    // ── 가상 카메라 (에뮬레이터) ───────────────────────────
+
+    public bool EmulatorRunning => _session.EmulatorStatus is { Running: true };
+    public string EmulatorButton => _session.EmulatorStatus is null ? "가상 카메라 시작" : "가상 카메라 정지";
+    public bool CannotEmulate => _session.EmulatorStatus is null && !HasSets;
+    public string EmulatorBadge => _session.EmulatorStatus switch { null => "", { Error: not null } => "오류", { Busy: true } => "넘기는 중", _ => "송출 중" };
+    public string EmulatorTone => _session.EmulatorStatus switch { { Error: not null } => "danger", { Busy: true } => "warning", _ => "success" };
+    public bool HasEmulatorBadge => EmulatorBadge.Length > 0;
+    public string EmulatorUrl => _session.EmulatorStatus is { } e ? $"{e.Url}  ·  Modbus TCP {e.ModbusPort}" : "";
+
+    public string EmulatorText => _session.EmulatorStatus is { } e
+        ? e.Error is { } err ? $"멈춤: {err}" : $"{e.Index + 1} / {e.Count}  ·  {e.File}  ·  Modbus 클라이언트 {e.Clients}"
+        : "고른 테스트 폴더를 RTSP 카메라로 내보냅니다. D100 ← 1 이면 다음 장 (D0 1 = 넘기는 중, 0 = 완료), D1 1 = 가동";
+
+    public void ToggleEmulator()
+    {
+        if (_session.EmulatorStatus is null)
+            _status.Report(_session.StartEmulator(_selectedSet));
+        else
+            _status.Report(_session.StopEmulator());
+    }
+
     public async void AddSet()
     {
         try

@@ -10,7 +10,7 @@ using ModelContextProtocol.Server;
 namespace Devinno.Vision.Studio.Mcp;
 
 /// <summary>
-/// MCP 도구 28개. 모두 <see cref="StudioSession"/> 의 같은 명령을 부른다 (화면과 같은 입구).
+/// MCP 도구 31개. 모두 <see cref="StudioSession"/> 의 같은 명령을 부른다 (화면과 같은 입구).
 /// 실패는 IsError=true 와 고칠 방법이 든 문구로 돌려준다.
 /// </summary>
 internal sealed class StudioTools(StudioSession session)
@@ -62,10 +62,13 @@ internal sealed class StudioTools(StudioSession session)
         McpServerTool.Create(t.TrainDefectModel, Opt("train_defect_model", "Train an ONNX check's defect model", "Cut every image of the defect folder like a run does (alignment, then the check's ROI), train a classifier with PyTorch and attach the resulting model.onnx to the check. Takes minutes; cancel_training stops it.", readOnly: false)),
         McpServerTool.Create(t.ImportOnnx, Opt("import_onnx", "Import an ONNX model", "Attach an existing .onnx to an Onnx check. A description file (same name .json, or model.json in the same folder) must give Labels, GoodLabel, InputWidth, InputHeight and Normalize (ImageNet, Unit or Gray). Output: one score per label [1, N].", readOnly: false)),
         McpServerTool.Create(t.PackProject, Opt("pack_project", "Pack the logic", "Write the saved logic as one recipe package (.dvpkg: manifest with SHA-256 of every file, studio.json without test folders, base image, model folders). A field app opens it with VisionRecipe.Load(path). Save first.", readOnly: false, idempotent: true)),
+        McpServerTool.Create(t.StartEmulator, Opt("start_emulator", "Start the virtual camera", "Studio becomes a camera: the images of a test folder are streamed over RTSP (rtsp://PC:8554/studio) and a Modbus TCP slave runs on port 502. Write 1 to holding register 100 (D100) for the next image: Studio sets D100 back to 0 and D0 to 1 before answering, slides the next image in, and sets D0 to 0 when the new image is on the stream. D1 is 1 while running. Needs ffmpeg and MediaMTX.", readOnly: false)),
+        McpServerTool.Create(t.StopEmulator, Opt("stop_emulator", "Stop the virtual camera", "Stop the RTSP stream and the Modbus slave.", readOnly: false)),
+        McpServerTool.Create(t.EmulatorStatus, Opt("emulator_status", "Virtual camera status", "Whether the virtual camera runs, its RTSP address, the current image, whether it is sliding (D0) and the Modbus client count.", readOnly: true)),
         McpServerTool.Create(t.SetupPython, Opt("setup_python", "Set up Python for training", "Create Studio's Python environment and install PyTorch (CPU), onnx, numpy and pillow. Downloads several hundred MB; ask the user first.", readOnly: false)),
     ];
 
-    public const int Count = 28;
+    public const int Count = 31;
 
     public CallToolResult NewProject(
         [Description("Project folder (absolute path).")] string folder,
@@ -143,6 +146,20 @@ internal sealed class StudioTools(StudioSession session)
     public CallToolResult ImportOnnx([Description("Onnx check id.")] string id, [Description(".onnx file path.")] string path) => Of(session.ImportOnnx(id, path));
 
     public async Task<CallToolResult> SetupPython() => Of(await session.SetupPythonAsync());
+
+    public CallToolResult StartEmulator(
+        [Description("Test folder index, 0 = first.")] int set_index,
+        [Description("Modbus TCP port (default 502).")] int modbus_port = 502,
+        [Description("RTSP port (default 8554).")] int rtsp_port = 8554,
+        [Description("Frames per second (default 10).")] int fps = 10,
+        [Description("Milliseconds between sending the new image and setting D0 to 0 — margin for the client's RTSP delay (default 500).")] int settle_ms = 500) =>
+        Of(session.StartEmulator(set_index, new EmulatorOptions(modbus_port, rtsp_port, Fps: fps, SettleMs: settle_ms)));
+
+    public CallToolResult StopEmulator() => Of(session.StopEmulator());
+
+    public CallToolResult EmulatorStatus() => session.EmulatorStatus is { } e
+        ? Text($"{(e.Running ? "running" : "stopped")} {e.Url} modbus {e.ModbusPort} image {e.Index + 1}/{e.Count} {e.File} D0={(e.Busy ? 1 : 0)} clients {e.Clients}{(e.Error is null ? "" : " error: " + e.Error)}")
+        : Text("not running");
 
     public CallToolResult PackProject([Description("Package file path (.dvpkg).")] string path) => Of(session.PackProject(path));
 
