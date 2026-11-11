@@ -24,13 +24,12 @@ public sealed record EmulatorStatus(bool Running, string Url, int ModbusPort, in
 /// <item>D100 (홀딩 레지스터 100) ← 1: 받는 즉시 D100 = 0, D0 = 1 (넘기는 중) — 쓰기 응답 전에 바뀐다.</item>
 /// <item>다음 이미지가 밀려 들어오고 <see cref="EmulatorOptions.SettleMs"/> 뒤 D0 = 0 → 그때 프레임을 잡으면 새 이미지다.</item>
 /// <item>넘기는 중에 또 1 이 오면 하나만 기억했다가 이어서 넘긴다. 마지막 다음은 처음.</item>
-/// <item>D1 = 1 가동 중 / 0 정지. 정지 중의 D100 = 1 은 0 으로만 돌린다.</item>
+/// <item>HMI 는 D0 = 0 (정지) 일 때 프레임을 잡아 검사한다. 에뮬레이터가 멈춰 있으면 D100 = 1 은 0 으로만 돌린다.</item>
 /// </list>
 /// </summary>
 internal sealed class CameraEmulator : IDisposable
 {
     public const int BusyRegister = 0;
-    public const int RunningRegister = 1;
     public const int NextRegister = 100;
 
     private readonly IReadOnlyList<string> _files;
@@ -83,8 +82,6 @@ internal sealed class CameraEmulator : IDisposable
             var slave = new ModbusTCPSlave { LocalIP = _options.LocalOnly ? "127.0.0.1" : "0.0.0.0", LocalPort = _options.ModbusPort, Slave = 1, HoldingRegisters = new int[200] };
             slave.WordWritten += OnWritten;
             slave.Start();
-            lock (slave.SyncRoot)
-                slave.HoldingRegisters![RunningRegister] = 1;
             _slave = slave;
             _loop = new Thread(Loop) { IsBackground = true, Name = "CameraEmulator" };
             _loop.Start();
@@ -107,7 +104,7 @@ internal sealed class CameraEmulator : IDisposable
             if (hr[NextRegister] != 1)
                 return;
             hr[NextRegister] = 0;
-            if (_stop || hr[RunningRegister] != 1)
+            if (_stop)
                 return;
             hr[BusyRegister] = 1;
         }
@@ -198,10 +195,7 @@ internal sealed class CameraEmulator : IDisposable
             _stop = true;
             if (_slave is { } s)
                 lock (s.SyncRoot)
-                {
-                    s.HoldingRegisters![RunningRegister] = 0;
-                    s.HoldingRegisters[BusyRegister] = 0;
-                }
+                    s.HoldingRegisters![BusyRegister] = 0;
             Changed?.Invoke();
         }
         finally

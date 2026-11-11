@@ -12,7 +12,7 @@ public sealed partial class StudioSession
     public EmulatorStatus? EmulatorStatus { get { lock (_gate) return _emulator?.Status; } }
 
     /// <summary>
-    /// 테스트 폴더의 이미지를 가상 카메라로 내보낸다. Modbus: D100 ← 1 이면 다음 장 (D100 → 0, D0 = 1 넘기는 중 → 끝나면 0), D1 = 1 가동 중.
+    /// 테스트 폴더의 이미지를 가상 카메라로 내보낸다. Modbus: D100 ← 1 이면 다음 장 (D100 → 0, D0 = 1 넘기는 중 → 끝나면 0 — HMI 는 D0 = 0 일 때 검사).
     /// </summary>
     public CommandResult StartEmulator(int setIndex, EmulatorOptions? options = null)
     {
@@ -51,7 +51,7 @@ public sealed partial class StudioSession
             _emulator = emulator;
         }
         ProjectChanged?.Invoke();
-        return CommandResult.Done($"가상 카메라: {emulator.Url} · Modbus TCP {o.ModbusPort} (D100 ← 1 다음 장, D0 1 = 넘기는 중, D1 1 = 가동) · 이미지 {files.Count}장");
+        return CommandResult.Done($"가상 카메라: {emulator.Url} · Modbus TCP {o.ModbusPort} (D100 ← 1 다음 장, D0 1 = 넘기는 중 · 0 = 정지) · 이미지 {files.Count}장");
     }
 
     /// <summary>에뮬레이터를 멈춘다 (RTSP · Modbus 를 닫는다).</summary>

@@ -103,7 +103,7 @@ public class EmulatorTests
             using var m = new Master(o.ModbusPort);
             Until(() => sink.Means.Count > 3);
             Assert.Equal(40, sink.Last, 1);
-            Assert.Equal((1, 0), (m.Read(1), m.Read(0)));   // D1 가동, D0 쉬는 중
+            Assert.Equal(0, m.Read(0));   // D0 정지 (검사해도 됨)
 
             m.Write(100, 1);
             Assert.Equal(1, m.Read(0));     // 쓰기 응답을 받았을 때 이미 넘기는 중
