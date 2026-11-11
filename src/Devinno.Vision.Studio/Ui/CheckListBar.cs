@@ -59,6 +59,12 @@ public sealed partial class CheckListBar : DvBar
             return a.Reference is null ? ("티칭 필요", "warning") : ("티칭됨", "info");
         if (c.Roi.IsEmpty)
             return ("ROI 없음", "warning");
+        var (badge, tone) = Range(c, mm);
+        return c.Role == StepRole.Reason ? ($"사유 · {badge}", "neutral") : (badge, tone);
+    }
+
+    private static (string Badge, string Tone) Range(CheckDef c, bool mm)
+    {
         return c switch
         {
             BlobCountCheck b => ($"{b.Min}~{b.Max}개", "neutral"),

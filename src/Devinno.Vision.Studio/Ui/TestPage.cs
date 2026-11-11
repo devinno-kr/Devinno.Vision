@@ -78,7 +78,10 @@ public sealed partial class TestPage : DvPage
 
     public string SetFolder => _session.TestSets.ElementAtOrDefault(_selectedSet)?.Folder ?? "";
     public bool Running { get; private set; }
-    public bool CannotRun => !HasSets || Running || _session.Checks.Count == 0 || _session.BaseImageFile is null;
+    public bool CannotRun => !HasSets || Running || _session.IsTraining || !CanJudge;
+
+    // 판정할 것이 있다: 기준 이미지 + 검사, 또는 양품 모델
+    private bool CanJudge => _session.Project is { } p && (p.GoodModel is not null || (_session.Checks.Count > 0 && _session.BaseImageFile is not null));
     public string Progress { get; private set; } = "";
 
     /// <summary>다음 할 일 / 비활성 이유.</summary>
@@ -88,8 +91,9 @@ public sealed partial class TestPage : DvPage
         {
             if (NoProject) return "다음: 위 [새 로직] 또는 [열기]";
             if (NoSets) return "다음: [폴더 추가] 로 테스트 이미지 폴더를 고르세요";
-            if (_session.Checks.Count == 0) return "검사가 없어 실행할 수 없습니다 — [편집] 에서 검사를 더하세요";
-            if (_session.BaseImageFile is null) return "기준 이미지가 없어 실행할 수 없습니다 — [편집] 에서 [기준 이미지 열기]";
+            if (_session.IsTraining) return "양품 모델을 학습하는 중입니다 — 끝나면 실행할 수 있습니다";
+            if (_session.Project?.GoodModel is null && _session.Checks.Count == 0) return "검사가 없어 실행할 수 없습니다 — [편집] 에서 검사를 더하거나 양품 모델을 학습하세요";
+            if (_session.Project?.GoodModel is null && _session.BaseImageFile is null) return "기준 이미지가 없어 실행할 수 없습니다 — [편집] 에서 [기준 이미지 열기]";
             if (Report is null) return "이미지를 골라 한 장씩 보거나, [실행] 으로 폴더 전체를 판정하세요";
             return "필터로 좁히고 한 장씩 보세요 (← → 키로 넘김). 틀린 이미지는 [이 검사 고치기]";
         }
@@ -234,6 +238,17 @@ public sealed partial class TestPage : DvPage
     public string DetailLine { get; private set; } = "";
     public bool CannotFix => _failedCheckId is null;
 
+    /// <summary>양품인데 틀린 이미지 — 양품 학습 목록에 더할 수 있다.</summary>
+    public bool CannotAddGood => _selectedFile is null || SelectedItem is not { ExpectOk: true, Correct: false } || _session.Project?.GoodModel is null;
+
+    private TestItem? SelectedItem => Report?.Items.FirstOrDefault(i => i.File == _selectedFile);
+
+    public void AddGood()
+    {
+        if (_selectedFile is { } file)
+            _status.Report(_session.AddGoodImage(file));
+    }
+
     /// <summary>고른 이미지를 다시 돌려 보여 주는 중인 작업 (테스트가 기다린다).</summary>
     internal Task Showing { get; private set; } = Task.CompletedTask;
 
@@ -276,7 +291,7 @@ public sealed partial class TestPage : DvPage
             var item = Report?.Items.FirstOrDefault(i => string.Equals(i.File, file, StringComparison.OrdinalIgnoreCase));
             var label = Images.FirstOrDefault(i => i.File == file)?.Label;
             var head = $"라벨 {label ?? "없음"}";
-            if (_session.Checks.Count == 0 || _session.BaseImageFile is null)
+            if (!CanJudge)
             {
                 // 로직이 없으면 이미지만
                 using var img = VisionImage.Load(file);
@@ -302,7 +317,7 @@ public sealed partial class TestPage : DvPage
             Detail = $"{head}  ·  {r.Message}{judge}" + (failed is null ? "" : $"  ·  원인 검사: {failed}");
             (ResultBadge, ResultTone) = r.State switch { "Ok" => ("OK", "success"), "Ng" => ("NG", "danger"), "Error" => ("Error", "warning"), _ => ("", "neutral") };
             var codes = r.Codes.Count > 0 ? $"  ·  {string.Join(", ", r.Codes)}" : "";
-            DetailLine = $"{head}{codes}" + (failed is null ? "" : $"  ·  원인 검사: {failed}");
+            DetailLine = $"{head}{codes}  ·  {r.Ms:0} ms" + (failed is null ? "" : $"  ·  원인 검사: {failed}");
             (JudgeBadge, JudgeTone) = item?.Correct switch { true => ("맞음", "success"), false => ("틀림", "danger"), _ => ("", "neutral") };
         }
         catch (Exception ex)

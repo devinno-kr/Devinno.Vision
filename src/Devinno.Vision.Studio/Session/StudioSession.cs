@@ -15,7 +15,7 @@ public sealed record CommandResult(bool Ok, string Message, string? Id = null)
 }
 
 /// <summary>한 장 실행 결과.</summary>
-public sealed record RunResult(bool Ok, string Message, string State, IReadOnlyList<string> Codes, IReadOnlyList<ValueRow> Values, byte[]? Png);
+public sealed record RunResult(bool Ok, string Message, string State, IReadOnlyList<string> Codes, IReadOnlyList<ValueRow> Values, byte[]? Png, double Ms = 0);
 
 /// <summary>판정 값 한 줄.</summary>
 public sealed record ValueRow(string Check, string Name, double Value, double? Min, double? Max, double? Nominal, string? Unit, bool Ok);
@@ -24,7 +24,7 @@ public sealed record ValueRow(string Check, string Name, double Value, double? M
 /// 명령 층 — 화면과 MCP 가 부르는 모든 기능의 단일 입구. 모든 명령은 내부 잠금으로 직렬화되고,
 /// 프로젝트를 바꾼 명령은 끝난 뒤(잠금 밖에서) <see cref="ProjectChanged"/> 를 올린다.
 /// </summary>
-public sealed class StudioSession
+public sealed partial class StudioSession
 {
     internal const string NoProject = "프로젝트를 먼저 만들거나 여세요";
     internal const string NoBaseImage = "기준 이미지를 먼저 지정하세요 (set_base_image)";
@@ -73,9 +73,7 @@ public sealed class StudioSession
             {
                 return CommandResult.Fail($"이 폴더에 프로젝트를 만들 수 없습니다: {ex.Message}");
             }
-            _project = p;
-            _lastReport = null;
-            _dirty = false;
+            Replace(p);
             return CommandResult.Done($"새 프로젝트: {p.Name} ({p.Folder})");
         }, needsProject: false, markDirty: false);
     }
@@ -92,16 +90,14 @@ public sealed class StudioSession
             VisionRecipe p;
             try
             {
-                p = VisionRecipe.Load(folder);
+                p = VisionRecipe.Load(folder, loadModels: false);   // 모델은 실행할 때 읽는다 (학습 전 · 파일 없음이어도 열리게)
             }
             catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {
                 return CommandResult.Fail($"열 수 없습니다: {ex.Message}");   // 지금 열린 프로젝트는 그대로
             }
-            var message = $"열림: {p.Name} (검사 {p.Checks.Count}개)";
-            _project = p;
-            _lastReport = null;
-            _dirty = false;
+            var message = $"열림: {p.Name} (검사 {p.Checks.Count}개{(p.GoodModel is null ? "" : ", 양품 모델")})";
+            Replace(p);
             return CommandResult.Done(message);
         }, needsProject: false, markDirty: false);
     }
@@ -121,6 +117,8 @@ public sealed class StudioSession
         {
             if (_project is not { } p)
                 return CommandResult.Fail(NoProject);
+            if (_training is not null)
+                return CommandResult.Fail(Training);
             try
             {
                 p.Save();
@@ -198,7 +196,10 @@ public sealed class StudioSession
         check.Name = name;
         while (p.Checks.Count(c => c.Id == check.Id) > 1)
             check.Id = Guid.NewGuid().ToString("N")[..8];
-        return CommandResult.Done($"추가됨: {name} ({check.KindLabel}, id {check.Id})", check.Id);
+        var reason = p.GoodModel is not null && check is not BlobAlignCheck and not LengthCheck;
+        if (reason)
+            check.Role = StepRole.Reason;
+        return CommandResult.Done($"추가됨: {name} ({check.KindLabel}, id {check.Id}){(reason ? " — 사유 검사 (양품 모델이 판정하고, 이 검사는 NG 이유를 붙입니다)" : "")}", check.Id);
     });
 
     public CommandResult RemoveCheck(string id) => Change(() =>
@@ -245,6 +246,7 @@ public sealed class StudioSession
         if (properties is null)
             return CommandResult.Fail("바꿀 속성을 주세요 (JSON 객체)");
         var current = JsonSerializer.SerializeToNode(c, VisionRecipe.JsonOptions)!.AsObject();
+        current.TryAdd("Role", nameof(StepRole.Judge));   // 기본값은 쓰지 않으므로 채워 둔다
         if (Merge(current, properties, "") is { } error)
             return CommandResult.Fail(error);
         CheckDef updated;
@@ -306,7 +308,8 @@ public sealed class StudioSession
         if (!r.Poses.TryGetValue(VisionRecipe.PoseName, out var pose))
             return CommandResult.Fail($"기준 이미지에서 부품을 찾지 못했습니다: {r.Error} (정렬 검사의 Blob 설정을 확인하세요)");
         align.Reference = pose;
-        return CommandResult.Done($"기준 위치: x {pose.X:0.0}, y {pose.Y:0.0}, 각도 {pose.Angle:0.00}°");
+        var stale = p.GoodModel is not null && !p.GoodModelIsCurrent ? " — 양품 모델을 다시 학습하세요 (기준 위치가 바뀌었습니다)" : "";
+        return CommandResult.Done($"기준 위치: x {pose.X:0.0}, y {pose.Y:0.0}, 각도 {pose.Angle:0.00}°{stale}");
     });
 
     /// <summary>이미지 한 장을 지금 로직으로 실행한다. 결과 PNG 를 담는다.</summary>
@@ -322,9 +325,11 @@ public sealed class StudioSession
         {
             if (_project is not { } p)
                 return Failed(NoProject);
-            if (p.Checks.Count == 0)
-                return Failed("검사가 없습니다 (add_check)");
-            job = p.CreateJob();
+            if (_training is not null)
+                return Failed(Training);
+            if (TryCreateJob(p, out job) is { } error)
+                return Failed(error);
+            job.ReasonSteps = ReasonRun.Always;   // 사유 검사의 값도 보이게 (판정은 그대로)
         }
         VisionImage img;
         try
@@ -403,7 +408,7 @@ public sealed class StudioSession
         if (sets.Any(t => string.Equals(Path.GetFullPath(t.Folder), full, StringComparison.OrdinalIgnoreCase) && t.Rule == rule))
             return CommandResult.Fail($"이미 있는 테스트 폴더입니다: {full}");
         sets.Add(new TestSet { Folder = full, Rule = rule });
-        return CommandResult.Done($"테스트 폴더 {sets.Count - 1}: {full} (라벨 규칙 {rule})");
+        return CommandResult.Done($"테스트 폴더 {sets.Count - 1}: {full} (라벨 규칙 {rule}){OverlapWarning(full, _goods.Folder, "양품 폴더")}");
     });
 
     public CommandResult RemoveTestSet(int index) => Change(() =>
@@ -424,13 +429,14 @@ public sealed class StudioSession
         {
             if (_project is not { } p)
                 return TestRunner.Fail(NoProject);
-            if (p.BaseImagePath is null)
+            if (_training is not null)
+                return TestRunner.Fail(Training);
+            if (p.BaseImagePath is null && p.GoodModel is null)
                 return TestRunner.Fail(NoBaseImage);
-            if (p.Checks.Count == 0)
-                return TestRunner.Fail("검사가 없습니다 (add_check)");
             if (setIndex < 0 || setIndex >= p.TestSets.Count)
                 return TestRunner.Fail(p.TestSets.Count == 0 ? "테스트 폴더가 없습니다 (add_test_set)" : $"테스트 폴더 번호는 0 ~ {p.TestSets.Count - 1} 입니다 (받은 값 {setIndex})");
-            job = p.CreateJob();
+            if (TryCreateJob(p, out job) is { } error)
+                return TestRunner.Fail(error);
             var s = p.TestSets[setIndex];
             set = new TestSet { Folder = s.Folder, Rule = s.Rule, GoodLabel = s.GoodLabel };
         }
@@ -450,7 +456,7 @@ public sealed class StudioSession
             VisionState.Ng => $"NG: {string.Join(", ", r.Codes)}",
             _ => $"Error: {r.Error}",
         };
-        return new RunResult(true, msg, r.State.ToString(), [.. r.Codes], values, png);
+        return new RunResult(true, msg, r.State.ToString(), [.. r.Codes], values, png, r.Elapsed.TotalMilliseconds);
     }
 
     private static RunResult Failed(string message) => new(false, message, "Error", [], [], null);
@@ -463,6 +469,8 @@ public sealed class StudioSession
         CommandResult r;
         lock (_gate)
         {
+            if (_training is not null)
+                return CommandResult.Fail(Training);
             if (needsProject && _project is null)
                 return CommandResult.Fail(NoProject);
             r = change();

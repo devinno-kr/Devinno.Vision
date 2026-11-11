@@ -7,6 +7,16 @@ using Devinno.Vision.UI;
 
 namespace Devinno.Vision.Studio.Ui;
 
+/// <summary>기준 설정의 두 방식.</summary>
+public enum RefTab
+{
+    /// <summary>기준 이미지 (표준 검사).</summary>
+    Image,
+
+    /// <summary>양품 모델.</summary>
+    Model,
+}
+
 /// <summary>편집 화면 — 기준 이미지 위 ROI 편집 · 검사별 속성 · 티칭 · 한 장 실행(결과 오버레이). 동작 결과는 상태 줄에.</summary>
 public sealed partial class EditPage : DvPage
 {
@@ -25,7 +35,9 @@ public sealed partial class EditPage : DvPage
         _status = status;
         View.RoiChanged += roi =>
         {
-            if (_selectedId is { } id)
+            if (IsModelTab)
+                Report(_session.SetGoodRoi(roi));
+            else if (_selectedId is { } id)
                 Report(_session.SetRoi(id, roi));
         };
         _session.ProjectChanged += SyncView;
@@ -53,7 +65,13 @@ public sealed partial class EditPage : DvPage
     public bool NoProject => !HasProject;
     public bool HasBase => _session.BaseImageFile is not null;
     public bool NoBase => !HasBase;
+
+    /// <summary>화면에 이미지가 있다 (기준 이미지, 없으면 양품 폴더의 첫 장).</summary>
+    public bool HasImage => ShownFile is not null;
+    public bool NoImage => !HasImage;
+    private string? ShownFile => _session.BaseImageFile ?? _session.GoodPreviewFile;
     public string EmptyTitle => HasProject ? "기준 이미지가 없습니다" : "로직이 없습니다";
+    public bool HasGoodModel => _session.Project?.GoodModel is not null;
     public string EmptyText => HasProject
         ? "[기준 이미지 열기] 로 검사할 부품이 찍힌 이미지를 고르세요.\nROI 는 이 이미지 위에 그립니다."
         : "위 [새 로직] 으로 만들거나 [열기] 로 저장된 로직을 여세요.";
@@ -71,6 +89,7 @@ public sealed partial class EditPage : DvPage
         get
         {
             if (NoProject) return "다음: 위 [새 로직] 또는 [열기]";
+            if (IsModelTab) return ModelHint;
             if (NoBase) return "다음: [기준 이미지] 로 기준 이미지를 고르세요 (티칭 · 실행은 그 뒤에)";
             var checks = _session.Checks;
             if (checks.Count == 0) return "다음: 왼쪽 [추가] 로 검사를 더하세요";
@@ -87,6 +106,19 @@ public sealed partial class EditPage : DvPage
     public bool IsLength => Selected is LengthCheck;
     public bool HasBlob => IsBlobAlign || IsBlobCount;
     public bool HasCode => HasSelection && !IsBlobAlign;
+
+    /// <summary>판정 / 사유 (정렬 검사는 늘 판정).</summary>
+    public bool CanHaveRole => HasSelection && !IsBlobAlign;
+
+    public StepRole Role
+    {
+        get => Selected?.Role ?? StepRole.Judge;
+        set => Update("Role", value.ToString());
+    }
+
+    public string RoleText => Role == StepRole.Reason
+        ? "NG 일 때만 돌아 이유를 붙입니다. OK 를 NG 로 바꾸지 않습니다"
+        : "이 검사가 NG 면 결과가 NG 입니다";
 
     public string ReferenceText => Selected is BlobAlignCheck { Reference: { } r }
         ? $"기준 위치: x {r.X:0.0}, y {r.Y:0.0}, {r.Angle:0.00}°"
@@ -190,12 +222,13 @@ public sealed partial class EditPage : DvPage
     public string ResultTone { get; private set; } = "neutral";
     public bool HasResultBadge => ResultBadge.Length > 0;
 
-    public string ImageTitle => _session.BaseImageFile is { } f ? $"기준 이미지 · {Path.GetFileName(f)}" : "기준 이미지";
-    public string ImageBadge => ShowingResult ? "결과 보는 중" : (HasSelection ? "ROI 편집" : "");
+    public string ImageTitle => _session.BaseImageFile is { } f ? $"기준 이미지 · {Path.GetFileName(f)}"
+        : ShownFile is { } g ? $"양품 이미지 · {Path.GetFileName(g)}" : "기준 이미지";
+    public string ImageBadge => ShowingResult ? "결과 보는 중" : IsModelTab ? "영역 편집" : (HasSelection ? "ROI 편집" : "");
     public string PanelBadge => Selected?.KindLabel ?? "";
     public string CalibrationBadge => _session.Project?.Calibration is null ? "px" : "mm";
     public bool NoValues => !HasValues;
-    public bool CannotRun => NoBase || !HasChecks;
+    public bool CannotRun => NoImage || (!HasChecks && !HasGoodModel) || _session.IsTraining;
     public bool ShowingResult { get { lock (_viewGate) return _resultRevision >= 0; } }
 
     /// <summary>값 표 한 줄 (표시용).</summary>
@@ -209,6 +242,7 @@ public sealed partial class EditPage : DvPage
     internal SkiaSharp.SKRect TeachBounds => btnTeach.Bounds;
     internal SkiaSharp.SKRect RunBounds => btnRun.Bounds;
     internal SkiaSharp.SKRect RunOtherBounds => btnRunOther.Bounds;
+    internal SkiaSharp.SKRect TrainBounds => btnTrain.Bounds;
 
 
     // ── 좁은 창 ──────────────────────────────────────────
@@ -236,6 +270,109 @@ public sealed partial class EditPage : DvPage
 
     public bool Wide => !Compact;
 
+    // ── 기준: 기준 이미지 / 양품 모델 ────────────────────
+
+    private RefTab _tab;
+
+    public RefTab Tab
+    {
+        get => _tab;
+        set
+        {
+            _tab = value;
+            SyncView();
+        }
+    }
+
+    public bool IsImageTab => _tab == RefTab.Image;
+    public bool IsModelTab => _tab == RefTab.Model;
+    public bool ImageWide => IsImageTab && Wide;
+    public bool ImageCompact => IsImageTab && Compact;
+    public bool IsTraining => _session.IsTraining;
+    public bool CannotPickGood => NoProject || IsTraining;
+    public bool CannotTrain => NoProject || IsTraining || _session.GoodImages().Count == 0;
+    public bool CannotRemoveGood => !HasGoodModel || IsTraining;
+    public bool CannotResetGoodRoi => NoProject || IsTraining || _session.GoodRoi.IsEmpty;
+
+    public string GoodFolderText
+    {
+        get
+        {
+            if (_session.GoodFolder is not { } f)
+                return "양품 폴더 없음 — 폴더 바로 아래의 이미지가 모두 양품이어야 합니다";
+            var n = _session.GoodImages().Count;
+            return $"{(f.Length <= 48 ? f : "…" + f[^47..])}  ·  양품 {n}장" + (n < StudioSession.RecommendedGoods ? $" (권장 {StudioSession.RecommendedGoods}장 이상)" : "");
+        }
+    }
+
+    public string GoodRoiText => _session.GoodRoi is { IsEmpty: false } r ? $"영역: {r.X:0},{r.Y:0}  {r.Width:0}×{r.Height:0}  (이미지에서 끌어 바꾸기)" : "영역: 전체 이미지  (이미지에서 끌어 좁히기)";
+
+    /// <summary>양품 모델 상태 한 줄.</summary>
+    public string GoodStatusText
+    {
+        get
+        {
+            if (_session.TrainingProgress is { } t)
+                return $"학습 중 — {t.Stage switch { "crop" => "자르기", "learn" => "학습", _ => "문턱" }} {t.Done}/{t.Total}";
+            if (IsTraining)
+                return "학습 준비 중…";
+            if (_session.Project?.GoodModel is not { } g)
+                return "양품 모델 없음";
+            if (!_session.Project.GoodModelIsCurrent)
+                return "다시 학습 필요 — 학습한 뒤에 정렬 · 기준 위치 · 영역이 바뀌었습니다";
+            return _session.GoodSummary is { } s
+                ? $"학습됨: {s.Learned}장 학습 · 보정 {s.Calibration}장 · 문턱 {g.Max} · 장당 {s.MsPerImage:0} ms" + (s.Skipped.Count > 0 ? $" · 뺀 이미지 {s.Skipped.Count}장" : "")
+                : $"학습됨: 문턱 {g.Max}";
+        }
+    }
+
+    /// <summary>카드 위 양품 모델 배지.</summary>
+    public string GoodBadge => IsTraining ? "학습 중" : _session.Project?.GoodModel is null ? "" : _session.Project.GoodModelIsCurrent ? "양품 모델" : "다시 학습";
+    public string GoodTone => IsTraining ? "info" : _session.Project?.GoodModelIsCurrent == false ? "warning" : "success";
+    public bool HasGoodBadge => GoodBadge.Length > 0;
+
+    private string ModelHint
+    {
+        get
+        {
+            if (IsTraining) return "학습하는 중입니다 — 끝나면 [실행] 이나 테스트로 확인하세요";
+            if (_session.GoodFolder is null) return "다음: [양품 폴더] 로 양품 이미지만 든 폴더를 고르세요";
+            if (!HasGoodModel) return "다음: 필요하면 이미지에서 끌어 볼 영역을 정하고 [학습]";
+            if (_session.Project?.GoodModelIsCurrent == false) return "다음: [학습] 으로 다시 학습하세요";
+            return "양품 모델이 판정합니다. 표준 검사는 '사유' 로 두면 NG 일 때 이유만 붙입니다";
+        }
+    }
+
+    public void PickGoodFolder()
+    {
+        if (_dialogs.PickFolder() is { } folder)
+            Report(_session.SetGoodFolder(folder));
+        else
+            _status.Ok("양품 폴더: 취소함");
+    }
+
+    public void ResetGoodRoi() => Report(_session.SetGoodRoi(default));
+
+    public void RemoveGood() => Report(_session.RemoveGoodModel());
+
+    public void CancelTrain() => Report(_session.CancelTraining());
+
+    public async void TrainGood()
+    {
+        try
+        {
+            await TrainAsync();
+        }
+        catch (Exception ex) { _status.Fail(ex.Message); }
+    }
+
+    /// <summary>양품 학습 (테스트가 기다릴 수 있게 Task).</summary>
+    internal async Task TrainAsync()
+    {
+        _status.Ok("양품 모델 학습을 시작합니다…");
+        Report(await _session.TrainGoodModelAsync());
+    }
+
     /// <summary>오른쪽 속성 칸 폭.</summary>
     public int PanelWidth => Compact ? 260 : 320;
 
@@ -256,7 +393,7 @@ public sealed partial class EditPage : DvPage
     {
         try
         {
-            if (_session.BaseImageFile is { } file)
+            if (ShownFile is { } file)
                 await RunAsync(file);
         }
         catch (Exception ex) { _status.Fail(ex.Message); }
@@ -279,6 +416,11 @@ public sealed partial class EditPage : DvPage
     internal async Task RunAsync(string file)
     {
         var revision = _session.Revision;
+        if (_session.IsTraining)
+        {
+            _status.Fail(StudioSession.Training);
+            return;
+        }
         var r = await _session.RunImageAsync(file, result =>
         {
             lock (_viewGate)
@@ -297,7 +439,7 @@ public sealed partial class EditPage : DvPage
             SyncView();
             return;
         }
-        LastRun = $"{name} — {r.Message}";
+        LastRun = r.Ms > 0 ? $"{name} — {r.Message}  ·  {r.Ms:0} ms" : $"{name} — {r.Message}";
         (ResultBadge, ResultTone) = r.State switch { "Ok" => ("OK", "success"), "Ng" => ("NG", "danger"), _ => ("Error", "warning") };
         LastValues = [.. r.Values.Select(v => new ValueLine(v.Check, v.Name, $"{v.Value:0.###}{(v.Unit is null ? "" : " " + v.Unit)}",
             v.Nominal is { } n ? $"{n:0.###} ({v.Min:0.###}~{v.Max:0.###})" : $"{v.Min:0.###}~{v.Max:0.###}", v.Ok ? "OK" : "NG"))];
@@ -322,7 +464,7 @@ public sealed partial class EditPage : DvPage
     {
         lock (_viewGate)
         {
-            var file = _session.BaseImageFile;
+            var file = ShownFile;
             var stamp = file is null ? null : $"{file}|{File.GetLastWriteTimeUtc(file).Ticks}";
             // 결과를 보여 주던 중 로직이 바뀌었으면 결과는 낡았다 → 기준 이미지로 되돌린다
             var stale = _resultRevision >= 0 && _resultRevision != _session.Revision;
@@ -354,7 +496,7 @@ public sealed partial class EditPage : DvPage
                     }
                 }
             }
-            var roi = Selected?.Roi;
+            var roi = IsModelTab ? _session.GoodRoi : Selected?.Roi;
             View.EditRoi = roi is { IsEmpty: false } r ? r : null;
         }
     }

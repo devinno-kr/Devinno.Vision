@@ -15,7 +15,15 @@
   <DvRow id="body" grow="1" style="align-items:stretch; gap:16; height:0">
     <!-- 가운데: 이미지 (남는 폭 전부) -->
     <DvCard title="{ImageTitle}" badge="{ImageBadge}" style="flex:1; width:0">
-      <DvRow gap="sm" visible="{Wide}">
+      <!-- 기준: 기준 이미지 (표준 검사) / 양품 모델 — 하나만 써도, 둘 다 써도 된다 -->
+      <DvRow gap="sm">
+        <DvSegment value="{Bind Tab}" disabled="{NoProject}">
+          <DvOption value="Image" text="기준 이미지"/>
+          <DvOption value="Model" text="양품 모델"/>
+        </DvSegment>
+        <DvBadge text="{GoodBadge}" tone="{GoodTone}" visible="{HasGoodBadge}"/>
+      </DvRow>
+      <DvRow gap="sm" visible="{ImageWide}">
         <DvButton variant="secondary" icon="fa-image" text="기준 이미지" onclick="OpenBase" disabled="{NoProject}"/>
         <DvButton id="btnTeach" variant="secondary" icon="fa-crosshairs" text="기준 티칭" onclick="Teach" disabled="{NoBase}"/>
         <DvSpacer/>
@@ -23,22 +31,38 @@
         <DvButton id="btnRunOther" variant="secondary" icon="fa-folder-open" text="다른 이미지로 실행" onclick="RunOther" disabled="{CannotRun}"/>
       </DvRow>
       <!-- 좁은 창: 준비 줄 · 실행 줄 -->
-      <DvRow gap="sm" visible="{Compact}">
+      <DvRow gap="sm" visible="{ImageCompact}">
         <DvButton variant="secondary" icon="fa-image" text="기준 이미지" onclick="OpenBase" disabled="{NoProject}"/>
         <DvButton variant="secondary" icon="fa-crosshairs" text="기준 티칭" onclick="Teach" disabled="{NoBase}"/>
       </DvRow>
-      <DvRow gap="sm" visible="{Compact}">
+      <DvRow gap="sm" visible="{ImageCompact}">
         <DvButton variant="primary" icon="fa-play" text="실행" onclick="RunBase" disabled="{CannotRun}"/>
         <DvButton variant="secondary" icon="fa-folder-open" text="다른 이미지로 실행" onclick="RunOther" disabled="{CannotRun}"/>
       </DvRow>
+      <!-- 양품 모델: 폴더 · 영역 줄, 학습 줄 -->
+      <DvRow gap="sm" visible="{IsModelTab}">
+        <DvButton id="btnGoodFolder" variant="secondary" icon="fa-folder-open" text="양품 폴더" onclick="PickGoodFolder" disabled="{CannotPickGood}"/>
+        <DvButton variant="secondary" icon="fa-expand" text="전체 영역" onclick="ResetGoodRoi" disabled="{CannotResetGoodRoi}"/>
+        <DvButton variant="secondary" icon="fa-trash" text="모델 빼기" onclick="RemoveGood" disabled="{CannotRemoveGood}"/>
+      </DvRow>
+      <DvRow gap="sm" visible="{IsModelTab}">
+        <DvButton id="btnTrain" variant="primary" icon="fa-graduation-cap" text="학습" onclick="TrainGood" disabled="{CannotTrain}"/>
+        <DvButton variant="secondary" icon="fa-stop" text="취소" onclick="CancelTrain" visible="{IsTraining}"/>
+        <DvSpacer/>
+        <DvButton variant="secondary" icon="fa-play" text="실행" onclick="RunBase" disabled="{CannotRun}"/>
+        <DvButton variant="secondary" icon="fa-folder-open" text="다른 이미지로 실행" onclick="RunOther" disabled="{CannotRun}"/>
+      </DvRow>
+      <DvLabel class="meta" text="{GoodFolderText}" visible="{IsModelTab}"/>
+      <DvLabel class="meta" text="{GoodRoiText}" visible="{IsModelTab}"/>
+      <DvLabel class="sub" text="{GoodStatusText}" visible="{IsModelTab}"/>
 
-      <DvStack gap="sm" style="flex:1; height:0; align-items:center; justify-content:center" visible="{NoBase}">
+      <DvStack gap="sm" style="flex:1; height:0; align-items:center; justify-content:center" visible="{NoImage}">
         <DvIcon icon="fa-image" style="font-size:40; color: token(text-subtle)"/>
         <DvLabel class="empty-title" text="{EmptyTitle}"/>
         <DvLabel class="sub" text="{EmptyText}" style="text-align:center"/>
         <DvButton id="btnOpenBase" variant="primary" icon="fa-image" text="기준 이미지 열기" onclick="OpenBase" visible="{HasProject}"/>
       </DvStack>
-      <VisionView source="{View}" style="flex:1; height:0" visible="{HasBase}"/>
+      <VisionView source="{View}" style="flex:1; height:0" visible="{HasImage}"/>
 
       <DvRow gap="sm">
         <DvBadge text="{ResultBadge}" tone="{ResultTone}" visible="{HasResultBadge}"/>
@@ -149,6 +173,17 @@
           <DvLabel class="field" text="NG 코드"/>
           <DvInput value="{Bind Code}" style="flex:1; width:0"/>
         </DvRow>
+
+        <DvStack gap="sm" visible="{CanHaveRole}">
+          <DvRow gap="sm">
+            <DvLabel class="field" text="역할"/>
+            <DvSegment value="{Bind Role}" fill="true" style="flex:1; width:0">
+              <DvOption value="Judge" text="판정"/>
+              <DvOption value="Reason" text="사유"/>
+            </DvSegment>
+          </DvRow>
+          <DvLabel class="meta" text="{RoleText}"/>
+        </DvStack>
       </DvCard>
 
       <DvCard title="캘리브레이션" badge="{CalibrationBadge}">

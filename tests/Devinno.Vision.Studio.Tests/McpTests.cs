@@ -12,6 +12,7 @@ public class McpTests
         "new_project", "open_project", "save_project", "get_project", "set_base_image", "set_calibration",
         "add_check", "remove_check", "move_check", "set_roi", "update_check", "teach_base", "run_image",
         "add_test_set", "run_test", "get_failures", "view_test_item",
+        "set_good_folder", "set_good_roi", "train_good_model", "cancel_training", "remove_good_model", "add_good_image",
     ];
 
     private sealed class Server : IAsyncDisposable

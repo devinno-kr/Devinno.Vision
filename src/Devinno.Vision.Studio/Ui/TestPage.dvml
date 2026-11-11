@@ -88,6 +88,7 @@
         <DvButton id="btnNext" variant="secondary" icon="fa-chevron-right" text="다음" onclick="Next" disabled="{CannotNext}"/>
         <DvLabel class="meta" text="← → 키"/>
         <DvSpacer/>
+        <DvButton id="btnAddGood" variant="secondary" icon="fa-user-check" text="양품으로 추가" onclick="AddGood" disabled="{CannotAddGood}"/>
         <DvButton id="btnFix" variant="primary" icon="fa-wrench" text="이 검사 고치기" onclick="Fix" disabled="{CannotFix}"/>
       </DvRow>
       <!-- 좁은 창: 넘기기 줄 · 고치기 줄 -->
@@ -96,6 +97,7 @@
         <DvButton variant="secondary" icon="fa-chevron-right" text="다음" onclick="Next" disabled="{CannotNext}"/>
       </DvRow>
       <DvRow gap="sm" visible="{Compact}">
+        <DvButton variant="secondary" icon="fa-user-check" text="양품으로 추가" onclick="AddGood" disabled="{CannotAddGood}"/>
         <DvButton variant="primary" icon="fa-wrench" text="이 검사 고치기" onclick="Fix" disabled="{CannotFix}"/>
       </DvRow>
       <DvRow gap="sm" visible="{HasSelection}">
