@@ -25,6 +25,13 @@ public abstract class CheckDef
     /// <summary>The ROI in base image coordinates. An alignment check may leave it empty (whole image).</summary>
     public VisionRoi Roi { get; set; }
 
+    /// <summary>
+    /// Whether the check judges (default) or only names the defect when the part is NG (<see cref="StepRole.Reason"/>) —
+    /// for example when the good-part model judges and standard checks say why. The alignment check always judges.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public StepRole Role { get; set; }
+
     /// <summary>The <c>Kind</c> value in JSON (the class name without "Check").</summary>
     [JsonIgnore]
     public string Kind => GetType().Name[..^"Check".Length];
@@ -47,6 +54,10 @@ public abstract class CheckDef
     {
         if (string.IsNullOrWhiteSpace(Name))
             return "검사 이름이 비었습니다";
+        if (MakesPose && Role != StepRole.Judge)
+            return $"{Name}: 정렬 검사는 판정 역할만 할 수 있습니다";
+        if (!Enum.IsDefined(Role))
+            return $"{Name}: 알 수 없는 역할입니다: {Role}";
         return this switch
         {
             BlobAlignCheck { Blob: null } or BlobCountCheck { Blob: null } => $"{Name}: Blob 설정이 없습니다",

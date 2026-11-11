@@ -53,8 +53,12 @@ public sealed class AnomalyModel : IDisposable
     /// <param name="goods">Aligned good images (20 or more; more good images = fewer false NG — 40 → 200 cut them from 6 to 1 of 22 on metal_nut).</param>
     /// <param name="representatives">Patches kept per position (48 is plenty; more = larger and slower).</param>
     /// <param name="neighborhood">Compare with good patches up to this many cells away (absorbs small alignment errors).</param>
+    /// <param name="progress">Reports the number of images described so far.</param>
+    /// <param name="ct">Cancels the training.</param>
     /// <returns>The model.</returns>
-    public static AnomalyModel Train(OnnxModel features, IEnumerable<VisionImage> goods, int representatives = 48, int neighborhood = 1)
+    /// <exception cref="OperationCanceledException">Canceled.</exception>
+    public static AnomalyModel Train(OnnxModel features, IEnumerable<VisionImage> goods, int representatives = 48, int neighborhood = 1,
+                                     IProgress<int>? progress = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(features);
         ArgumentNullException.ThrowIfNull(goods);
@@ -64,17 +68,19 @@ public sealed class AnomalyModel : IDisposable
         int gw = 0, gh = 0, dim = 0;
         foreach (var g in goods)
         {
+            ct.ThrowIfCancellationRequested();
             var (e, w, h, d) = Embed(features, g);
             if (embeds.Count > 0 && (w != gw || h != gh || d != dim))
                 throw new ArgumentException("The feature model gave different sizes for the training images.");
             (gw, gh, dim) = (w, h, d);
             embeds.Add(e);
+            progress?.Report(embeds.Count);
         }
         if (embeds.Count < 2)
             throw new ArgumentException("AnomalyModel needs at least 2 good images.", nameof(goods));
 
         var bank = new float[gw * gh][][];
-        Parallel.For(0, gw * gh, p =>
+        Parallel.For(0, gw * gh, new ParallelOptions { CancellationToken = ct }, p =>
         {
             int y = p / gw, x = p % gw;
             var cand = new List<float[]>();

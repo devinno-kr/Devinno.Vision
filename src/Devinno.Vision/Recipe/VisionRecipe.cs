@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -7,27 +8,34 @@ using Devinno.Vision.Recipes;
 namespace Devinno.Vision;
 
 /// <summary>
-/// An inspection made in Studio: a folder with <c>studio.json</c> (checks, calibration, taught reference pose), the base image and model files.
+/// An inspection made in Studio: a folder with <c>studio.json</c> (checks, calibration, taught reference pose, good-part model), the base image and model files.
 /// An app loads the folder and runs the same inspection without Studio.
 /// </summary>
+/// <remarks>
+/// The reference is a base image (standard checks), a good-part model (<see cref="GoodModel"/>), or both.
+/// A recipe with a good-part model holds the loaded model: dispose the recipe when done. Jobs made from it stop working after that (their model step is Error).
+/// </remarks>
 /// <example>
 /// <code>
-/// var recipe = VisionRecipe.Load(@"C:\recipes\bracket");
+/// using var recipe = VisionRecipe.Load(@"C:\recipes\bracket");
 /// var job = recipe.CreateJob();
 /// using var img = VisionImage.Load(path);
 /// using var r = await job.RunAsync(img);
 /// </code>
 /// </example>
-public sealed class VisionRecipe
+public sealed class VisionRecipe : IDisposable
 {
     /// <summary>The recipe file name in the recipe folder.</summary>
     public const string FileName = "studio.json";
 
-    /// <summary>The file format version this library reads and writes.</summary>
-    public const int CurrentFormatVersion = 1;
+    /// <summary>The newest file format version this library reads. Files are written as version 1 unless they use a good-part model or reason checks (version 2).</summary>
+    public const int CurrentFormatVersion = 2;
 
     /// <summary>The name of the pose made by the alignment check (<c>r.Poses[VisionRecipe.PoseName]</c>). The ROIs of the checks after it follow this pose.</summary>
     public const string PoseName = "part";
+
+    /// <summary>The step name of the good-part model in the job (<c>r.Steps[VisionRecipe.GoodModelStepName]</c>). A check cannot have this name.</summary>
+    public const string GoodModelStepName = "양품 모델";
 
     /// <summary>The JSON options <c>studio.json</c> is written and read with (for example to serialize one <see cref="CheckDef"/> the same way).</summary>
     public static JsonSerializerOptions JsonOptions { get; } = new()
@@ -38,17 +46,27 @@ public sealed class VisionRecipe
         Converters = { new JsonStringEnumConverter() },
     };
 
+    private static readonly JsonSerializerOptions BasisJson = new(JsonOptions) { WriteIndented = false };
+
+    private readonly object _gate = new();
+    private SharedModel? _good;
+    private bool _disposed;
+
     /// <summary>The recipe name. It becomes the job name.</summary>
     public string Name { get; set; } = "";
 
-    /// <summary>The file format version.</summary>
-    public int FormatVersion { get; set; } = CurrentFormatVersion;
+    /// <summary>The file format version (set when saving).</summary>
+    public int FormatVersion { get; set; } = 1;
 
     /// <summary>The base image path, relative to the recipe folder (images/base.png).</summary>
     public string? BaseImage { get; set; }
 
     /// <summary>The mm-per-pixel calibration, or <see langword="null"/> (lengths are then judged in px).</summary>
     public VisionCalibration? Calibration { get; set; }
+
+    /// <summary>The good-part model, or <see langword="null"/> (the reference is the base image only).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public GoodModel? GoodModel { get; set; }
 
     /// <summary>The checks, in running order. An alignment check, if any, is first.</summary>
     public List<CheckDef> Checks { get; set; } = [];
@@ -73,6 +91,10 @@ public sealed class VisionRecipe
         }
     }
 
+    /// <summary>Whether the good-part model was trained for the current alignment and region. <see langword="true"/> when there is no good-part model.</summary>
+    [JsonIgnore]
+    public bool GoodModelIsCurrent => GoodModel is not { } g || g.Basis == BasisOf(g.Roi);
+
     /// <summary>Makes a new, empty recipe (not saved yet).</summary>
     /// <param name="folder">The recipe folder.</param>
     /// <param name="name">The recipe name.</param>
@@ -81,10 +103,12 @@ public sealed class VisionRecipe
 
     /// <summary>Opens <c>studio.json</c> in a recipe folder.</summary>
     /// <param name="folder">The recipe folder (a Studio project folder).</param>
-    /// <returns>The recipe, with calibration, checks and the taught reference pose restored.</returns>
-    /// <exception cref="FileNotFoundException">There is no studio.json in the folder.</exception>
-    /// <exception cref="InvalidDataException">The file content is wrong, was written by a newer format version, or has a check kind this version does not know.</exception>
-    public static VisionRecipe Load(string folder)
+    /// <param name="loadModels">Read the model files now (default). <see langword="false"/> opens a recipe whose models are missing or not trained yet (Studio);
+    /// <see cref="CreateJob"/> then reads them.</param>
+    /// <returns>The recipe, with calibration, checks, the taught reference pose and the good-part model restored.</returns>
+    /// <exception cref="FileNotFoundException">There is no studio.json in the folder, or a model folder it names is missing.</exception>
+    /// <exception cref="InvalidDataException">The file content is wrong, was written by a newer format version, has a check kind this version does not know, or a model file cannot be read.</exception>
+    public static VisionRecipe Load(string folder, bool loadModels = true)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(folder);
         var full = Path.GetFullPath(folder);
@@ -111,6 +135,8 @@ public sealed class VisionRecipe
         if (p.Problem() is { } problem)
             throw new InvalidDataException($"{FileName}: {problem}");
         p.Folder = full;
+        if (loadModels && p.GoodModel is not null)
+            p.EnsureGoodModel();
         return p;
     }
 
@@ -132,6 +158,19 @@ public sealed class VisionRecipe
         }
         if (Checks.Skip(1).Any(c => c.MakesPose))
             return "정렬 검사는 맨 앞에 하나만 둘 수 있습니다.";
+        if (GoodModel is { } g)
+        {
+            if (string.IsNullOrWhiteSpace(g.Path))
+                return "양품 모델의 Path 가 비었습니다.";
+            if (g.Roi.IsEmpty)
+                return "양품 모델의 영역(Roi)이 비었습니다.";
+            if (!(g.Max >= 0) || double.IsInfinity(g.Max))
+                return $"양품 모델의 문턱(Max)이 잘못됐습니다: {g.Max}";
+            if (g.Code is null)
+                return "양품 모델의 Code 가 없습니다.";
+            if (names.Contains(GoodModelStepName))
+                return $"검사 이름 '{GoodModelStepName}' 은 양품 모델 단계가 씁니다. 검사 이름을 바꾸세요.";
+        }
         return null;
     }
 
@@ -149,22 +188,222 @@ public sealed class VisionRecipe
         }
     }
 
-    /// <summary>Makes the job that runs this recipe: one step per check, in order, with the calibration set.</summary>
+    /// <summary>Makes the job that runs this recipe: the alignment check, then the good-part model, then the other checks, with the calibration set.</summary>
     /// <returns>A new job. It holds copies of the current values, so editing the recipe afterwards does not change it — make a new job instead.</returns>
-    /// <exception cref="InvalidOperationException">The recipe has no checks, or a check cannot run (for example an empty name or two checks with one name).</exception>
+    /// <exception cref="InvalidOperationException">The recipe has nothing to run, a check cannot run, or the good-part model must be trained again (the alignment or its region changed).</exception>
+    /// <exception cref="FileNotFoundException">The good-part model folder is missing.</exception>
+    /// <exception cref="InvalidDataException">The good-part model cannot be read.</exception>
+    /// <exception cref="ObjectDisposedException">The recipe was disposed.</exception>
     public VisionJob CreateJob()
     {
-        if (Checks.Count == 0)
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (Checks.Count == 0 && GoodModel is null)
             throw new InvalidOperationException("레시피에 검사가 없습니다.");
         if (Problem() is { } problem)
             throw new InvalidOperationException(problem);
         var job = new VisionJob(string.IsNullOrWhiteSpace(Name) ? "studio" : Name) { Calibration = Calibration };
-        foreach (var check in Checks)
+        var rest = Checks.AsEnumerable();
+        if (Checks.Count > 0 && Checks[0].MakesPose)
+        {
+            Add(Checks[0]);
+            rest = Checks.Skip(1);
+        }
+        if (GoodModel is { } g)
+        {
+            if (!GoodModelIsCurrent)
+                throw new InvalidOperationException("양품 모델을 다시 학습하세요: 학습한 뒤에 정렬 검사 · 기준 위치 · 양품 모델 영역이 바뀌었습니다.");
+            var model = EnsureGoodModel();
+            var roi = g.Roi;
+            job.Add(new GoodModelStep(model, g.Max, g.Code), roi: () => roi);
+        }
+        foreach (var check in rest)
+            Add(check);
+        return job;
+
+        void Add(CheckDef check)
         {
             var roi = check.Roi;   // 지금 값 (뒤 편집과 무관하게)
-            job.Add(check.CreateStep(this), roi: roi.IsEmpty ? null : () => roi, pose: check.MakesPose ? PoseName : null);
+            job.Add(check.CreateStep(this), roi: roi.IsEmpty ? null : () => roi, pose: check.MakesPose ? PoseName : null, role: check.Role);
         }
-        return job;
+    }
+
+    // 양품 모델을 읽어 둔다 (경로가 바뀌었으면 다시)
+    private SharedModel EnsureGoodModel()
+    {
+        var g = GoodModel ?? throw new InvalidOperationException("양품 모델이 없습니다.");
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_good is { } cur && cur.Path == g.Path)
+                return cur;
+            var dir = Path.GetFullPath(Path.Combine(Folder, g.Path));
+            if (!Directory.Exists(dir))
+                throw new FileNotFoundException($"양품 모델이 없습니다: {dir}", dir);
+            var model = new AnomalyModel { Path = g.Path };
+            try
+            {
+                model.Load(Folder);
+            }
+            catch (FileNotFoundException ex)
+            {
+                throw new FileNotFoundException($"양품 모델 파일이 없습니다: {ex.FileName ?? dir}", ex.FileName ?? dir, ex);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                throw new InvalidDataException($"양품 모델을 읽을 수 없습니다: {dir} ({ex.Message})", ex);
+            }
+            _good?.Dispose();
+            _good = new SharedModel(g.Path, model);
+            return _good;
+        }
+    }
+
+    // 정렬 검사 · 기준 위치 · 영역 — 바뀌면 자른 이미지가 달라진다
+    private string BasisOf(VisionRoi roi)
+    {
+        var align = Checks.Count > 0 && Checks[0] is BlobAlignCheck a ? a : null;
+        return JsonSerializer.Serialize(new { Align = align is null ? null : new { align.Blob, align.Reference, align.Roi }, Roi = roi }, BasisJson);
+    }
+
+    /// <summary>
+    /// Trains the good-part model from good images and sets it on the recipe (<see cref="GoodModel"/>, model files in a new models/good-… folder).
+    /// Each image is cut out the way a job does (alignment, then the region), most images are learned, the rest set the limit.
+    /// </summary>
+    /// <param name="training">The images, feature model and settings.</param>
+    /// <param name="progress">Reports each image.</param>
+    /// <param name="ct">Cancels the training; the recipe is then unchanged.</param>
+    /// <returns>What was learned, the limit and the time per image.</returns>
+    /// <remarks>Save the recipe to keep it. Until then the old model folder stays; <see cref="Save"/> removes good-model folders the recipe no longer uses.</remarks>
+    /// <exception cref="ArgumentException">Too few good images (3 or more are needed), or too few left after cutting.</exception>
+    /// <exception cref="FileNotFoundException">The feature model does not exist.</exception>
+    /// <exception cref="OperationCanceledException">Canceled.</exception>
+    public async Task<GoodModelResult> TrainGoodModelAsync(GoodModelTraining training, IProgress<GoodModelProgress>? progress = null, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(training);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (string.IsNullOrEmpty(Folder))
+            throw new InvalidOperationException("레시피 폴더가 없습니다.");
+        if (training.Images is not { Count: >= 3 } images)
+            throw new ArgumentException($"양품 이미지가 너무 적습니다 ({training.Images?.Count ?? 0}장, 최소 3장 — 100장 이상을 권합니다).", nameof(training));
+        if (!File.Exists(training.Features))
+            throw new FileNotFoundException($"특징 모델이 없습니다: {training.Features} (tools/export_features.py 로 만드세요)", training.Features);
+        if (training.CalibrationShare is not (> 0 and <= 0.5))
+            throw new ArgumentOutOfRangeException(nameof(training), "CalibrationShare 는 0 보다 크고 0.5 이하여야 합니다.");
+        var total = Stopwatch.StartNew();
+
+        var roi = training.Roi;
+        if (roi.IsEmpty)
+        {
+            using var first = VisionImage.Load(images[0]);
+            roi = VisionRoi.Rect(0, 0, first.Width, first.Height);
+        }
+
+        // 1. Job 과 같은 방식으로 자르기
+        var crops = new List<(string File, VisionImage Image)>();
+        var skipped = new List<(string File, string Reason)>();
+        var cut = new VisionJob("good-model-crop") { Calibration = Calibration };
+        VisionImage? captured = null;
+        if (Checks.Count > 0 && Checks[0] is BlobAlignCheck align)
+            cut.Add(align.CreateStep(this), roi: align.Roi.IsEmpty ? null : () => align.Roi, pose: PoseName);
+        cut.Add(new CaptureStep(img => captured = img), roi: () => roi);
+        OnnxModel? features = null;
+        AnomalyModel? model = null;
+        try
+        {
+            for (var i = 0; i < images.Count; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+                captured = null;
+                try
+                {
+                    using var img = VisionImage.Load(images[i]);
+                    using var r = await cut.RunAsync(img, ct).ConfigureAwait(false);
+                    if (captured is not null && r.State == VisionState.Ok)
+                        crops.Add((images[i], captured));
+                    else
+                    {
+                        captured?.Dispose();
+                        skipped.Add((images[i], r.Error ?? r.State.ToString()));
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or ArgumentException or OpenCvSharp.OpenCVException)
+                {
+                    skipped.Add((images[i], ex.Message));
+                }
+                progress?.Report(new GoodModelProgress("crop", i + 1, images.Count));
+            }
+            ct.ThrowIfCancellationRequested();
+            if (crops.Count < 3)
+                throw new ArgumentException($"쓸 수 있는 양품 이미지가 {crops.Count}장뿐입니다 (최소 3장). 뺀 이미지: {string.Join("; ", skipped.Take(3).Select(s => $"{Path.GetFileName(s.File)} {s.Reason}"))}", nameof(training));
+
+            // 2. 기억용 · 보정용 나누기 (고르게 띄워서)
+            var calCount = Math.Max(1, (int)Math.Round(crops.Count * training.CalibrationShare));
+            var memory = new List<VisionImage>();
+            var calibration = new List<VisionImage>();
+            for (var i = 0; i < crops.Count; i++)
+                ((long)i * calCount / crops.Count != (long)(i + 1) * calCount / crops.Count ? calibration : memory).Add(crops[i].Image);
+
+            // 3. 학습
+            features = OnnxModel.Load(training.Features, training.InputSize, training.InputSize, VisionTensorFormat.ImageNet);
+            var learn = new Relay(n => progress?.Report(new GoodModelProgress("learn", n, memory.Count)));
+            model = AnomalyModel.Train(features, memory, training.Representatives, training.Neighborhood, learn, ct);
+
+            // 4. 문턱 — 학습에 안 쓴 양품의 최고 점수 × 여유
+            var scores = new List<double>();
+            var watch = Stopwatch.StartNew();
+            for (var i = 0; i < calibration.Count; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+                scores.Add(model.Score(calibration[i]).Score);
+                progress?.Report(new GoodModelProgress("limit", i + 1, calibration.Count));
+            }
+            var ms = watch.Elapsed.TotalMilliseconds / calibration.Count;
+            var max = Math.Round(scores.Max() * training.Margin, 3);
+
+            // 5. 새 폴더에 저장하고 레시피에 건다 (옛 폴더는 Save 가 정리)
+            var rel = $"models/good-{DateTime.Now:yyyyMMdd-HHmmss}";
+            for (var n = 2; Directory.Exists(Path.Combine(Folder, rel)); n++)
+                rel = $"models/good-{DateTime.Now:yyyyMMdd-HHmmss}-{n}";
+            model.Save(Folder, rel);
+            var g = new GoodModel { Path = rel, Roi = roi, Max = max, Code = training.Code, Basis = BasisOf(roi) };
+            lock (_gate)
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                _good?.Dispose();
+                _good = new SharedModel(rel, model);
+                GoodModel = g;
+            }
+            model = null;      // 레시피가 가졌다
+            features = null;   // 모델이 가졌다
+            return new GoodModelResult(g, memory.Count, scores, skipped, ms, total.Elapsed);
+        }
+        finally
+        {
+            foreach (var c in crops)
+                c.Image.Dispose();
+            if (model is not null)
+                model.Dispose();      // 특징 모델도 같이 닫힌다
+            else
+                features?.Dispose();
+        }
+    }
+
+    // 진행률을 바로 넘긴다 (Progress<T> 는 다른 스레드로 넘겨 순서가 섞일 수 있다)
+    private sealed class Relay(Action<int> report) : IProgress<int>
+    {
+        public void Report(int value) => report(value);
+    }
+
+    // 자른 영역을 들고 나온다 (실행이 끝나도 남게 복사)
+    private sealed class CaptureStep(Action<VisionImage> take) : IVisionStep
+    {
+        public string Name => "crop";
+
+        public Task RunAsync(VisionContext ctx)
+        {
+            take(ctx.Image.Clone());
+            return Task.CompletedTask;
+        }
     }
 
     /// <summary>Reads the base image the recipe was taught on (for display or teaching again; running a job does not need it).</summary>
@@ -181,13 +420,52 @@ public sealed class VisionRecipe
         return VisionImage.Load(path);
     }
 
-    /// <summary>Saves to studio.json in <see cref="Folder"/> (indented). The folder is created if missing.</summary>
+    /// <summary>
+    /// Saves to studio.json in <see cref="Folder"/> (indented). The folder is created if missing. The format version is 2 when the recipe uses a good-part model
+    /// or reason checks, otherwise 1. Good-model folders (models/good-…) the recipe no longer uses are removed.
+    /// </summary>
     public void Save()
     {
         Directory.CreateDirectory(Folder);
+        FormatVersion = GoodModel is not null || Checks.Any(c => c.Role != StepRole.Judge) ? 2 : 1;
         var file = Path.Combine(Folder, FileName);
         var tmp = file + ".tmp";
         File.WriteAllText(tmp, JsonSerializer.Serialize(this, JsonOptions));
         File.Move(tmp, file, overwrite: true);   // 쓰다 끊겨도 원래 파일은 남게
+        RemoveUnusedGoodModels();
+    }
+
+    private void RemoveUnusedGoodModels()
+    {
+        var models = Path.Combine(Folder, "models");
+        if (!Directory.Exists(models))
+            return;
+        var used = GoodModel is { } g ? Path.GetFullPath(Path.Combine(Folder, g.Path)) : null;
+        foreach (var dir in Directory.EnumerateDirectories(models, "good-*"))
+        {
+            if (string.Equals(Path.GetFullPath(dir), used, StringComparison.OrdinalIgnoreCase))
+                continue;
+            try
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // 다른 프로그램이 쥐고 있으면 다음 저장 때 다시 지운다
+            }
+        }
+    }
+
+    /// <summary>Releases the loaded models. Jobs made from this recipe then fail at the model step (Error); a run in progress finishes first.</summary>
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            if (_disposed)
+                return;
+            _disposed = true;
+            _good?.Dispose();
+            _good = null;
+        }
     }
 }

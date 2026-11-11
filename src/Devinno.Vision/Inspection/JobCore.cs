@@ -107,6 +107,8 @@ internal sealed class JobCore(string name)
 
     public VisionCalibration? Calibration { get; set; }
 
+    public ReasonRun ReasonSteps { get; set; } = ReasonRun.WhenNg;
+
     public void Add(StepEntry entry)
     {
         var stepName = entry.Step.Name;
@@ -114,6 +116,8 @@ internal sealed class JobCore(string name)
             throw new ArgumentException("A step needs a name.");
         lock (_gate)
         {
+            if (entry.Role == StepRole.Reason && entry.Pose is not null)
+                throw new ArgumentException($"{stepName}: a step that makes a pose ('{entry.Pose}') must judge; it cannot be a reason step.");
             if (_steps.Any(s => s.Step.Name == stepName))
                 throw new ArgumentException($"The job '{Name}' already has a step named '{stepName}'.");
             // follow 오타를 등록할 때 잡는다: 앞 단계들이 Pose 를 선언했는데 그 이름이 없으면
@@ -163,6 +167,7 @@ internal sealed class JobCore(string name)
         AfterNg afterNg;
         TimeSpan? jobTimeout;
         VisionCalibration? calibration;
+        ReasonRun reasonRun;
         lock (_gate)
         {
             steps = [.. _steps];
@@ -170,6 +175,7 @@ internal sealed class JobCore(string name)
             afterNg = AfterNg;
             jobTimeout = Timeout;
             calibration = Calibration;
+            reasonRun = ReasonSteps;
         }
 
         var scope = new VisionScope(Name);
@@ -199,7 +205,9 @@ internal sealed class JobCore(string name)
             string? poseMissing = null;    // Pose 가 없어 건너뛴 단계 (다른 판정이 없으면 Error)
             var declaredBefore = new HashSet<string>();
             var poseSteps = new Dictionary<string, string>();
+            var reasons = new List<(StepEntry Entry, StepResult Result)>();   // 판정 단계가 끝난 뒤에 돈다
 
+            // ── 1. 판정 단계 (결과 칸은 정의 순서대로 먼저 만든다) ──
             foreach (var entry in steps)
             {
                 var name = entry.Step.Name;
@@ -214,6 +222,11 @@ internal sealed class JobCore(string name)
                     Declare(entry);
                     continue;
                 }
+                if (entry.Role == StepRole.Reason)
+                {
+                    reasons.Add((entry, sr));
+                    continue;
+                }
                 if (stopReason is not null)
                 {
                     sr.State = StepState.Skipped;
@@ -221,6 +234,95 @@ internal sealed class JobCore(string name)
                     Declare(entry);
                     continue;
                 }
+
+                var outcome = await RunStep(entry, sr).ConfigureAwait(false);
+                if (outcome == StepOutcome.PoseMissing)
+                {
+                    poseMissing ??= $"{Name}/{name}: {sr.Reason}";
+                    Declare(entry);
+                    continue;
+                }
+                anyRan = true;
+                if (outcome == StepOutcome.TimedOut)
+                {
+                    stopReason = $"Skipped after timeout in {name}";
+                    stopIsError = true;
+                }
+                else if (outcome == StepOutcome.Canceled)
+                {
+                    stopReason = "Canceled";
+                    stopIsError = true;
+                }
+                if (sr.State == StepState.Error)
+                    firstError ??= $"{Name}/{name}: {sr.Reason}";
+                if (sr.State == StepState.Ng)
+                {
+                    anyNg = true;
+                    AddCodes(sr);
+                    if (afterNg == AfterNg.Stop && stopReason is null)
+                        stopReason = $"Stopped after NG in {name}";
+                }
+                Declare(entry);
+            }
+
+            // ── 2. 사유 단계 — 판정을 바꾸지 않는다 ──
+            var judgedNg = anyNg && firstError is null && !stopIsError;
+            foreach (var (entry, sr) in reasons)
+            {
+                if (stopReason is not null)
+                {
+                    sr.State = StepState.Skipped;
+                    sr.Reason = stopReason;
+                    continue;
+                }
+                if (!judgedNg && reasonRun == ReasonRun.WhenNg)
+                {
+                    sr.State = StepState.Skipped;
+                    sr.Reason = firstError is not null || poseMissing is not null || !anyRan ? "Not run (judgment is Error)" : "Not needed (judged OK)";
+                    continue;
+                }
+                var outcome = await RunStep(entry, sr).ConfigureAwait(false);
+                if (outcome == StepOutcome.Canceled)
+                {
+                    stopReason = "Canceled";
+                    stopIsError = true;
+                    continue;
+                }
+                if (sr.State == StepState.Ng && judgedNg)
+                    AddCodes(sr);
+            }
+
+            if (firstError is not null || stopIsError)
+                return Finish(result, VisionState.Error, firstError ?? $"{Name}: {stopReason}", total);
+            if (anyNg)
+                return Finish(result, VisionState.Ng, null, total);
+            if (poseMissing is not null)
+                return Finish(result, VisionState.Error, poseMissing, total);   // 검사를 안 했는데 OK 가 나가지 않게
+            if (!anyRan)
+                return Finish(result, VisionState.Error, reasons.Count > 0 ? $"{Name}: no judging step ran." : $"{Name}: no step ran (all disabled).", total);
+            return Finish(result, VisionState.Ok, null, total);
+
+            void Declare(StepEntry e)
+            {
+                if (e.Pose is { } p)
+                {
+                    declaredBefore.Remove(p);
+                    declaredBefore.Add(p);  // 마지막 선언이 뒤로
+                    poseSteps[p] = e.Step.Name;
+                }
+            }
+
+            void AddCodes(StepResult sr)
+            {
+                foreach (var c in sr.Reason!.Split(", "))
+                    if (!result.CodeList.Contains(c))
+                        result.CodeList.Add(c);
+            }
+
+            // 단계 하나: 따라갈 Pose → 실행 → 상태. 판정 반영은 부르는 쪽이 한다
+            async Task<StepOutcome> RunStep(StepEntry entry, StepResult sr)
+            {
+                var name = entry.Step.Name;
 
                 // ── 따라갈 Pose 정하기 ──
                 Affine? motion = null;
@@ -245,15 +347,12 @@ internal sealed class JobCore(string name)
                         sr.Reason = poseSteps.TryGetValue(follow, out var src) && result.Steps[src] is var ps
                             ? $"Pose '{follow}' missing ({src}: {ps.State}{(ps.Reason is null ? "" : " " + ps.Reason)})"
                             : $"Pose '{follow}' missing";
-                        poseMissing ??= $"{Name}/{name}: {sr.Reason}";
-                        Declare(entry);
-                        continue;
+                        return StepOutcome.PoseMissing;
                     }
                 }
                 sr.Followed = followed;
 
                 // ── 실행 ──
-                anyRan = true;
                 scope.CurrentStep = name;
                 var limit = entry.Timeout ?? jobTimeout;
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -303,19 +402,18 @@ internal sealed class JobCore(string name)
                 sr.Elapsed = sw.Elapsed;
                 scope.CurrentStep = null;
 
+                var outcome = StepOutcome.Ran;
                 if (timedOut)
                 {
                     sr.State = StepState.Error;
                     sr.Reason = $"Timeout (limit {limit!.Value.TotalMilliseconds:0} ms, took {sw.Elapsed.TotalMilliseconds:0} ms)";
-                    stopReason = $"Skipped after timeout in {name}";
-                    stopIsError = true;
+                    outcome = StepOutcome.TimedOut;
                 }
                 else if (canceled)
                 {
                     sr.State = StepState.Error;
                     sr.Reason = "Canceled";
-                    stopReason = "Canceled";
-                    stopIsError = true;
+                    outcome = StepOutcome.Canceled;
                 }
                 else if (sr.State != StepState.Error && ctx is not null)
                 {
@@ -328,9 +426,6 @@ internal sealed class JobCore(string name)
                     {
                         sr.State = StepState.Ng;
                         sr.Reason = string.Join(", ", codes);
-                        foreach (var c in codes)
-                            if (!result.CodeList.Contains(c))
-                                result.CodeList.Add(c);
                     }
                     else
                     {
@@ -338,38 +433,9 @@ internal sealed class JobCore(string name)
                     }
                 }
 
-                if (sr.State == StepState.Error)
-                    firstError ??= $"{Name}/{name}: {sr.Reason}";
-                if (sr.State == StepState.Ng)
-                {
-                    anyNg = true;
-                    if (afterNg == AfterNg.Stop && stopReason is null)
-                        stopReason = $"Stopped after NG in {name}";
-                }
-
                 sr.Image = scope.TakeLast(name);
-                Declare(entry);
+                return outcome;
             }
-
-            void Declare(StepEntry e)
-            {
-                if (e.Pose is { } p)
-                {
-                    declaredBefore.Remove(p);
-                    declaredBefore.Add(p);  // 마지막 선언이 뒤로
-                    poseSteps[p] = e.Step.Name;
-                }
-            }
-
-            if (firstError is not null || stopIsError)
-                return Finish(result, VisionState.Error, firstError ?? $"{Name}: {stopReason}", total);
-            if (anyNg)
-                return Finish(result, VisionState.Ng, null, total);
-            if (poseMissing is not null)
-                return Finish(result, VisionState.Error, poseMissing, total);   // 검사를 안 했는데 OK 가 나가지 않게
-            if (!anyRan)
-                return Finish(result, VisionState.Error, $"{Name}: no step ran (all disabled).", total);
-            return Finish(result, VisionState.Ok, null, total);
         }
         catch (Exception ex)
         {
@@ -380,6 +446,8 @@ internal sealed class JobCore(string name)
             scope.Close();
         }
     }
+
+    private enum StepOutcome { Ran, PoseMissing, TimedOut, Canceled }
 
     private static VisionResult Finish(VisionResult r, VisionState state, string? error, Stopwatch total)
     {

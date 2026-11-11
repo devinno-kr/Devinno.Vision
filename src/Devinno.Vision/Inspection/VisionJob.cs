@@ -35,6 +35,9 @@ public sealed class VisionJob<TSetup, TData> where TSetup : class
     /// <inheritdoc cref="VisionJob.Calibration"/>
     public VisionCalibration? Calibration { get => _core.Calibration; set => _core.Calibration = value; }
 
+    /// <inheritdoc cref="VisionJob.ReasonSteps"/>
+    public ReasonRun ReasonSteps { get => _core.ReasonSteps; set => _core.ReasonSteps = value; }
+
     /// <summary>Adds a step.</summary>
     /// <param name="name">Step name (unique in the job).</param>
     /// <param name="step">The step code.</param>
@@ -93,11 +96,12 @@ public sealed class VisionJob<TSetup, TData> where TSetup : class
     /// <param name="pose">The pose this step makes, or <see langword="null"/>.</param>
     /// <param name="follow">The pose to follow (<see langword="null"/> = automatic, <c>""</c> = none).</param>
     /// <param name="timeout">Time limit of this step.</param>
+    /// <param name="role">Whether the step judges (default) or only gives the reason for an NG (<see cref="StepRole.Reason"/>).</param>
     /// <returns>This job.</returns>
-    public VisionJob<TSetup, TData> Add(IVisionStep step, Func<TSetup, VisionRoi>? roi = null, string? pose = null, string? follow = null, TimeSpan? timeout = null)
+    public VisionJob<TSetup, TData> Add(IVisionStep step, Func<TSetup, VisionRoi>? roi = null, string? pose = null, string? follow = null, TimeSpan? timeout = null, StepRole role = StepRole.Judge)
     {
         ArgumentNullException.ThrowIfNull(step);
-        _core.Add(new StepEntry(step, roi is null ? null : s => roi((TSetup)s!), pose, follow, timeout));
+        _core.Add(new StepEntry(step, roi is null ? null : s => roi((TSetup)s!), pose, follow, timeout, role));
         return this;
     }
 
@@ -157,6 +161,9 @@ public sealed class VisionJob<TSetup> where TSetup : class
     /// <inheritdoc cref="VisionJob.Calibration"/>
     public VisionCalibration? Calibration { get => _core.Calibration; set => _core.Calibration = value; }
 
+    /// <inheritdoc cref="VisionJob.ReasonSteps"/>
+    public ReasonRun ReasonSteps { get => _core.ReasonSteps; set => _core.ReasonSteps = value; }
+
     /// <summary>Adds a step.</summary>
     /// <param name="name">Step name.</param>
     /// <param name="step">The step code.</param>
@@ -209,11 +216,11 @@ public sealed class VisionJob<TSetup> where TSetup : class
     public VisionJob<TSetup> Add(string name, Func<TSetup, VisionRoi> roi, string follow, Func<VisionContext, TSetup, Task> step, TimeSpan? timeout = null)
         => Add(name, roi, null, follow, step, timeout);
 
-    /// <inheritdoc cref="VisionJob{TSetup, TData}.Add(IVisionStep, Func{TSetup, VisionRoi}?, string?, string?, TimeSpan?)"/>
-    public VisionJob<TSetup> Add(IVisionStep step, Func<TSetup, VisionRoi>? roi = null, string? pose = null, string? follow = null, TimeSpan? timeout = null)
+    /// <inheritdoc cref="VisionJob{TSetup, TData}.Add(IVisionStep, Func{TSetup, VisionRoi}?, string?, string?, TimeSpan?, StepRole)"/>
+    public VisionJob<TSetup> Add(IVisionStep step, Func<TSetup, VisionRoi>? roi = null, string? pose = null, string? follow = null, TimeSpan? timeout = null, StepRole role = StepRole.Judge)
     {
         ArgumentNullException.ThrowIfNull(step);
-        _core.Add(new StepEntry(step, roi is null ? null : s => roi((TSetup)s!), pose, follow, timeout));
+        _core.Add(new StepEntry(step, roi is null ? null : s => roi((TSetup)s!), pose, follow, timeout, role));
         return this;
     }
 
@@ -265,6 +272,9 @@ public sealed class VisionJob
     /// <summary>Pixel → mm conversion used by <c>ctx.Mm</c> (a machine value: keep it with the camera setup, not with the product setup). <see langword="null"/> = none; <c>ctx.Mm</c> then makes the step Error.</summary>
     public VisionCalibration? Calibration { get => _core.Calibration; set => _core.Calibration = value; }
 
+    /// <summary>When reason steps (<see cref="StepRole.Reason"/>) run. Default <see cref="ReasonRun.WhenNg"/>: only after the judging steps made the result NG.</summary>
+    public ReasonRun ReasonSteps { get => _core.ReasonSteps; set => _core.ReasonSteps = value; }
+
     /// <summary>Adds a step.</summary>
     /// <param name="name">Step name.</param>
     /// <param name="step">The step code.</param>
@@ -315,11 +325,12 @@ public sealed class VisionJob
     /// <param name="pose">The pose this step makes, or <see langword="null"/>.</param>
     /// <param name="follow">The pose to follow (<see langword="null"/> = automatic, <c>""</c> = none).</param>
     /// <param name="timeout">Time limit of this step.</param>
+    /// <param name="role">Whether the step judges (default) or only gives the reason for an NG (<see cref="StepRole.Reason"/>).</param>
     /// <returns>This job.</returns>
-    public VisionJob Add(IVisionStep step, Func<VisionRoi>? roi = null, string? pose = null, string? follow = null, TimeSpan? timeout = null)
+    public VisionJob Add(IVisionStep step, Func<VisionRoi>? roi = null, string? pose = null, string? follow = null, TimeSpan? timeout = null, StepRole role = StepRole.Judge)
     {
         ArgumentNullException.ThrowIfNull(step);
-        _core.Add(new StepEntry(step, roi is null ? null : _ => roi(), pose, follow, timeout));
+        _core.Add(new StepEntry(step, roi is null ? null : _ => roi(), pose, follow, timeout, role));
         return this;
     }
 

@@ -118,7 +118,8 @@ public class RecipeTests(ITestOutputHelper output)
     [InlineData("{ \"Checks\": [ { \"Kind\": \"Length\", \"Name\": \"a\", \"Nominal\": \"긴\" } ] }", "읽을 수 없습니다")]
     [InlineData("{ \"Checks\": [ { \"Kind\": \"Length\", \"Id\": \"1\", \"Name\": \"a\" }, { \"Kind\": \"Length\", \"Id\": \"2\", \"Name\": \"a\" } ] }", "같은 이름의 검사")]
     [InlineData("{ \"Checks\": [ { \"Kind\": \"Length\", \"Id\": \"1\", \"Name\": \"a\" }, { \"Kind\": \"BlobAlign\", \"Id\": \"2\", \"Name\": \"b\" } ] }", "정렬 검사는 맨 앞")]
-    [InlineData("{ \"FormatVersion\": 2, \"Checks\": [] }", "형식 버전(2)")]
+    [InlineData("{ \"FormatVersion\": 3, \"Checks\": [] }", "형식 버전(3)")]
+    [InlineData("{ \"Checks\": [ { \"Kind\": \"BlobAlign\", \"Name\": \"a\", \"Role\": \"Reason\" } ] }", "판정 역할만")]
     public void Wrong_studio_json_fails_with_a_readable_reason(string json, string expected)
     {
         using var dir = new TempDir();
@@ -127,6 +128,50 @@ public class RecipeTests(ITestOutputHelper output)
         var ex = Assert.Throws<InvalidDataException>(() => VisionRecipe.Load(dir.Path));
 
         Assert.Contains(expected, ex.Message);
+    }
+
+    [Fact]
+    public void Reason_role_is_saved_as_version_2_and_judge_only_files_stay_version_1()
+    {
+        using var dir = new TempDir();
+        File.Copy(Path.Combine(BracketRecipe, VisionRecipe.FileName), Path.Combine(dir.Path, VisionRecipe.FileName));
+        using (var recipe = VisionRecipe.Load(dir.Path))
+            recipe.Save();
+        var v1 = File.ReadAllText(Path.Combine(dir.Path, VisionRecipe.FileName));
+        Assert.Contains("\"FormatVersion\": 1", v1);
+        Assert.DoesNotContain("\"Role\"", v1);   // 기본값은 쓰지 않는다 — 옛 파일과 같은 모양
+
+        using (var recipe = VisionRecipe.Load(dir.Path))
+        {
+            recipe.Checks[1].Role = StepRole.Reason;
+            recipe.Save();
+        }
+        var v2 = File.ReadAllText(Path.Combine(dir.Path, VisionRecipe.FileName));
+        Assert.Contains("\"FormatVersion\": 2", v2);
+        Assert.Contains("\"Role\": \"Reason\"", v2);
+
+        using var again = VisionRecipe.Load(dir.Path);
+        Assert.Equal([StepRole.Judge, StepRole.Reason, StepRole.Judge, StepRole.Judge, StepRole.Judge], again.Checks.Select(c => c.Role));
+    }
+
+    [Fact]
+    public async Task Reason_checks_name_the_defect_but_do_not_judge()
+    {
+        using var recipe = VisionRecipe.Load(BracketRecipe);
+        foreach (var c in recipe.Checks.Where(c => c.Name != "길이" && c is not BlobAlignCheck))
+            c.Role = StepRole.Reason;   // 길이만 판정, 구멍 · 변색은 사유
+        var job = recipe.CreateJob();
+
+        using var missing = VisionImage.Load(BracketInspection.Sample("02_missinghole.bmp"));
+        using var r1 = await job.RunAsync(missing);
+        Assert.Equal(VisionState.Ok, r1.State);   // 판정 검사(길이)는 OK — 사유 검사는 OK 를 뒤집지 못한다
+        Assert.Equal(StepState.Skipped, r1.Steps["왼쪽 구멍"].State);
+
+        using var shortPart = VisionImage.Load(BracketInspection.Sample("15_distancedefect.bmp"));
+        using var r2 = await job.RunAsync(shortPart);
+        Assert.Equal(VisionState.Ng, r2.State);
+        Assert.Equal("LENGTH", r2.Codes[0]);
+        Assert.NotEqual(StepState.Skipped, r2.Steps["왼쪽 구멍"].State);   // NG 라서 사유 검사가 돌았다
     }
 
     [Fact]
