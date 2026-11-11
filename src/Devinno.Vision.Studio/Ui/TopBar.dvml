@@ -8,7 +8,10 @@
   </DvStyle>
   <DvBox class="brand"><DvIcon icon="fa-eye" style="font-size:16; color: token(primary-fg)"/></DvBox>
   <DvStack gap="none" style="max-width:360">
-    <DvLabel class="title" text="{Title}" style="white-space:nowrap"/>
+    <DvRow gap="sm">
+      <DvLabel class="title" text="{Title}" style="white-space:nowrap"/>
+      <DvBadge text="저장 안 됨" tone="warning" visible="{IsDirty}"/>
+    </DvRow>
     <DvLabel class="meta" text="{FolderText}" style="white-space:nowrap"/>
   </DvStack>
   <DvBox style="width:8"/>

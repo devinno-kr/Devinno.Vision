@@ -43,6 +43,19 @@ public static class StudioApp
         }
     }
 
+    /// <summary>창을 닫아도 되는가. 저장 안 된 변경이 있으면 <paramref name="ask"/> 로 묻는다: true = 저장하고 닫기, false = 버리고 닫기, null = 닫지 않기.</summary>
+    public static bool CanClose(StudioSession session, Func<bool?> ask)
+    {
+        if (!session.IsDirty)
+            return true;
+        return ask() switch
+        {
+            true => session.SaveProject().Ok,   // 저장 실패면 닫지 않는다
+            false => true,
+            null => false,
+        };
+    }
+
     /// <summary>← → 키: 테스트 화면이 보이고 대화상자가 없을 때 이전/다음 이미지. 처리했으면 true.</summary>
     public static bool ArrowKey(DvApp app, bool next)
     {
@@ -67,6 +80,19 @@ internal static class Program
         using var form = new StudioForm { Text = "Devinno Vision Studio", ClientSize = new Size(1280, 800), StartPosition = FormStartPosition.CenterScreen };
         var app = StudioApp.Create(session, new WinFormsDialogs(form));
         form.App = app;
+        form.FormClosing += (_, e) =>
+        {
+            e.Cancel = !StudioApp.CanClose(session, () =>
+                MessageBox.Show(form, $"저장하지 않은 변경이 있습니다: {session.Project?.Name}\n\n닫기 전에 저장할까요?\n[아니요] 를 누르면 변경을 버립니다.",
+                    "저장 안 됨", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning) switch
+                {
+                    DialogResult.Yes => true,
+                    DialogResult.No => false,
+                    _ => null,
+                });
+            if (e.Cancel && session.IsDirty)
+                app.Invalidate();
+        };
         form.Controls.Add(new ViewControl { Dock = DockStyle.Fill, App = app });
 
         McpHost? mcp = null;

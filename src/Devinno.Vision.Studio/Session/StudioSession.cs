@@ -50,7 +50,8 @@ public sealed class StudioSession
 
     // ── 프로젝트 ─────────────────────────────────────────
 
-    public CommandResult NewProject(string folder, string name)
+    /// <summary>새 로직을 만든다. 저장 안 된 변경이 있으면 거부한다 — <paramref name="discardChanges"/> 가 true 일 때만 버린다.</summary>
+    public CommandResult NewProject(string folder, string name, bool discardChanges = false)
     {
         if (string.IsNullOrWhiteSpace(folder))
             return CommandResult.Fail("폴더를 지정하세요");
@@ -58,6 +59,8 @@ public sealed class StudioSession
             return CommandResult.Fail("로직 이름을 지정하세요");
         return Change(() =>
         {
+            if (Unsaved(discardChanges) is { } refuse)
+                return refuse;
             StudioProject p;
             try
             {
@@ -72,16 +75,20 @@ public sealed class StudioSession
             }
             _project = p;
             _lastReport = null;
+            _dirty = false;
             return CommandResult.Done($"새 프로젝트: {p.Name} ({p.Folder})");
-        }, needsProject: false);
+        }, needsProject: false, markDirty: false);
     }
 
-    public CommandResult OpenProject(string folder)
+    /// <summary>저장된 로직을 연다. 저장 안 된 변경이 있으면 거부한다 — <paramref name="discardChanges"/> 가 true 일 때만 버린다.</summary>
+    public CommandResult OpenProject(string folder, bool discardChanges = false)
     {
         if (string.IsNullOrWhiteSpace(folder))
             return CommandResult.Fail("폴더를 지정하세요");
         return Change(() =>
         {
+            if (Unsaved(discardChanges) is { } refuse)
+                return refuse;
             StudioProject p;
             try
             {
@@ -94,12 +101,22 @@ public sealed class StudioSession
             var message = $"열림: {p.Name} (검사 {p.Checks.Count}개)";
             _project = p;
             _lastReport = null;
+            _dirty = false;
             return CommandResult.Done(message);
-        }, needsProject: false);
+        }, needsProject: false, markDirty: false);
     }
+
+    /// <summary>저장 안 된 변경이 있는가 (편집 명령 뒤 true, 저장 · 새로 만들기 · 열기 뒤 false). 실행 · 테스트는 바꾸지 않는다.</summary>
+    public bool IsDirty { get { lock (_gate) return _dirty; } }
+
+    // 잠금 안에서 부른다
+    private CommandResult? Unsaved(bool discard) => _dirty && !discard && _project is { } cur
+        ? CommandResult.Fail($"저장하지 않은 변경이 있습니다: {cur.Name} — 먼저 저장하거나(save_project), 변경을 버리고 진행하세요 (discard_changes)")
+        : null;
 
     public CommandResult SaveProject()
     {
+        CommandResult r;
         lock (_gate)
         {
             if (_project is not { } p)
@@ -107,13 +124,16 @@ public sealed class StudioSession
             try
             {
                 p.Save();
+                _dirty = false;
+                r = CommandResult.Done($"저장됨: {Path.Combine(p.Folder, StudioProject.FileName)}");
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 return CommandResult.Fail($"저장할 수 없습니다: {ex.Message}");
             }
-            return CommandResult.Done($"저장됨: {Path.Combine(p.Folder, StudioProject.FileName)}");
         }
+        ProjectChanged?.Invoke();   // 화면이 "저장 안 됨" 을 지우게
+        return r;
     }
 
     public CommandResult SetBaseImage(string imagePath) => Change(() =>
@@ -446,7 +466,7 @@ public sealed class StudioSession
     }
 
     // 잠금 안에서 바꾸고, 성공했으면 잠금 밖에서 알린다
-    private CommandResult Change(Func<CommandResult> change, bool needsProject = true)
+    private CommandResult Change(Func<CommandResult> change, bool needsProject = true, bool markDirty = true)
     {
         CommandResult r;
         lock (_gate)
@@ -455,7 +475,11 @@ public sealed class StudioSession
                 return CommandResult.Fail(NoProject);
             r = change();
             if (r.Ok)
+            {
                 _revision++;
+                if (markDirty)
+                    _dirty = true;
+            }
         }
         if (r.Ok)
             ProjectChanged?.Invoke();
@@ -463,6 +487,7 @@ public sealed class StudioSession
     }
 
     private long _revision;
+    private bool _dirty;
 
     /// <summary>로직이 바뀔 때마다 1 씩 는다 (보여 주던 결과가 낡았는지 화면이 알 수 있게). 보고서만 바뀐 것은 세지 않는다.</summary>
     public long Revision { get { lock (_gate) return _revision; } }

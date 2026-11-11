@@ -149,4 +149,20 @@ public class McpTests
 
         await Assert.ThrowsAnyAsync<IOException>(() => McpHost.StartAsync(new StudioSession(), first.Endpoint.Port));
     }
+
+    [Fact]
+    public async Task Open_with_unsaved_changes_needs_save_or_discard()
+    {
+        using var dir = new TempDir();
+        await using var s = await Server.StartAsync();
+        await s.Ok("new_project", new() { ["folder"] = dir.Sub("a"), ["name"] = "a" });
+        await s.Ok("new_project", new() { ["folder"] = dir.Sub("b"), ["name"] = "b" });
+        await s.Ok("add_check", new() { ["kind"] = "BlobCount", ["name"] = "x" });
+
+        var refused = await s.Call("open_project", new() { ["folder"] = Path.Combine(dir.Path, "a") });
+        Assert.True(refused.IsError);
+        Assert.Contains("save_project", Text(refused));
+
+        await s.Ok("open_project", new() { ["folder"] = Path.Combine(dir.Path, "a"), ["discard_changes"] = true });
+    }
 }

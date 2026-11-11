@@ -27,8 +27,8 @@ internal sealed class StudioTools(StudioSession session)
 
     public static McpServerTool[] Create(StudioTools t) =>
     [
-        McpServerTool.Create(t.NewProject, Opt("new_project", "Create a new project", "Create a new, empty project in a folder (the folder is created; it must not already contain studio.json).", readOnly: false)),
-        McpServerTool.Create(t.OpenProject, Opt("open_project", "Open a project", "Open the project saved in a folder (folder/studio.json). Unsaved changes to the current project are lost.", readOnly: false)),
+        McpServerTool.Create(t.NewProject, Opt("new_project", "Create a new project", "Create a new, empty project in a folder (the folder is created; it must not already contain studio.json). Refused while the open project has unsaved changes: call save_project first, or pass discard_changes=true only when the user agreed to lose them.", readOnly: false)),
+        McpServerTool.Create(t.OpenProject, Opt("open_project", "Open a project", "Open the project saved in a folder (folder/studio.json). Refused while the open project has unsaved changes: call save_project first, or pass discard_changes=true only when the user agreed to lose them.", readOnly: false)),
         McpServerTool.Create(t.SaveProject, Opt("save_project", "Save the project", "Save the open project to its folder (studio.json).", readOnly: false, idempotent: true)),
         McpServerTool.Create(t.GetProject, Opt("get_project", "Show the project", "Return the whole open project as JSON: name, base image, calibration, every check (id, Kind, Name, Roi and kind-specific properties) and test folders.", readOnly: true)),
         McpServerTool.Create(t.SetBaseImage, Opt("set_base_image", "Set the base image", "Copy an image file into the project as the base image. ROIs are drawn in its pixel coordinates and teach_base uses it.", readOnly: false, idempotent: true)),
@@ -48,9 +48,14 @@ internal sealed class StudioTools(StudioSession session)
 
     public const int Count = 17;
 
-    public CallToolResult NewProject([Description("Project folder (absolute path).")] string folder, [Description("Logic name.")] string name) => Of(session.NewProject(folder, name));
+    public CallToolResult NewProject(
+        [Description("Project folder (absolute path).")] string folder,
+        [Description("Logic name.")] string name,
+        [Description("Drop unsaved changes of the open project (only with the user's consent).")] bool discard_changes = false) => Of(session.NewProject(folder, name, discard_changes));
 
-    public CallToolResult OpenProject([Description("Project folder containing studio.json.")] string folder) => Of(session.OpenProject(folder));
+    public CallToolResult OpenProject(
+        [Description("Project folder containing studio.json.")] string folder,
+        [Description("Drop unsaved changes of the open project (only with the user's consent).")] bool discard_changes = false) => Of(session.OpenProject(folder, discard_changes));
 
     public CallToolResult SaveProject() => Of(session.SaveProject());
 

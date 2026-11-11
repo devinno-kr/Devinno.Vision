@@ -295,4 +295,64 @@ public class SessionTests
         Assert.False(teach.Ok);
         Assert.Contains("기준 이미지", teach.Message);
     }
+
+    // 저장 안 된 변경 — 작업을 잃지 않게
+    [Fact]
+    public void Edits_mark_the_project_unsaved_until_saved()
+    {
+        using var dir = new TempDir();
+        var s = new StudioSession();
+        Assert.False(s.IsDirty);
+        s.NewProject(dir.Path, "p");
+        Assert.False(s.IsDirty);                       // 새 로직은 바로 저장된다
+
+        s.AddCheck("BlobCount", "a");
+        Assert.True(s.IsDirty);
+        var changed = 0;
+        s.ProjectChanged += () => changed++;
+        Assert.True(s.SaveProject().Ok);
+        Assert.False(s.IsDirty);
+        Assert.Equal(1, changed);                      // 화면이 "저장 안 됨" 을 지우게
+
+        s.SetCalibration(0.1);
+        Assert.True(s.IsDirty);
+        Assert.True(s.OpenProject(dir.Path, discardChanges: true).Ok);
+        Assert.False(s.IsDirty);
+    }
+
+    [Fact]
+    public void Opening_or_creating_another_logic_with_unsaved_changes_is_refused_unless_discarded()
+    {
+        using var dir = new TempDir();
+        var s = new StudioSession();
+        s.NewProject(dir.Sub("a"), "a");
+        s.NewProject(dir.Sub("b"), "b");
+        s.AddCheck("BlobCount", "unsaved");
+
+        var open = s.OpenProject(Path.Combine(dir.Path, "a"));
+        var create = s.NewProject(dir.Sub("c"), "c");
+
+        Assert.False(open.Ok);
+        Assert.Contains("저장", open.Message);
+        Assert.False(create.Ok);
+        Assert.Equal("b", s.Project!.Name);            // 지금 로직과 변경은 그대로
+        Assert.Single(s.Checks);
+
+        Assert.True(s.OpenProject(Path.Combine(dir.Path, "a"), discardChanges: true).Ok);
+        Assert.Equal("a", s.Project!.Name);
+    }
+
+    [Fact]
+    public async Task Running_and_testing_do_not_mark_the_project_unsaved()
+    {
+        using var dir = new TempDir();
+        var s = new StudioSession();
+        BracketStudioTests.BuildBracket(s, dir.Path);
+        s.SaveProject();
+
+        await s.RunImageAsync(Samples.Bracket("01_good.bmp"));
+        await s.RunTestAsync(0);
+
+        Assert.False(s.IsDirty);
+    }
 }

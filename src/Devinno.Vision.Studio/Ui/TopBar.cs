@@ -21,6 +21,7 @@ public sealed partial class TopBar : DvBar
     public string Title => _session.Project is { } p ? p.Name : "Devinno Vision Studio";
     public string FolderText => _session.Project?.Folder ?? "로직이 없습니다 — [새 로직] 또는 [열기]";
     public bool NoProject => _session.Project is null;
+    public bool IsDirty => _session.IsDirty;
 
     public string EditClass => TabClass<EditPage>();
     public string TestClass => TabClass<TestPage>();
@@ -33,6 +34,11 @@ public sealed partial class TopBar : DvBar
     {
         try
         {
+            if (await ResolveUnsavedAsync("새 로직을 만들기") is not { } discard)
+            {
+                _status.Ok("새 로직: 취소함");
+                return;
+            }
             if (_dialogs.PickFolder() is not { } folder)
             {
                 _status.Ok("새 로직: 취소함");
@@ -43,7 +49,7 @@ public sealed partial class TopBar : DvBar
                 _status.Ok("새 로직: 취소함");
                 return;
             }
-            _status.Report(_session.NewProject(folder, name));
+            _status.Report(_session.NewProject(folder, name, discard));
         }
         catch (Exception ex)
         {
@@ -51,12 +57,42 @@ public sealed partial class TopBar : DvBar
         }
     }
 
-    public void Open()
+    public async void Open()
     {
-        if (_dialogs.PickFolder() is { } folder)
-            _status.Report(_session.OpenProject(folder));
-        else
-            _status.Ok("열기: 취소함");
+        try
+        {
+            if (await ResolveUnsavedAsync("다른 로직을 열기") is not { } discard)
+            {
+                _status.Ok("열기: 취소함");
+                return;
+            }
+            if (_dialogs.PickFolder() is { } folder)
+                _status.Report(_session.OpenProject(folder, discard));
+            else
+                _status.Ok("열기: 취소함");
+        }
+        catch (Exception ex)
+        {
+            _status.Fail(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// 저장 안 된 변경이 있으면 묻는다: [예] 저장하고 진행 · [아니요] 변경을 버리고 진행 · [취소] 멈춤.
+    /// 돌려주는 값 = 진행할 때 변경을 버릴지 (null = 멈춤). 변경이 없으면 묻지 않고 false.
+    /// </summary>
+    private async Task<bool?> ResolveUnsavedAsync(string action)
+    {
+        if (!_session.IsDirty)
+            return false;
+        var answer = await App.MessageBox($"저장하지 않은 변경이 있습니다: {_session.Project?.Name}\n\n{action} 전에 저장할까요?\n[아니요] 를 누르면 변경을 버립니다.", "저장 안 됨", DvMessageButtons.YesNoCancel);
+        if (answer == DvDialogResult.Yes)
+        {
+            var saved = _session.SaveProject();
+            _status.Report(saved);
+            return saved.Ok ? false : null;   // 저장 실패면 진행하지 않는다
+        }
+        return answer == DvDialogResult.No ? true : null;
     }
 
     public void Save() => _status.Report(_session.SaveProject());

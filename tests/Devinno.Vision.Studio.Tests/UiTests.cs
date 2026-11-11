@@ -553,4 +553,75 @@ public class UiTests
         Assert.Equal(width < 1100, s.Test.Compact);
         s.Png($"test-{width}x{height}.png", width, height, "2026-11-11-studio-narrow");
     }
+
+    // 저장 안 된 변경: 위 바 배지 · 다른 로직 열기 전 확인 (예 = 저장 후 열기, 아니요 = 버리고 열기, 취소 = 그대로)
+    private static Studio DirtyStudio(TempDir dir, out string other)
+    {
+        var s = new Studio();
+        other = dir.Sub("other");
+        new StudioSession().NewProject(other, "다른 로직");
+        s.Session.NewProject(dir.Sub("cur"), "지금 로직");
+        s.Session.AddCheck("BlobCount", "저장 안 한 검사");
+        s.App.Invalidate();
+        s.Frame();
+        return s;
+    }
+
+    [Fact]
+    public void Unsaved_badge_shows_until_saved()
+    {
+        using var dir = new TempDir();
+        var s = DirtyStudio(dir, out _);
+
+        Assert.True(s.Top.IsDirty);
+        s.Png("dirty-badge.png", 1280, 800, "2026-11-11-studio-unsaved");
+        s.Tap(() => s.Top.SaveBounds);
+
+        Assert.False(s.Top.IsDirty);
+        Assert.Contains("저장됨", s.Status.Notice);
+    }
+
+    [Theory]
+    [InlineData("cancel", "지금 로직", true, false)]
+    [InlineData("no", "다른 로직", false, false)]
+    [InlineData("yes", "다른 로직", false, true)]
+    public void Opening_another_logic_asks_to_save_first(string answer, string openName, bool stillDirty, bool savedChecks)
+    {
+        using var dir = new TempDir();
+        var s = DirtyStudio(dir, out var other);
+        s.Dialogs.Folders.Enqueue(other);
+
+        s.Tap(() => s.Top.OpenBounds);
+        s.Until(() => s.App.Dialogs.Top is not null);
+        if (answer == "cancel")
+            s.Png("open-asks-to-save.png", 1280, 800, "2026-11-11-studio-unsaved");
+        s.PressDialog(answer);
+        s.Until(() => s.App.Dialogs.Top is null);
+        s.Frame();
+
+        Assert.Equal(openName, s.Session.Project!.Name);
+        Assert.Equal(stillDirty, s.Session.IsDirty);
+        var savedFile = File.ReadAllText(Path.Combine(dir.Path, "cur", Model.StudioProject.FileName));
+        Assert.Equal(savedChecks, savedFile.Contains("저장 안 한 검사"));
+    }
+
+    [Theory]
+    [InlineData(null, false, true)]     // 취소 → 닫지 않음
+    [InlineData(false, true, true)]     // 아니요 → 저장하지 않고 닫음 (변경은 버려진다)
+    [InlineData(true, true, false)]     // 예 → 저장하고 닫음
+    public void Closing_with_unsaved_changes_asks(bool? answer, bool closes, bool stillDirty)
+    {
+        using var dir = new TempDir();
+        var session = new StudioSession();
+        session.NewProject(dir.Path, "p");
+        session.AddCheck("BlobCount", "a");
+        var asked = 0;
+
+        var ok = StudioApp.CanClose(session, () => { asked++; return answer; });
+
+        Assert.Equal(1, asked);
+        Assert.Equal(closes, ok);
+        Assert.Equal(stillDirty, session.IsDirty);
+        Assert.True(StudioApp.CanClose(new StudioSession(), () => throw new InvalidOperationException("묻지 않아야 한다")));
+    }
 }
