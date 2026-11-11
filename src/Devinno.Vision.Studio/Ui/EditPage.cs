@@ -70,32 +70,32 @@ public sealed partial class EditPage : DvPage
     public bool HasImage => ShownFile is not null;
     public bool NoImage => !HasImage;
     private string? ShownFile => _session.BaseImageFile ?? _session.GoodPreviewFile;
-    public string EmptyTitle => HasProject ? "기준 이미지가 없습니다" : "로직이 없습니다";
+    public string EmptyTitle => HasProject ? Texts.T("edit.empty.noBaseTitle") : Texts.T("edit.empty.noProjectTitle");
     public bool HasGoodModel => _session.Project?.GoodModel is not null;
     public string EmptyText => HasProject
-        ? "[기준 이미지 열기] 로 검사할 부품이 찍힌 이미지를 고르세요.\nROI 는 이 이미지 위에 그립니다."
-        : "위 [새 로직] 으로 만들거나 [열기] 로 저장된 로직을 여세요.";
+        ? Texts.T("edit.empty.noBaseText")
+        : Texts.T("edit.empty.noProjectText");
     public bool HasSelection => Selected is not null;
     public bool NoSelection => !HasSelection;
     public bool HasChecks => _session.Checks.Count > 0;
     public string NoSelectionText => HasChecks
-        ? "왼쪽 목록에서 검사를 고르면\n여기서 ROI 와 판정 값을 고칩니다."
-        : "검사가 없습니다.\n왼쪽 [추가] 로 검사를 더하세요.\n부품 위치는 '블롭 정렬' 을 먼저.";
-    public string SelectedTitle => Selected?.Name ?? "검사 속성";
+        ? Texts.T("edit.noSelection.pick")
+        : Texts.T("edit.noSelection.noChecks");
+    public string SelectedTitle => Selected?.Name ?? Texts.T("edit.checkProps");
 
     /// <summary>다음 할 일 — 비활성 버튼의 이유도 이것으로 알려 준다.</summary>
     public string Hint
     {
         get
         {
-            if (NoProject) return "다음: 위 [새 로직] 또는 [열기]";
+            if (NoProject) return Texts.T("edit.hint.noProject");
             if (IsModelTab) return ModelHint;
-            if (NoBase) return "다음: [기준 이미지] 로 기준 이미지를 고르세요 (티칭 · 실행은 그 뒤에)";
+            if (NoBase) return Texts.T("edit.hint.noBase");
             var checks = _session.Checks;
-            if (checks.Count == 0) return "다음: 왼쪽 [추가] 로 검사를 더하세요";
-            if (checks[0] is BlobAlignCheck { Reference: null }) return "다음: [기준 티칭] 으로 부품 기준 위치를 저장하세요";
-            if (NoSelection) return "다음: 왼쪽 목록에서 검사를 고르세요";
-            return ShowingResult ? "결과를 보고 있습니다 — 값을 고치면 결과가 지워집니다" : "이미지에서 끌어 ROI 를 그리고, [실행] 으로 기준 이미지 결과를 확인하세요";
+            if (checks.Count == 0) return Texts.T("edit.hint.noChecks");
+            if (checks[0] is BlobAlignCheck { Reference: null }) return Texts.T("edit.hint.teach");
+            if (NoSelection) return Texts.T("edit.hint.pick");
+            return ShowingResult ? Texts.T("edit.hint.result") : Texts.T("edit.hint.draw");
         }
     }
 
@@ -112,22 +112,22 @@ public sealed partial class EditPage : DvPage
     public double OnnxThreshold { get => (Selected as OnnxCheck)?.Threshold ?? 0.5; set => Update("Threshold", value); }
 
     public string DefectFolderText => _selectedId is { } id && _session.DefectFolder(id) is { } f
-        ? $"불량 폴더: {(f.Length <= 40 ? f : "…" + f[^39..])}"
-        : "불량 폴더 없음 — 하위 폴더 good(양품) · 불량 종류별 폴더";
+        ? Texts.T("edit.defectFolder.path", f.Length <= 40 ? f : "…" + f[^39..])
+        : Texts.T("edit.defectFolder.none");
 
     public string DefectStatusText
     {
         get
         {
             if (_session.TrainingProgress is { } t && IsOnnx)
-                return t.Stage == "crop" ? $"학습 중 — 자르기 {t.Done}/{t.Total}" : $"학습 중 — 에폭 {t.Done}/{t.Total}";
+                return t.Stage == "crop" ? Texts.T("edit.training.crop", t.Done, t.Total) : Texts.T("edit.training.epoch", t.Done, t.Total);
             if (Selected is not OnnxCheck o)
                 return "";
             if (o.Model.Length == 0)
-                return _session.HasPython ? "모델 없음 — [학습] 하거나 [ONNX 가져오기]" : "모델 없음 — 학습하려면 [Python 준비] 가 먼저 필요합니다 (또는 [ONNX 가져오기])";
+                return _session.HasPython ? Texts.T("edit.defect.noModel") : Texts.T("edit.defect.noModelNoPython");
             var labels = _session.DefectLabels(o.Id);
             var s = _session.DefectSummary(o.Id);
-            return $"모델: {string.Join(" · ", labels)}" + (s?.Accuracy is { } a ? $"  ·  검증 정확도 {a * 100:0.#}%" : "");
+            return Texts.T("edit.defect.model", string.Join(" · ", labels)) + (s?.Accuracy is { } a ? Texts.T("edit.defect.accuracy", a * 100) : "");
         }
     }
 
@@ -142,7 +142,7 @@ public sealed partial class EditPage : DvPage
         if (_dialogs.PickFolder() is { } folder)
             Report(_session.SetDefectFolder(id, folder));
         else
-            _status.Ok("불량 폴더: 취소함");
+            _status.Ok(Texts.T("edit.defectFolder.canceled"));
     }
 
     public void ImportOnnx()
@@ -152,7 +152,7 @@ public sealed partial class EditPage : DvPage
         if (_dialogs.PickModel() is { } file)
             Report(_session.ImportOnnx(id, file));
         else
-            _status.Ok("ONNX 가져오기: 취소함");
+            _status.Ok(Texts.T("edit.importOnnx.canceled"));
     }
 
     public async void TrainDefect()
@@ -161,7 +161,7 @@ public sealed partial class EditPage : DvPage
         {
             if (_selectedId is { } id)
             {
-                _status.Ok("불량 모델 학습을 시작합니다 (Python)…");
+                _status.Ok(Texts.T("edit.defect.trainStart"));
                 Report(await _session.TrainDefectModelAsync(id));
             }
         }
@@ -175,7 +175,7 @@ public sealed partial class EditPage : DvPage
         SettingUpPython = true;
         try
         {
-            var r = await _session.SetupPythonAsync(new Progress<string>(line => _status.Ok($"Python 준비: {line}")));
+            var r = await _session.SetupPythonAsync(new Progress<string>(line => _status.Ok(Texts.T("edit.python.progress", line))));
             Report(r);
         }
         catch (Exception ex) { _status.Fail(ex.Message); }
@@ -197,15 +197,15 @@ public sealed partial class EditPage : DvPage
     }
 
     public string RoleText => Role == StepRole.Reason
-        ? "NG 일 때만 돌아 이유를 붙입니다. OK 를 NG 로 바꾸지 않습니다"
-        : "이 검사가 NG 면 결과가 NG 입니다";
+        ? Texts.T("edit.role.reasonText")
+        : Texts.T("edit.role.judgeText");
 
     public string ReferenceText => Selected is BlobAlignCheck { Reference: { } r }
-        ? $"기준 위치: x {r.X:0.0}, y {r.Y:0.0}, {r.Angle:0.00}°"
-        : "기준 위치 없음 — [기준 티칭] 을 누르세요";
+        ? Texts.T("edit.reference.pos", r.X, r.Y, r.Angle)
+        : Texts.T("edit.reference.none");
 
     public string RoiText => Selected is { } c
-        ? (c.Roi.IsEmpty ? "ROI: 전체 이미지" : $"ROI: {c.Roi.X:0},{c.Roi.Y:0}  {c.Roi.Width:0}×{c.Roi.Height:0}") + "  (이미지에서 끌어 그리기)"
+        ? (c.Roi.IsEmpty ? Texts.T("edit.roi.whole") : Texts.T("edit.roi.rect", c.Roi.X, c.Roi.Y, c.Roi.Width, c.Roi.Height)) + Texts.T("edit.roi.drawHint")
         : "";
 
     // ── 공통 속성 ────────────────────────────────────────
@@ -287,14 +287,22 @@ public sealed partial class EditPage : DvPage
             else if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var v))
                 Report(_session.SetCalibration(v));
             else
-                _status.Fail($"숫자가 아닙니다: {text} (예: 0.05, 비우면 캘리브레이션 없음)");
+                _status.Fail(Texts.T("edit.calibration.notNumber", text));
         }
     }
 
     // ── 마지막 실행 ──────────────────────────────────────
 
     public IReadOnlyList<ValueLine> LastValues { get; private set; } = [];
-    public string LastRun { get; private set; } = "아직 실행하지 않았습니다 — [실행] 또는 [다른 이미지로 실행]";
+    // 고정 문구는 키로 들고 있다가 읽을 때 지금 언어로 바꾼다 (언어를 바꾸면 따라가게). 실행 결과 줄은 글 그대로
+    private string? _lastRunKey = "edit.lastRun.none";
+    private string _lastRunText = "";
+
+    public string LastRun
+    {
+        get => _lastRunKey is { } key ? Texts.T(key) : _lastRunText;
+        private set => (_lastRunKey, _lastRunText) = (null, value);
+    }
     public bool HasValues => LastValues.Count > 0;
 
     /// <summary>결과 띠의 상태 배지 (OK · NG · Error). 결과가 없으면 빈 문자열.</summary>
@@ -302,10 +310,10 @@ public sealed partial class EditPage : DvPage
     public string ResultTone { get; private set; } = "neutral";
     public bool HasResultBadge => ResultBadge.Length > 0;
 
-    public string ImageTitle => _session.BaseImageFile is { } f ? $"기준 이미지 · {Path.GetFileName(f)}"
-        : ShownFile is { } g ? $"양품 이미지 · {Path.GetFileName(g)}" : "기준 이미지";
-    public string ImageBadge => ShowingResult ? "결과 보는 중" : IsModelTab ? "영역 편집" : (HasSelection ? "ROI 편집" : "");
-    public string PanelBadge => Selected?.KindLabel ?? "";
+    public string ImageTitle => _session.BaseImageFile is { } f ? Texts.T("edit.imageTitle.base", Path.GetFileName(f))
+        : ShownFile is { } g ? Texts.T("edit.imageTitle.good", Path.GetFileName(g)) : Texts.T("edit.baseImage");
+    public string ImageBadge => ShowingResult ? Texts.T("edit.badge.result") : IsModelTab ? Texts.T("edit.badge.region") : (HasSelection ? Texts.T("edit.badge.roi") : "");
+    public string PanelBadge => Selected is { } c ? Texts.KindLabel(c) : "";
     public string CalibrationBadge => _session.Project?.Calibration is null ? "px" : "mm";
     public bool NoValues => !HasValues;
     public bool CannotRun => NoImage || (!HasChecks && !HasGoodModel) || _session.IsTraining;
@@ -380,13 +388,13 @@ public sealed partial class EditPage : DvPage
         get
         {
             if (_session.GoodFolder is not { } f)
-                return "양품 폴더 없음 — 폴더 바로 아래의 이미지가 모두 양품이어야 합니다";
+                return Texts.T("edit.goodFolder.none");
             var n = _session.GoodImages().Count;
-            return $"{(f.Length <= 48 ? f : "…" + f[^47..])}  ·  양품 {n}장" + (n < StudioSession.RecommendedGoods ? $" (권장 {StudioSession.RecommendedGoods}장 이상)" : "");
+            return Texts.T("edit.goodFolder.count", f.Length <= 48 ? f : "…" + f[^47..], n) + (n < StudioSession.RecommendedGoods ? Texts.T("edit.goodFolder.recommended", StudioSession.RecommendedGoods) : "");
         }
     }
 
-    public string GoodRoiText => _session.GoodRoi is { IsEmpty: false } r ? $"영역: {r.X:0},{r.Y:0}  {r.Width:0}×{r.Height:0}  (이미지에서 끌어 바꾸기)" : "영역: 전체 이미지  (이미지에서 끌어 좁히기)";
+    public string GoodRoiText => _session.GoodRoi is { IsEmpty: false } r ? Texts.T("edit.goodRoi.rect", r.X, r.Y, r.Width, r.Height) : Texts.T("edit.goodRoi.whole");
 
     /// <summary>양품 모델 상태 한 줄.</summary>
     public string GoodStatusText
@@ -394,21 +402,21 @@ public sealed partial class EditPage : DvPage
         get
         {
             if (_session.TrainingProgress is { } t)
-                return $"학습 중 — {t.Stage switch { "crop" => "자르기", "learn" => "학습", _ => "문턱" }} {t.Done}/{t.Total}";
+                return Texts.T(t.Stage switch { "crop" => "edit.training.crop", "learn" => "edit.training.learn", _ => "edit.training.limit" }, t.Done, t.Total);
             if (IsTraining)
-                return "학습 준비 중…";
+                return Texts.T("edit.good.preparing");
             if (_session.Project?.GoodModel is not { } g)
-                return "양품 모델 없음";
+                return Texts.T("edit.good.none");
             if (!_session.Project.GoodModelIsCurrent)
-                return "다시 학습 필요 — 학습한 뒤에 정렬 · 기준 위치 · 영역이 바뀌었습니다";
+                return Texts.T("edit.good.stale");
             return _session.GoodSummary is { } s
-                ? $"학습됨: {s.Learned}장 학습 · 보정 {s.Calibration}장 · 문턱 {g.Max} · 장당 {s.MsPerImage:0} ms" + (s.Skipped.Count > 0 ? $" · 뺀 이미지 {s.Skipped.Count}장" : "")
-                : $"학습됨: 문턱 {g.Max}";
+                ? Texts.T("edit.good.learned", s.Learned, s.Calibration, g.Max, s.MsPerImage) + (s.Skipped.Count > 0 ? Texts.T("edit.good.skipped", s.Skipped.Count) : "")
+                : Texts.T("edit.good.learnedLimit", g.Max);
         }
     }
 
     /// <summary>카드 위 양품 모델 배지.</summary>
-    public string GoodBadge => IsTraining ? "학습 중" : _session.Project?.GoodModel is null ? "" : _session.Project.GoodModelIsCurrent ? "양품 모델" : "다시 학습";
+    public string GoodBadge => IsTraining ? Texts.T("edit.badge.training") : _session.Project?.GoodModel is null ? "" : _session.Project.GoodModelIsCurrent ? Texts.T("edit.goodModel") : Texts.T("edit.badge.retrain");
     public string GoodTone => IsTraining ? "info" : _session.Project?.GoodModelIsCurrent == false ? "warning" : "success";
     public bool HasGoodBadge => GoodBadge.Length > 0;
 
@@ -416,13 +424,13 @@ public sealed partial class EditPage : DvPage
     {
         get
         {
-            if (IsTraining) return "학습하는 중입니다 — 끝나면 [실행] 이나 테스트로 확인하세요";
-            if (_session.GoodFolder is null) return "다음: [양품 폴더] 로 양품 이미지만 든 폴더를 고르세요";
+            if (IsTraining) return Texts.T("edit.modelHint.training");
+            if (_session.GoodFolder is null) return Texts.T("edit.modelHint.folder");
             if (!HasGoodModel) return _session.GoodRoi.IsEmpty
-                ? "다음: 이미지에서 끌어 부품만 감싸게 영역을 정하고 [학습] (전체 이미지면 작은 결함을 놓치기 쉽습니다)"
-                : "다음: [학습]";
-            if (_session.Project?.GoodModelIsCurrent == false) return "다음: [학습] 으로 다시 학습하세요";
-            return "양품 모델이 판정합니다. 표준 검사는 '사유' 로 두면 NG 일 때 이유만 붙입니다";
+                ? Texts.T("edit.modelHint.region")
+                : Texts.T("edit.modelHint.train");
+            if (_session.Project?.GoodModelIsCurrent == false) return Texts.T("edit.modelHint.retrain");
+            return Texts.T("edit.modelHint.done");
         }
     }
 
@@ -431,7 +439,7 @@ public sealed partial class EditPage : DvPage
         if (_dialogs.PickFolder() is { } folder)
             Report(_session.SetGoodFolder(folder));
         else
-            _status.Ok("양품 폴더: 취소함");
+            _status.Ok(Texts.T("edit.goodFolder.canceled"));
     }
 
     public void ResetGoodRoi() => Report(_session.SetGoodRoi(default));
@@ -452,7 +460,7 @@ public sealed partial class EditPage : DvPage
     /// <summary>양품 학습 (테스트가 기다릴 수 있게 Task).</summary>
     internal async Task TrainAsync()
     {
-        _status.Ok("양품 모델 학습을 시작합니다…");
+        _status.Ok(Texts.T("edit.good.trainStart"));
         Report(await _session.TrainGoodModelAsync());
     }
 
@@ -466,7 +474,7 @@ public sealed partial class EditPage : DvPage
         if (_dialogs.PickImage() is { } path)
             Report(_session.SetBaseImage(path));
         else
-            _status.Ok("기준 이미지: 취소함");
+            _status.Ok(Texts.T("edit.baseImage.canceled"));
     }
 
     public void Teach() => Report(_session.TeachBase());
@@ -490,7 +498,7 @@ public sealed partial class EditPage : DvPage
             if (_dialogs.PickImage() is { } file)
                 await RunAsync(file);
             else
-                _status.Ok("이미지 열어 실행: 취소함");
+                _status.Ok(Texts.T("edit.runOther.canceled"));
         }
         catch (Exception ex) { _status.Fail(ex.Message); }
     }
@@ -516,7 +524,7 @@ public sealed partial class EditPage : DvPage
         if (_session.Revision != revision)
         {
             // 도는 동안 로직이 바뀌었다 — 이 결과는 이미 낡았다
-            LastRun = "로직이 바뀌어 앞 결과를 지웠습니다 — 다시 실행하세요";
+            _lastRunKey = "edit.lastRun.stale";
             LastValues = [];
             ResultBadge = "";
             SyncView();
@@ -526,7 +534,7 @@ public sealed partial class EditPage : DvPage
         (ResultBadge, ResultTone) = r.State switch { "Ok" => ("OK", "success"), "Ng" => ("NG", "danger"), _ => ("Error", "warning") };
         LastValues = [.. r.Values.Select(v => new ValueLine(v.Check, v.Name, $"{v.Value:0.###}{(v.Unit is null ? "" : " " + v.Unit)}",
             v.Nominal is { } n ? $"{n:0.###} ({v.Min:0.###}~{v.Max:0.###})" : $"{v.Min:0.###}~{v.Max:0.###}", v.Ok ? "OK" : "NG"))];
-        if (r.Ok) _status.Ok($"실행: {name} → {r.Message}");
+        if (r.Ok) _status.Ok(Texts.T("edit.ran", name, r.Message));
         else _status.Fail(r.Message);
     }
 
@@ -553,7 +561,7 @@ public sealed partial class EditPage : DvPage
             var stale = _resultRevision >= 0 && _resultRevision != _session.Revision;
             if (stale)
             {
-                LastRun = "로직이 바뀌어 앞 결과를 지웠습니다 — 다시 실행하세요";
+                _lastRunKey = "edit.lastRun.stale";
                 LastValues = [];
                 ResultBadge = "";
             }
@@ -575,7 +583,7 @@ public sealed partial class EditPage : DvPage
                     catch (Exception ex)
                     {
                         View.Clear();
-                        _status.Fail($"기준 이미지를 읽을 수 없습니다: {ex.Message}");
+                        _status.Fail(Texts.T("edit.baseImage.unreadable", ex.Message));
                     }
                 }
             }

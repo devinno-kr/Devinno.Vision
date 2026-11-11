@@ -10,10 +10,10 @@
     .empty { font-size: 13; color: token(text-muted) }
   </DvStyle>
   <DvRow gap="sm">
-    <DvLabel class="title" text="검사"/>
+    <DvLabel class="title" text="@list.title"/>
     <DvBadge text="{CountText}" tone="neutral" visible="{HasRows}"/>
     <DvSpacer/>
-    <DvButton id="btnAdd" variant="primary" icon="fa-plus" text="추가" onclick="Add" disabled="{NoProjectFlag}"/>
+    <DvButton id="btnAdd" variant="primary" icon="fa-plus" text="@list.add" onclick="Add" disabled="{NoProjectFlag}"/>
   </DvRow>
   <DvRepeat items="{Rows}" gap="xs" grow="1" style="overflow:scroll" visible="{HasRows}">
     <DvRow class="{Item.ItemClass}" onclick="Pick">
@@ -32,6 +32,6 @@
   <DvRow gap="sm">
     <DvButton variant="secondary" icon="fa-arrow-up" onclick="Up" disabled="{CannotUp}" style="flex:1; width:0"/>
     <DvButton variant="secondary" icon="fa-arrow-down" onclick="Down" disabled="{CannotDown}" style="flex:1; width:0"/>
-    <DvButton id="btnRemove" variant="secondary" icon="fa-trash" text="삭제" onclick="Remove" disabled="{NoSelection}" style="flex:2; width:0"/>
+    <DvButton id="btnRemove" variant="secondary" icon="fa-trash" text="@list.remove" onclick="Remove" disabled="{NoSelection}" style="flex:2; width:0"/>
   </DvRow>
 </DvStack>

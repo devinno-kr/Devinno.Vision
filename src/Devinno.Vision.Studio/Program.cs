@@ -19,7 +19,7 @@ public static class StudioApp
         ArgumentNullException.ThrowIfNull(dialogs);
         var registry = new ComponentRegistry();
         DvVisionView.Register(registry);
-        var app = new DvApp { Theme = DvTheme.Dark, Registry = registry, Strings = new DvStrings { Language = "ko" } };
+        var app = new DvApp { Theme = DvTheme.Dark, Registry = registry, Strings = Texts.Strings };   // 문구 · 언어 (Texts.cs)
         var status = new StatusBar();
         var edit = new EditPage(session, dialogs, status);
         app.Pages.Add(edit);
@@ -34,11 +34,12 @@ public static class StudioApp
     }
 
     /// <summary>아래 상태 줄의 MCP 상태를 바꾼다 (어느 스레드에서든).</summary>
-    public static void SetStatus(DvApp app, string text)
+    public static void SetStatus(DvApp app, string text, bool off = false)
     {
         if (app.Bottom is StatusBar bar)
         {
             bar.Mcp = text;
+            bar.McpOff = off;
             app.Invalidate();
         }
     }
@@ -76,6 +77,7 @@ internal static class Program
     private static void Main()
     {
         ApplicationConfiguration.Initialize();
+        Texts.UseSettings(Texts.DefaultSettingsFile);   // 지난번에 고른 언어로 시작한다
         var session = new StudioSession();
         using var form = new StudioForm { Text = "Devinno Vision Studio", ClientSize = new Size(1280, 800), StartPosition = FormStartPosition.CenterScreen };
         var app = StudioApp.Create(session, new WinFormsDialogs(form));
@@ -83,8 +85,8 @@ internal static class Program
         form.FormClosing += (_, e) =>
         {
             e.Cancel = !StudioApp.CanClose(session, () =>
-                MessageBox.Show(form, $"저장하지 않은 변경이 있습니다: {session.Project?.Name}\n\n닫기 전에 저장할까요?\n[아니요] 를 누르면 변경을 버립니다.",
-                    "저장 안 됨", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning) switch
+                MessageBox.Show(form, Texts.T("app.unsaved.close", session.Project?.Name),
+                    Texts.T("top.unsaved.title"), MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning) switch
                 {
                     DialogResult.Yes => true,
                     DialogResult.No => false,
@@ -105,7 +107,7 @@ internal static class Program
         }
         catch (IOException)
         {
-            StudioApp.SetStatus(app, $"MCP 꺼짐: 포트 {McpPort} 사용 중");
+            StudioApp.SetStatus(app, Texts.T("app.mcp.off", McpPort), off: true);
         }
         try
         {
@@ -136,25 +138,25 @@ internal static class Program
     {
         public string? PickImage() => OnUi(() =>
         {
-            using var d = new OpenFileDialog { Title = "이미지 고르기", Filter = "이미지|*.png;*.bmp;*.jpg;*.jpeg;*.tif;*.tiff|모든 파일|*.*" };
+            using var d = new OpenFileDialog { Title = Texts.T("dialog.image.title"), Filter = Texts.T("dialog.image.filter") };
             return d.ShowDialog(owner) == DialogResult.OK ? d.FileName : null;
         });
 
         public string? PickFolder() => OnUi(() =>
         {
-            using var d = new FolderBrowserDialog { Description = "폴더 고르기", UseDescriptionForTitle = true, ShowNewFolderButton = true };
+            using var d = new FolderBrowserDialog { Description = Texts.T("dialog.folder.title"), UseDescriptionForTitle = true, ShowNewFolderButton = true };
             return d.ShowDialog(owner) == DialogResult.OK ? d.SelectedPath : null;
         });
 
         public string? PickModel() => OnUi(() =>
         {
-            using var d = new OpenFileDialog { Title = "ONNX 모델 고르기 (같은 폴더에 설명 .json 필요)", Filter = "ONNX 모델|*.onnx" };
+            using var d = new OpenFileDialog { Title = Texts.T("dialog.model.title"), Filter = Texts.T("dialog.model.filter") };
             return d.ShowDialog(owner) == DialogResult.OK ? d.FileName : null;
         });
 
         public string? PickPackage(string suggestedName) => OnUi(() =>
         {
-            using var d = new SaveFileDialog { Title = "레시피 패키지 저장", Filter = "레시피 패키지|*.dvpkg", FileName = suggestedName, DefaultExt = "dvpkg", AddExtension = true };
+            using var d = new SaveFileDialog { Title = Texts.T("dialog.package.title"), Filter = Texts.T("dialog.package.filter"), FileName = suggestedName, DefaultExt = "dvpkg", AddExtension = true };
             return d.ShowDialog(owner) == DialogResult.OK ? d.FileName : null;
         });
 

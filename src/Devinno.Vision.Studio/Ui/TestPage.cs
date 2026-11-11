@@ -70,7 +70,7 @@ public sealed partial class TestPage : DvPage
     public bool HasSets => _session.TestSets.Count > 0;
     public bool NoSets => !HasSets;
     public string SetMeta => _session.TestSets.ElementAtOrDefault(_selectedSet) is { } t
-        ? $"{Short(t.Folder)}  ·  {(t.Rule == LabelRule.FileName ? "파일 이름 라벨" : "하위 폴더 라벨")}"
+        ? $"{Short(t.Folder)}  ·  {(t.Rule == LabelRule.FileName ? Texts.T("testpage.labelByFile") : Texts.T("testpage.labelByFolder"))}"
         : "";
 
     // 긴 경로는 끝부분만 (한 줄에 들어가게)
@@ -89,13 +89,13 @@ public sealed partial class TestPage : DvPage
     {
         get
         {
-            if (NoProject) return "다음: 위 [새 로직] 또는 [열기]";
-            if (NoSets) return "다음: [폴더 추가] 로 테스트 이미지 폴더를 고르세요";
-            if (_session.IsTraining) return "양품 모델을 학습하는 중입니다 — 끝나면 실행할 수 있습니다";
-            if (_session.Project?.GoodModel is null && _session.Checks.Count == 0) return "검사가 없어 실행할 수 없습니다 — [편집] 에서 검사를 더하거나 양품 모델을 학습하세요";
-            if (_session.Project?.GoodModel is null && _session.BaseImageFile is null) return "기준 이미지가 없어 실행할 수 없습니다 — [편집] 에서 [기준 이미지 열기]";
-            if (Report is null) return "이미지를 골라 한 장씩 보거나, [실행] 으로 폴더 전체를 판정하세요";
-            return "필터로 좁히고 한 장씩 보세요 (← → 키로 넘김). 틀린 이미지는 [이 검사 고치기]";
+            if (NoProject) return Texts.T("testpage.hintNoProject");
+            if (NoSets) return Texts.T("testpage.hintNoSets");
+            if (_session.IsTraining) return Texts.T("testpage.hintTraining");
+            if (_session.Project?.GoodModel is null && _session.Checks.Count == 0) return Texts.T("testpage.hintNoChecks");
+            if (_session.Project?.GoodModel is null && _session.BaseImageFile is null) return Texts.T("testpage.hintNoBase");
+            if (Report is null) return Texts.T("testpage.hintNotRun");
+            return Texts.T("testpage.hintReport");
         }
     }
 
@@ -120,15 +120,15 @@ public sealed partial class TestPage : DvPage
     public string RateText => Report is { Total: > 0 } r ? $"{100.0 * r.Correct / r.Total:0.#}%" : "—";
     public string WrongText => Report is { } r ? (r.Total - r.Correct).ToString() : "—";
     public string UnlabeledText => Report is { } r ? r.Unlabeled.ToString() : "—";
-    public string ReportBadge => Report is { } r ? $"{r.Correct} / {r.Total} 맞음" : (HasSets ? $"{Images.Count}장 · 실행 전" : "");
+    public string ReportBadge => Report is { } r ? Texts.T("testpage.badgeCorrect", r.Correct, r.Total) : (HasSets ? Texts.T("testpage.badgeNotRun", Images.Count) : "");
 
     // 필터 글자에 개수
-    public string FilterAllText => $"전체 {Images.Count}";
-    public string FilterWrongText => Report is { } r ? $"틀림 {r.Items.Count(i => i.Correct == false)}" : "틀림";
+    public string FilterAllText => Texts.T("testpage.filterAll", Images.Count);
+    public string FilterWrongText => Report is { } r ? Texts.T("testpage.filterWrongCount", r.Items.Count(i => i.Correct == false)) : Texts.T("testpage.wrong");
     public string FilterNgText => Report is { } r ? $"NG {r.Items.Count(i => i.State == "Ng")}" : "NG";
     public string FilterOkText => Report is { } r ? $"OK {r.Items.Count(i => i.State == "Ok")}" : "OK";
 
-    public string Summary => Report is { } r ? r.Message : (HasSets ? $"이미지 {Images.Count}장 · 아직 실행하지 않았습니다" : "테스트 폴더가 없습니다");
+    public string Summary => Report is { } r ? r.Message : (HasSets ? Texts.T("testpage.summaryNotRun", Images.Count) : Texts.T("testpage.noSets"));
 
     public TestFilter Filter
     {
@@ -176,10 +176,10 @@ public sealed partial class TestPage : DvPage
                     no++;
                     TestItem? it = null;
                     items?.TryGetValue(img.File, out it);
-                    var row = new ImageRow(no, img.File, Path.GetFileName(img.File), img.Label ?? "라벨 없음",
+                    var row = new ImageRow(no, img.File, Path.GetFileName(img.File), img.Label ?? Texts.T("testpage.noLabel"),
                         it?.State switch { "Ok" => "OK", "Ng" => "NG", "Error" => "Error", _ => "—" },
                         it?.State switch { "Ok" => "success", "Ng" => "danger", "Error" => "warning", _ => "neutral" },
-                        it is null ? "—" : it.Correct switch { true => "맞음", false => "틀림", null => "제외" },
+                        it is null ? "—" : it.Correct switch { true => Texts.T("testpage.correct"), false => Texts.T("testpage.wrong"), null => Texts.T("testpage.excluded") },
                         it?.Correct switch { true => "success", false => "danger", _ => "neutral" },
                         img.File == _selectedFile ? "item item-on" : "item");
                     if (Keep(it))
@@ -201,7 +201,7 @@ public sealed partial class TestPage : DvPage
 
     public bool HasRows => Rows.Count > 0;
     public bool NoRows => !NoSets && Rows.Count == 0;
-    public string NoRowsText => Images.Count == 0 ? "이 폴더에 이미지가 없습니다 (png · bmp · jpg · tif)" : "이 필터에 맞는 이미지가 없습니다";
+    public string NoRowsText => Images.Count == 0 ? Texts.T("testpage.noImages") : Texts.T("testpage.noMatch");
 
     /// <summary>표의 선택 (파일로 기억 — 실행 · 필터가 바뀌어도 같은 이미지).</summary>
     public ImageRow? SelectedRow
@@ -219,7 +219,7 @@ public sealed partial class TestPage : DvPage
     /// <summary>목록 항목을 누르면 그 이미지를 고른다.</summary>
     public void Pick(ImageRow row) => SelectedRow = row;
 
-    public string ViewerTitle => _selectedFile is { } f ? Path.GetFileName(f) : "이미지";
+    public string ViewerTitle => _selectedFile is { } f ? Path.GetFileName(f) : Texts.T("testpage.viewerTitle");
     public string ResultBadge { get; private set; } = "";
     public string ResultTone { get; private set; } = "neutral";
     public bool HasResultBadge => ResultBadge.Length > 0;
@@ -290,7 +290,7 @@ public sealed partial class TestPage : DvPage
             var name = Path.GetFileName(file);
             var item = Report?.Items.FirstOrDefault(i => string.Equals(i.File, file, StringComparison.OrdinalIgnoreCase));
             var label = Images.FirstOrDefault(i => i.File == file)?.Label;
-            var head = $"라벨 {label ?? "없음"}";
+            var head = Texts.T("testpage.headLabel", label ?? Texts.T("testpage.none"));
             if (!CanJudge)
             {
                 // 로직이 없으면 이미지만
@@ -298,7 +298,7 @@ public sealed partial class TestPage : DvPage
                 if (_selectedFile == file)
                 {
                     View.Show(img);
-                    Detail = DetailLine = $"{head}  ·  (로직이 없어 이미지만 봅니다)";
+                    Detail = DetailLine = Texts.T("testpage.imageOnly", head);
                 }
                 return;
             }
@@ -313,19 +313,19 @@ public sealed partial class TestPage : DvPage
             if (_selectedFile != file)
                 return;
             _failedCheckId = failed is null ? null : _session.Checks.FirstOrDefault(c => c.Name == failed)?.Id;
-            var judge = item?.Correct switch { true => "  ·  맞음", false => "  ·  틀림", _ => "" };
-            Detail = $"{head}  ·  {r.Message}{judge}" + (failed is null ? "" : $"  ·  원인 검사: {failed}");
+            var judge = item?.Correct switch { true => $"  ·  {Texts.T("testpage.correct")}", false => $"  ·  {Texts.T("testpage.wrong")}", _ => "" };
+            Detail = $"{head}  ·  {r.Message}{judge}" + (failed is null ? "" : Texts.T("testpage.failedCheck", failed));
             (ResultBadge, ResultTone) = r.State switch { "Ok" => ("OK", "success"), "Ng" => ("NG", "danger"), "Error" => ("Error", "warning"), _ => ("", "neutral") };
             var codes = r.Codes.Count > 0 ? $"  ·  {string.Join(", ", r.Codes)}" : "";
-            DetailLine = $"{head}{codes}  ·  {r.Ms:0} ms" + (failed is null ? "" : $"  ·  원인 검사: {failed}");
-            (JudgeBadge, JudgeTone) = item?.Correct switch { true => ("맞음", "success"), false => ("틀림", "danger"), _ => ("", "neutral") };
+            DetailLine = $"{head}{codes}  ·  {r.Ms:0} ms" + (failed is null ? "" : Texts.T("testpage.failedCheck", failed));
+            (JudgeBadge, JudgeTone) = item?.Correct switch { true => (Texts.T("testpage.correct"), "success"), false => (Texts.T("testpage.wrong"), "danger"), _ => ("", "neutral") };
         }
         catch (Exception ex)
         {
             if (_selectedFile == file)
             {
                 View.Clear();
-                Detail = DetailLine = $"{Path.GetFileName(file)}  ·  열 수 없습니다: {ex.Message}";
+                Detail = DetailLine = Texts.T("testpage.cannotOpen", Path.GetFileName(file), ex.Message);
             }
         }
         finally
@@ -377,16 +377,16 @@ public sealed partial class TestPage : DvPage
     // ── 가상 카메라 (에뮬레이터) ───────────────────────────
 
     public bool EmulatorRunning => _session.EmulatorStatus is { Running: true };
-    public string EmulatorButton => _session.EmulatorStatus is null ? "가상 카메라 시작" : "가상 카메라 정지";
+    public string EmulatorButton => _session.EmulatorStatus is null ? Texts.T("testpage.emulatorStart") : Texts.T("testpage.emulatorStop");
     public bool CannotEmulate => _session.EmulatorStatus is null && !HasSets;
-    public string EmulatorBadge => _session.EmulatorStatus switch { null => "", { Error: not null } => "오류", { Busy: true } => "넘기는 중", _ => "송출 중" };
+    public string EmulatorBadge => _session.EmulatorStatus switch { null => "", { Error: not null } => Texts.T("testpage.emulatorError"), { Busy: true } => Texts.T("testpage.emulatorBusy"), _ => Texts.T("testpage.emulatorSending") };
     public string EmulatorTone => _session.EmulatorStatus switch { { Error: not null } => "danger", { Busy: true } => "warning", _ => "success" };
     public bool HasEmulatorBadge => EmulatorBadge.Length > 0;
     public string EmulatorUrl => _session.EmulatorStatus is { } e ? $"{e.Url}  ·  Modbus TCP {e.ModbusPort}" : "";
 
     public string EmulatorText => _session.EmulatorStatus is { } e
-        ? e.Error is { } err ? $"멈춤: {err}" : $"{e.Index + 1} / {e.Count}  ·  {e.File}  ·  Modbus 클라이언트 {e.Clients}"
-        : "고른 테스트 폴더를 RTSP 카메라로 내보냅니다. D100 ← 1 이면 다음 장 (D0 1 = 넘기는 중, 0 = 정지 — 이때 검사)";
+        ? e.Error is { } err ? Texts.T("testpage.emulatorStopped", err) : Texts.T("testpage.emulatorState", e.Index + 1, e.Count, e.File, e.Clients)
+        : Texts.T("testpage.emulatorHelp");
 
     /// <summary>이 PC 에서만 (127.0.0.1) — 방화벽 허용 창이 뜨지 않는다. 다른 PC 의 HMI 가 붙으려면 끈다.</summary>
     public bool EmulatorLocalOnly { get; set; }
@@ -409,13 +409,13 @@ public sealed partial class TestPage : DvPage
         {
             if (_dialogs.PickFolder() is not { } folder)
             {
-                _status.Ok("폴더 추가: 취소함");
+                _status.Ok(Texts.T("testpage.addSetCanceled"));
                 return;
             }
-            string[] rules = ["파일 이름으로  (02_missinghole.bmp → missinghole, 'good' = 양품)", "하위 폴더 이름으로  (good/, crack/ …, 'good' = 양품)"];
-            if (await App.SelectBox("라벨 읽는 법", rules, 0) is not { } pick)
+            string[] rules = [Texts.T("testpage.ruleByFile"), Texts.T("testpage.ruleByFolder")];
+            if (await App.SelectBox(Texts.T("testpage.labelRuleTitle"), rules, 0) is not { } pick)
             {
-                _status.Ok("폴더 추가: 취소함");
+                _status.Ok(Texts.T("testpage.addSetCanceled"));
                 return;
             }
             var r = _session.AddTestSet(folder, pick == 0 ? LabelRule.FileName : LabelRule.Folder);
@@ -440,9 +440,9 @@ public sealed partial class TestPage : DvPage
         {
             if (_session.TestSets.ElementAtOrDefault(_selectedSet) is not { } set)
                 return;
-            if (await App.MessageBox($"정말 삭제할까요?\n\n{set.Folder}\n\n(목록에서만 빼고, 폴더와 이미지는 지우지 않습니다)", "테스트 폴더 삭제", DvMessageButtons.YesNo) != DvDialogResult.Yes)
+            if (await App.MessageBox(Texts.T("testpage.removeConfirm", set.Folder), Texts.T("testpage.removeTitle"), DvMessageButtons.YesNo) != DvDialogResult.Yes)
             {
-                _status.Ok("삭제 취소함");
+                _status.Ok(Texts.T("testpage.removeCanceled"));
                 return;
             }
             _status.Report(_session.RemoveTestSet(_selectedSet));
@@ -478,7 +478,7 @@ public sealed partial class TestPage : DvPage
             var r = await _session.RunTestAsync(_selectedSet, progress);
             if (r.Ok)
             {
-                _status.Ok($"테스트: {r.Message}");
+                _status.Ok(Texts.T("testpage.runDone", r.Message));
                 // 틀린 게 있으면 바로 그것만, 없으면 [전체] — 빈 목록을 보여 주지 않는다.
                 // 고른 이미지는 필터 밖이어도 계속 고른 채로 둔다 (Filter 세터의 "필터 밖이면 첫 항목" 을 거치지 않음)
                 _filter = r.Items.Any(i => i.Correct == false) ? TestFilter.Wrong : TestFilter.All;
@@ -505,7 +505,7 @@ public sealed partial class TestPage : DvPage
             return;
         _edit.SelectedId = id;
         App.Show(_edit);
-        _status.Ok($"편집: {_session.GetCheck(id)?.Name} — 값을 고치고 [테스트] 에서 다시 실행하세요");
+        _status.Ok(Texts.T("testpage.fixHint", _session.GetCheck(id)?.Name));
     }
 
     private void ReloadImages()

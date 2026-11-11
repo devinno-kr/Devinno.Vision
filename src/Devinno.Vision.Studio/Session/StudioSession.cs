@@ -26,8 +26,8 @@ public sealed record ValueRow(string Check, string Name, double Value, double? M
 /// </summary>
 public sealed partial class StudioSession
 {
-    internal const string NoProject = "프로젝트를 먼저 만들거나 여세요";
-    internal const string NoBaseImage = "기준 이미지를 먼저 지정하세요 (set_base_image)";
+    internal static string NoProject => Texts.T("session.noProject");
+    internal static string NoBaseImage => Texts.T("session.noBaseImage");
 
     private readonly object _gate = new();
     private VisionRecipe? _project;
@@ -54,9 +54,9 @@ public sealed partial class StudioSession
     public CommandResult NewProject(string folder, string name, bool discardChanges = false)
     {
         if (string.IsNullOrWhiteSpace(folder))
-            return CommandResult.Fail("폴더를 지정하세요");
+            return CommandResult.Fail(Texts.T("session.folderRequired"));
         if (string.IsNullOrWhiteSpace(name))
-            return CommandResult.Fail("로직 이름을 지정하세요");
+            return CommandResult.Fail(Texts.T("session.projectNameRequired"));
         return Change(() =>
         {
             if (Unsaved(discardChanges) is { } refuse)
@@ -66,15 +66,15 @@ public sealed partial class StudioSession
             {
                 p = VisionRecipe.Create(folder, name.Trim());
                 if (File.Exists(Path.Combine(p.Folder, VisionRecipe.FileName)))
-                    return CommandResult.Fail($"이 폴더에는 이미 프로젝트가 있습니다: {p.Folder} (open_project 로 여세요)");
+                    return CommandResult.Fail(Texts.T("session.projectExists", p.Folder));
                 p.Save();
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {
-                return CommandResult.Fail($"이 폴더에 프로젝트를 만들 수 없습니다: {ex.Message}");
+                return CommandResult.Fail(Texts.T("session.cannotCreate", ex.Message));
             }
             Replace(p);
-            return CommandResult.Done($"새 프로젝트: {p.Name} ({p.Folder})");
+            return CommandResult.Done(Texts.T("session.created", p.Name, p.Folder));
         }, needsProject: false, markDirty: false);
     }
 
@@ -82,7 +82,7 @@ public sealed partial class StudioSession
     public CommandResult OpenProject(string folder, bool discardChanges = false)
     {
         if (string.IsNullOrWhiteSpace(folder))
-            return CommandResult.Fail("폴더를 지정하세요");
+            return CommandResult.Fail(Texts.T("session.folderRequired"));
         return Change(() =>
         {
             if (Unsaved(discardChanges) is { } refuse)
@@ -94,9 +94,9 @@ public sealed partial class StudioSession
             }
             catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {
-                return CommandResult.Fail($"열 수 없습니다: {ex.Message}");   // 지금 열린 프로젝트는 그대로
+                return CommandResult.Fail(Texts.T("session.cannotOpen", ex.Message));   // 지금 열린 프로젝트는 그대로
             }
-            var message = $"열림: {p.Name} (검사 {p.Checks.Count}개{(p.GoodModel is null ? "" : ", 양품 모델")})";
+            var message = Texts.T("session.opened", p.Name, p.Checks.Count, p.GoodModel is null ? "" : Texts.T("session.opened.goodModel"));
             Replace(p);
             return CommandResult.Done(message);
         }, needsProject: false, markDirty: false);
@@ -107,7 +107,7 @@ public sealed partial class StudioSession
 
     // 잠금 안에서 부른다
     private CommandResult? Unsaved(bool discard) => _dirty && !discard && _project is { } cur
-        ? CommandResult.Fail($"저장하지 않은 변경이 있습니다: {cur.Name} — 먼저 저장하거나(save_project), 변경을 버리고 진행하세요 (discard_changes)")
+        ? CommandResult.Fail(Texts.T("session.unsaved", cur.Name))
         : null;
 
     public CommandResult SaveProject()
@@ -123,11 +123,11 @@ public sealed partial class StudioSession
             {
                 p.Save();
                 _dirty = false;
-                r = CommandResult.Done($"저장됨: {Path.Combine(p.Folder, VisionRecipe.FileName)}");
+                r = CommandResult.Done(Texts.T("session.saved", Path.Combine(p.Folder, VisionRecipe.FileName)));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                return CommandResult.Fail($"저장할 수 없습니다: {ex.Message}");
+                return CommandResult.Fail(Texts.T("session.cannotSave", ex.Message));
             }
         }
         ProjectChanged?.Invoke();   // 화면이 "저장 안 됨" 을 지우게
@@ -138,14 +138,14 @@ public sealed partial class StudioSession
     {
         var p = _project!;
         if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath))
-            return CommandResult.Fail($"이미지 파일이 없습니다: {imagePath}");
+            return CommandResult.Fail(Texts.T("session.imageMissing", imagePath));
         try
         {
             using var img = VisionImage.Load(imagePath);   // 읽히는지 확인
         }
         catch (Exception ex)
         {
-            return CommandResult.Fail($"이미지를 읽을 수 없습니다: {ex.Message}");
+            return CommandResult.Fail(Texts.T("session.cannotReadImage", ex.Message));
         }
         var rel = Path.Combine("images", "base" + Path.GetExtension(imagePath).ToLowerInvariant()).Replace('\\', '/');
         var dest = Path.Combine(p.Folder, rel);
@@ -157,18 +157,18 @@ public sealed partial class StudioSession
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return CommandResult.Fail($"기준 이미지를 프로젝트에 복사할 수 없습니다: {ex.Message}");
+            return CommandResult.Fail(Texts.T("session.cannotCopyBaseImage", ex.Message));
         }
         p.BaseImage = rel;
-        return CommandResult.Done($"기준 이미지: {rel}");
+        return CommandResult.Done(Texts.T("session.baseImage", rel));
     });
 
     public CommandResult SetCalibration(double? mmPerPx) => Change(() =>
     {
         if (mmPerPx is { } v && (!(v > 0) || double.IsInfinity(v)))
-            return CommandResult.Fail($"mm/px 는 0 보다 큰 수여야 합니다 (받은 값 {v})");
+            return CommandResult.Fail(Texts.T("session.badMmPerPx", v));
         _project!.Calibration = mmPerPx is { } m ? VisionCalibration.Scale(m) : null;
-        return CommandResult.Done(mmPerPx is { } x ? $"캘리브레이션: {x} mm/px (길이 단위 mm)" : "캘리브레이션 없음 (길이 단위 px)");
+        return CommandResult.Done(mmPerPx is { } x ? Texts.T("session.calibration", x) : Texts.T("session.noCalibration"));
     });
 
     /// <summary>
@@ -184,21 +184,21 @@ public sealed partial class StudioSession
             if (_training is not null)
                 return CommandResult.Fail(Training);
             if (_dirty)
-                return CommandResult.Fail("저장하지 않은 변경이 있습니다 — 먼저 저장하세요 (save_project). 패키지는 저장된 로직을 묶습니다");
+                return CommandResult.Fail(Texts.T("session.packUnsaved"));
             if (string.IsNullOrWhiteSpace(file))
-                return CommandResult.Fail("패키지 파일 경로를 주세요 (.dvpkg)");
+                return CommandResult.Fail(Texts.T("session.packFileRequired"));
             var full = Path.GetFullPath(file);
             if (Overlaps(Path.GetDirectoryName(full)!, p.Folder) && full.StartsWith(Path.TrimEndingDirectorySeparator(p.Folder) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-                return CommandResult.Fail($"패키지를 프로젝트 폴더 안에 만들 수 없습니다: {full}");
+                return CommandResult.Fail(Texts.T("session.packInsideProject", full));
             try
             {
                 var n = p.Pack(full);
                 var size = new FileInfo(full).Length;
-                return CommandResult.Done($"패키지: {full} (파일 {n}개, {size / 1024.0 / 1024.0:0.#} MB) — 현장 앱: VisionRecipe.Load(\"{Path.GetFileName(full)}\")");
+                return CommandResult.Done(Texts.T("session.packed", full, n, size / 1024.0 / 1024.0, Path.GetFileName(full)));
             }
             catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or IOException or UnauthorizedAccessException)
             {
-                return CommandResult.Fail($"패키지를 만들 수 없습니다: {ex.Message}");
+                return CommandResult.Fail(Texts.T("session.cannotPack", ex.Message));
             }
         }
     }
@@ -209,16 +209,16 @@ public sealed partial class StudioSession
     {
         var p = _project!;
         if (CheckDef.New(kind ?? "") is not { } check)
-            return CommandResult.Fail($"알 수 없는 검사 종류: {kind} (가능: {string.Join(", ", CheckDef.Kinds)})");
+            return CommandResult.Fail(Texts.T("session.unknownKind", kind, string.Join(", ", CheckDef.Kinds)));
         if (string.IsNullOrWhiteSpace(name))
-            return CommandResult.Fail("검사 이름을 지정하세요");
+            return CommandResult.Fail(Texts.T("session.checkNameRequired"));
         name = name.Trim();
         if (p.Checks.Any(c => c.Name == name))
-            return CommandResult.Fail($"같은 이름의 검사가 있습니다: {name}");
+            return CommandResult.Fail(Texts.T("session.duplicateCheckName", name));
         if (check is BlobAlignCheck)
         {
             if (p.Checks.OfType<BlobAlignCheck>().Any())
-                return CommandResult.Fail("정렬 검사는 하나만 둘 수 있습니다");
+                return CommandResult.Fail(Texts.T("session.oneAlignOnly"));
             p.Checks.Insert(0, check);   // 정렬은 항상 맨 앞 (뒤 검사들이 따라간다)
         }
         else
@@ -231,7 +231,7 @@ public sealed partial class StudioSession
         var reason = p.GoodModel is not null && check is not BlobAlignCheck and not LengthCheck;
         if (reason)
             check.Role = StepRole.Reason;
-        return CommandResult.Done($"추가됨: {name} ({check.KindLabel}, id {check.Id}){(reason ? " — 사유 검사 (양품 모델이 판정하고, 이 검사는 NG 이유를 붙입니다)" : "")}", check.Id);
+        return CommandResult.Done(Texts.T("session.added", name, Texts.KindLabel(check), check.Id) + (reason ? Texts.T("session.added.reason") : ""), check.Id);
     });
 
     public CommandResult RemoveCheck(string id) => Change(() =>
@@ -239,7 +239,7 @@ public sealed partial class StudioSession
         if (Find(id) is not { } c)
             return NotFound(id);
         _project!.Checks.Remove(c);
-        return CommandResult.Done($"삭제됨: {c.Name}");
+        return CommandResult.Done(Texts.T("session.removed", c.Name));
     });
 
     public CommandResult MoveCheck(string id, int index) => Change(() =>
@@ -248,15 +248,15 @@ public sealed partial class StudioSession
         if (Find(id) is not { } c)
             return NotFound(id);
         if (index < 0 || index >= list.Count)
-            return CommandResult.Fail($"위치는 0 ~ {list.Count - 1} 이어야 합니다 (받은 값 {index})");
+            return CommandResult.Fail(Texts.T("session.badPosition", list.Count - 1, index));
         var hasAlign = list[0] is BlobAlignCheck;
         if (c is BlobAlignCheck && index != 0)
-            return CommandResult.Fail("정렬 검사는 맨 앞에 있어야 합니다");
+            return CommandResult.Fail(Texts.T("session.alignMustBeFirst"));
         if (c is not BlobAlignCheck && hasAlign && index == 0)
-            return CommandResult.Fail("정렬 검사 앞으로는 옮길 수 없습니다 (위치 1 이상)");
+            return CommandResult.Fail(Texts.T("session.cannotMoveBeforeAlign"));
         list.Remove(c);
         list.Insert(index, c);
-        return CommandResult.Done($"옮김: {c.Name} → {index}");
+        return CommandResult.Done(Texts.T("session.moved", c.Name, index));
     });
 
     public CommandResult SetRoi(string id, VisionRoi roi) => Change(() =>
@@ -264,9 +264,9 @@ public sealed partial class StudioSession
         if (Find(id) is not { } c)
             return NotFound(id);
         if (roi.IsEmpty && c is not BlobAlignCheck)
-            return CommandResult.Fail("ROI 의 폭과 높이는 0 보다 커야 합니다");
+            return CommandResult.Fail(Texts.T("session.roiSizeRequired"));
         c.Roi = roi.IsEmpty ? default : roi;
-        return CommandResult.Done($"ROI: {c.Name} = {Describe(c.Roi)}");
+        return CommandResult.Done(Texts.T("session.roiSet", c.Name, Describe(c.Roi)));
     });
 
     /// <summary>이름 · 종류별 속성 일부만 바꾼다 (JSON 병합, 대소문자 무시). Kind · Id 는 바꿀 수 없어 무시한다.</summary>
@@ -276,7 +276,7 @@ public sealed partial class StudioSession
         if (Find(id) is not { } c)
             return NotFound(id);
         if (properties is null)
-            return CommandResult.Fail("바꿀 속성을 주세요 (JSON 객체)");
+            return CommandResult.Fail(Texts.T("session.propertiesRequired"));
         var current = JsonSerializer.SerializeToNode(c, VisionRecipe.JsonOptions)!.AsObject();
         current.TryAdd("Role", nameof(StepRole.Judge));   // 기본값은 쓰지 않으므로 채워 둔다
         if (Merge(current, properties, "") is { } error)
@@ -288,17 +288,17 @@ public sealed partial class StudioSession
         }
         catch (JsonException ex)
         {
-            return CommandResult.Fail($"속성 값이 맞지 않습니다: {ex.Message}");
+            return CommandResult.Fail(Texts.T("session.badPropertyValue", ex.Message));
         }
         updated.Name = updated.Name?.Trim() ?? "";
         if (updated.Name.Length == 0)
-            return CommandResult.Fail("검사 이름은 비울 수 없습니다");
+            return CommandResult.Fail(Texts.T("session.checkNameEmpty"));
         if (updated.Validate() is { } problem)
             return CommandResult.Fail(problem);
         if (p.Checks.Any(o => o != c && o.Name == updated.Name))
-            return CommandResult.Fail($"같은 이름의 검사가 있습니다: {updated.Name}");
+            return CommandResult.Fail(Texts.T("session.duplicateCheckName", updated.Name));
         p.Checks[p.Checks.IndexOf(c)] = updated;
-        return CommandResult.Done($"바뀜: {updated.Name}");
+        return CommandResult.Done(Texts.T("session.updated", updated.Name));
     });
 
     public CheckDef? GetCheck(string id)
@@ -323,7 +323,7 @@ public sealed partial class StudioSession
         if (p.BaseImagePath is not { } path)
             return CommandResult.Fail(NoBaseImage);
         if (p.Checks.OfType<BlobAlignCheck>().FirstOrDefault() is not { } align)
-            return CommandResult.Fail("정렬 검사(BlobAlign)가 없어 티칭할 것이 없습니다");
+            return CommandResult.Fail(Texts.T("session.noAlignToTeach"));
         var probe = new BlobAlignCheck { Name = align.Name, Roi = align.Roi, Blob = align.Blob };   // 기준 없이 = 지금 위치 그대로
         var job = new VisionJob("teach").Add(probe.CreateStep(p), roi: align.Roi.IsEmpty ? null : () => probe.Roi, pose: VisionRecipe.PoseName);
         VisionImage img;
@@ -333,15 +333,15 @@ public sealed partial class StudioSession
         }
         catch (Exception ex)
         {
-            return CommandResult.Fail($"기준 이미지를 읽을 수 없습니다: {ex.Message} (set_base_image 로 다시 지정하세요)");
+            return CommandResult.Fail(Texts.T("session.cannotReadBaseImage", ex.Message));
         }
         using var loaded = img;
         using var r = job.RunAsync(img).GetAwaiter().GetResult();
         if (!r.Poses.TryGetValue(VisionRecipe.PoseName, out var pose))
-            return CommandResult.Fail($"기준 이미지에서 부품을 찾지 못했습니다: {r.Error} (정렬 검사의 Blob 설정을 확인하세요)");
+            return CommandResult.Fail(Texts.T("session.partNotFound", r.Error));
         align.Reference = pose;
-        var stale = p.GoodModel is not null && !p.GoodModelIsCurrent ? " — 양품 모델을 다시 학습하세요 (기준 위치가 바뀌었습니다)" : "";
-        return CommandResult.Done($"기준 위치: x {pose.X:0.0}, y {pose.Y:0.0}, 각도 {pose.Angle:0.00}°{stale}");
+        var stale = p.GoodModel is not null && !p.GoodModelIsCurrent ? Texts.T("session.basePosition.retrain") : "";
+        return CommandResult.Done(Texts.T("session.basePosition", pose.X, pose.Y, pose.Angle, stale));
     });
 
     /// <summary>이미지 한 장을 지금 로직으로 실행한다. 결과 PNG 를 담는다.</summary>
@@ -370,7 +370,7 @@ public sealed partial class StudioSession
         }
         catch (Exception ex)
         {
-            return Failed($"이미지를 읽을 수 없습니다: {imagePath} ({ex.Message})");
+            return Failed(Texts.T("session.cannotReadImageFile", imagePath, ex.Message));
         }
         using (img)
         {
@@ -418,9 +418,9 @@ public sealed partial class StudioSession
         var project = _project!.Folder;
         static string Norm(string p) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(p)) + Path.DirectorySeparatorChar;
         if (Norm(project).StartsWith(Norm(full), StringComparison.OrdinalIgnoreCase))
-            return $"프로젝트 폴더나 그 위 폴더는 {what}로 쓸 수 없습니다 (studio.json · 모델이 섞입니다): {full}";
+            return Texts.T("session.notImageFolder.project", what, full);
         if (Norm(full).StartsWith(Norm(Path.Combine(project, "models")), StringComparison.OrdinalIgnoreCase))
-            return $"models 폴더는 {what}로 쓸 수 없습니다: {full}";
+            return Texts.T("session.notImageFolder.models", what, full);
         return null;
     }
 
@@ -447,24 +447,24 @@ public sealed partial class StudioSession
     public CommandResult AddTestSet(string folder, LabelRule rule) => Change(() =>
     {
         if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
-            return CommandResult.Fail($"폴더가 없습니다: {folder}");
+            return CommandResult.Fail(Texts.T("session.folderMissing", folder));
         var sets = _project!.TestSets;
         var full = Path.GetFullPath(folder);
-        if (NotAnImageFolder(full, "테스트 폴더") is { } refuse)
+        if (NotAnImageFolder(full, Texts.T("session.testFolder")) is { } refuse)
             return CommandResult.Fail(refuse);
         if (sets.Any(t => string.Equals(Path.GetFullPath(t.Folder), full, StringComparison.OrdinalIgnoreCase) && t.Rule == rule))
-            return CommandResult.Fail($"이미 있는 테스트 폴더입니다: {full}");
+            return CommandResult.Fail(Texts.T("session.testSetExists", full));
         sets.Add(new TestSet { Folder = full, Rule = rule });
-        return CommandResult.Done($"테스트 폴더 {sets.Count - 1}: {full} (라벨 규칙 {rule}){OverlapWarning(full, _goods.Folder, "양품 폴더")}");
+        return CommandResult.Done(Texts.T("session.testSetAdded", sets.Count - 1, full, rule, OverlapWarning(full, _goods.Folder, Texts.T("session.goodFolder"))));
     });
 
     public CommandResult RemoveTestSet(int index) => Change(() =>
     {
         var sets = _project!.TestSets;
         if (index < 0 || index >= sets.Count)
-            return CommandResult.Fail($"테스트 폴더 번호는 0 ~ {sets.Count - 1} 입니다 (받은 값 {index})");
+            return CommandResult.Fail(Texts.T("session.badTestSetIndex", sets.Count - 1, index));
         sets.RemoveAt(index);
-        return CommandResult.Done($"테스트 폴더 {index} 삭제됨");
+        return CommandResult.Done(Texts.T("session.testSetRemoved", index));
     });
 
     /// <summary>테스트 폴더 하나를 지금 로직으로 모두 돌린다. 결과는 <see cref="LastReport"/> 에도 남는다.</summary>
@@ -482,7 +482,7 @@ public sealed partial class StudioSession
             if (p.BaseImagePath is null && p.GoodModel is null)
                 return TestRunner.Fail(NoBaseImage);
             if (setIndex < 0 || setIndex >= p.TestSets.Count)
-                return TestRunner.Fail(p.TestSets.Count == 0 ? "테스트 폴더가 없습니다 (add_test_set)" : $"테스트 폴더 번호는 0 ~ {p.TestSets.Count - 1} 입니다 (받은 값 {setIndex})");
+                return TestRunner.Fail(p.TestSets.Count == 0 ? Texts.T("session.noTestSets") : Texts.T("session.badTestSetIndex", p.TestSets.Count - 1, setIndex));
             if (TryCreateJob(p, out job) is { } error)
                 return TestRunner.Fail(error);
             baseImage = p.BaseImagePath;
@@ -543,9 +543,9 @@ public sealed partial class StudioSession
 
     private CheckDef? Find(string id) => _project?.Checks.FirstOrDefault(c => c.Id == id);
 
-    private static CommandResult NotFound(string id) => CommandResult.Fail($"검사를 찾을 수 없습니다: {id} (get_project 로 id 를 확인하세요)");
+    private static CommandResult NotFound(string id) => CommandResult.Fail(Texts.T("session.checkNotFound", id));
 
-    private static string Describe(VisionRoi r) => r.IsEmpty ? "전체 이미지" : $"{r.Shape} {r.X:0.#},{r.Y:0.#} {r.Width:0.#}×{r.Height:0.#}" + (r.Shape == VisionRoiShape.Rotated ? $" {r.Angle:0.#}°" : "");
+    private static string Describe(VisionRoi r) => r.IsEmpty ? Texts.T("session.wholeImage") : $"{r.Shape} {r.X:0.#},{r.Y:0.#} {r.Width:0.#}×{r.Height:0.#}" + (r.Shape == VisionRoiShape.Rotated ? $" {r.Angle:0.#}°" : "");
 
     // 받은 키를 지금 값에 덮는다. 키는 대소문자 무시, 모르는 키는 거부, 객체끼리는 안으로 병합
     private static string? Merge(JsonObject target, JsonObject patch, string path)
@@ -556,9 +556,9 @@ public sealed partial class StudioSession
                 continue;
             var existing = target.Select(kv => kv.Key).FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase));
             if (existing is null)
-                return $"알 수 없는 속성: {path}{key} (가능: {string.Join(", ", target.Select(kv => kv.Key).Where(k => k != "Kind" && k != "Id"))})";
+                return Texts.T("session.unknownProperty", path, key, string.Join(", ", target.Select(kv => kv.Key).Where(k => k != "Kind" && k != "Id")));
             if (value is null && target[existing] is JsonObject)
-                return $"{path}{existing} 은 비울 수 없습니다 (바꿀 값만 객체로 주세요)";
+                return Texts.T("session.cannotClearProperty", path, existing);
             if (value is JsonObject sub && target[existing] is JsonObject cur)
             {
                 if (Merge(cur, sub, $"{path}{existing}.") is { } err)

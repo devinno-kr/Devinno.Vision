@@ -10,12 +10,13 @@ namespace Devinno.Vision.Studio.Ui;
 public sealed partial class StatusBar : DvBar
 {
     private readonly object _gate = new();
-    private string _notice = "준비됨";
+    private string? _notice;   // null = 아직 아무 동작도 없음 ("준비됨" — 그리는 때의 언어로)
     private bool _error;
     private string _mcp = "";
+    private bool _mcpOff;
 
     /// <summary>마지막 동작의 결과 문구.</summary>
-    public string Notice { get { lock (_gate) return _notice; } }
+    public string Notice { get { lock (_gate) return _notice ?? Texts.T("status.ready"); } }
 
     public bool IsError { get { lock (_gate) return _error; } }
 
@@ -30,8 +31,11 @@ public sealed partial class StatusBar : DvBar
 
     public bool HasMcp => Mcp.Length > 0;
 
+    /// <summary>MCP 서버가 꺼졌는가 (포트 사용 중 등). 배지 색을 정한다 — 문구로 판단하지 않는다.</summary>
+    public bool McpOff { get { lock (_gate) return _mcpOff; } set { lock (_gate) _mcpOff = value; } }
+
     /// <summary>MCP 배지 색 — 꺼졌으면 경고.</summary>
-    public string McpTone => Mcp.Contains("꺼짐") ? "warning" : "success";
+    public string McpTone => McpOff ? "warning" : "success";
 
     public void Ok(string text) => Set(text, false);
 

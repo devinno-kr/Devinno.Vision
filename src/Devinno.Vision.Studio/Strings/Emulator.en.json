@@ -1,0 +1,21 @@
+{
+  "emu.alreadyRunningStop": "The emulator is already running (stop_emulator)",
+  "emu.noTestSets": "There is no test folder (add_test_set)",
+  "emu.setIndexRange": "The test folder number is 0 ~ {0} (got {1})",
+  "emu.noTestImages": "The test folder has no images",
+  "emu.startFailed": "Cannot start the emulator: {0}",
+  "emu.alreadyRunning": "The emulator is already running",
+  "emu.started": "Virtual camera: {0} · Modbus TCP {1} (D100 ← 1 next image, D0 1 = changing · 0 = still) · {2} images",
+  "emu.notRunning": "The emulator is not running",
+  "emu.stopped": "Stopped the virtual camera",
+  "emu.noFiles": "There are no images to send.",
+  "emu.cannotReadImage": "Cannot read the image: {0}",
+  "emu.noMediaMtx": "RTSP server (MediaMTX) not found: {0} — put mediamtx.exe in tools/mediamtx",
+  "emu.noFfmpeg": "ffmpeg not found — install it (winget install ffmpeg) or set its path in the environment variable DEVINNO_STUDIO_FFMPEG",
+  "emu.rtspPortInUse": "RTSP port {0} is used by another program",
+  "emu.serverExited": "The RTSP server (MediaMTX) exited right away (code {0})",
+  "emu.serverTimeout": "The RTSP server (MediaMTX) did not open within 10 seconds",
+  "emu.ffmpegExited": "ffmpeg exited",
+  "emu.exitCode": " (code {0})",
+  "emu.cannotLaunch": "Cannot run: {0}"
+}

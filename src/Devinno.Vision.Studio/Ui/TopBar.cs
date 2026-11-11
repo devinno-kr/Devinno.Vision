@@ -19,7 +19,14 @@ public sealed partial class TopBar : DvBar
     }
 
     public string Title => _session.Project is { } p ? p.Name : "Devinno Vision Studio";
-    public string FolderText => _session.Project?.Folder ?? "로직이 없습니다 — [새 로직] 또는 [열기]";
+    public string FolderText => _session.Project?.Folder ?? Texts.T("top.noProject");
+
+    /// <summary>화면 언어 ("ko" · "en") — 바꾸면 화면을 그 언어로 다시 그리고, 다음 실행에도 유지한다 (Texts 가 설정 파일에 저장).</summary>
+    public string Language
+    {
+        get => Texts.Language;
+        set => Texts.SetLanguage(value);
+    }
     public bool NoProject => _session.Project is null;
     public bool IsDirty => _session.IsDirty;
 
@@ -34,19 +41,19 @@ public sealed partial class TopBar : DvBar
     {
         try
         {
-            if (await ResolveUnsavedAsync("새 로직을 만들기") is not { } discard)
+            if (await ResolveUnsavedAsync("top.unsaved.new") is not { } discard)
             {
-                _status.Ok("새 로직: 취소함");
+                _status.Ok(Texts.T("top.new.canceled"));
                 return;
             }
             if (_dialogs.PickFolder() is not { } folder)
             {
-                _status.Ok("새 로직: 취소함");
+                _status.Ok(Texts.T("top.new.canceled"));
                 return;
             }
-            if (await App.InputBox("새 로직 이름", Path.GetFileName(folder.TrimEnd('\\', '/'))) is not { } name)
+            if (await App.InputBox(Texts.T("top.new.name"), Path.GetFileName(folder.TrimEnd('\\', '/'))) is not { } name)
             {
-                _status.Ok("새 로직: 취소함");
+                _status.Ok(Texts.T("top.new.canceled"));
                 return;
             }
             _status.Report(_session.NewProject(folder, name, discard));
@@ -61,15 +68,15 @@ public sealed partial class TopBar : DvBar
     {
         try
         {
-            if (await ResolveUnsavedAsync("다른 로직을 열기") is not { } discard)
+            if (await ResolveUnsavedAsync("top.unsaved.open") is not { } discard)
             {
-                _status.Ok("열기: 취소함");
+                _status.Ok(Texts.T("top.open.canceled"));
                 return;
             }
             if (_dialogs.PickFolder() is { } folder)
                 _status.Report(_session.OpenProject(folder, discard));
             else
-                _status.Ok("열기: 취소함");
+                _status.Ok(Texts.T("top.open.canceled"));
         }
         catch (Exception ex)
         {
@@ -81,11 +88,11 @@ public sealed partial class TopBar : DvBar
     /// 저장 안 된 변경이 있으면 묻는다: [예] 저장하고 진행 · [아니요] 변경을 버리고 진행 · [취소] 멈춤.
     /// 돌려주는 값 = 진행할 때 변경을 버릴지 (null = 멈춤). 변경이 없으면 묻지 않고 false.
     /// </summary>
-    private async Task<bool?> ResolveUnsavedAsync(string action)
+    private async Task<bool?> ResolveUnsavedAsync(string questionKey)
     {
         if (!_session.IsDirty)
             return false;
-        var answer = await App.MessageBox($"저장하지 않은 변경이 있습니다: {_session.Project?.Name}\n\n{action} 전에 저장할까요?\n[아니요] 를 누르면 변경을 버립니다.", "저장 안 됨", DvMessageButtons.YesNoCancel);
+        var answer = await App.MessageBox(Texts.T(questionKey, _session.Project?.Name), Texts.T("top.unsaved.title"), DvMessageButtons.YesNoCancel);
         if (answer == DvDialogResult.Yes)
         {
             var saved = _session.SaveProject();
@@ -105,7 +112,7 @@ public sealed partial class TopBar : DvBar
         if (_dialogs.PickPackage($"{(string.IsNullOrWhiteSpace(p.Name) ? "recipe" : p.Name)}.dvpkg") is { } file)
             _status.Report(_session.PackProject(file));
         else
-            _status.Ok("패키지: 취소함");
+            _status.Ok(Texts.T("top.pack.canceled"));
     }
 
     public void ShowEdit() => App.Show<EditPage>();

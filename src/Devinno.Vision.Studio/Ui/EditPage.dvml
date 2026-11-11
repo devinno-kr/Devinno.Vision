@@ -18,39 +18,39 @@
       <!-- 기준: 기준 이미지 (표준 검사) / 양품 모델 — 하나만 써도, 둘 다 써도 된다 -->
       <DvRow gap="sm">
         <DvSegment value="{Bind Tab}" disabled="{NoProject}">
-          <DvOption value="Image" text="기준 이미지"/>
-          <DvOption value="Model" text="양품 모델"/>
+          <DvOption value="Image" text="{L10n.edit.baseImage}"/>
+          <DvOption value="Model" text="{L10n.edit.goodModel}"/>
         </DvSegment>
         <DvBadge text="{GoodBadge}" tone="{GoodTone}" visible="{HasGoodBadge}"/>
       </DvRow>
       <DvRow gap="sm" visible="{ImageWide}">
-        <DvButton variant="secondary" icon="fa-image" text="기준 이미지" onclick="OpenBase" disabled="{NoProject}"/>
-        <DvButton id="btnTeach" variant="secondary" icon="fa-crosshairs" text="기준 티칭" onclick="Teach" disabled="{NoBase}"/>
+        <DvButton variant="secondary" icon="fa-image" text="@edit.baseImage" onclick="OpenBase" disabled="{NoProject}"/>
+        <DvButton id="btnTeach" variant="secondary" icon="fa-crosshairs" text="@edit.teach" onclick="Teach" disabled="{NoBase}"/>
         <DvSpacer/>
-        <DvButton id="btnRun" variant="primary" icon="fa-play" text="실행" onclick="RunBase" disabled="{CannotRun}"/>
-        <DvButton id="btnRunOther" variant="secondary" icon="fa-folder-open" text="다른 이미지로 실행" onclick="RunOther" disabled="{CannotRun}"/>
+        <DvButton id="btnRun" variant="primary" icon="fa-play" text="@edit.run" onclick="RunBase" disabled="{CannotRun}"/>
+        <DvButton id="btnRunOther" variant="secondary" icon="fa-folder-open" text="@edit.runOther" onclick="RunOther" disabled="{CannotRun}"/>
       </DvRow>
       <!-- 좁은 창: 준비 줄 · 실행 줄 -->
       <DvRow gap="sm" visible="{ImageCompact}">
-        <DvButton variant="secondary" icon="fa-image" text="기준 이미지" onclick="OpenBase" disabled="{NoProject}"/>
-        <DvButton variant="secondary" icon="fa-crosshairs" text="기준 티칭" onclick="Teach" disabled="{NoBase}"/>
+        <DvButton variant="secondary" icon="fa-image" text="@edit.baseImage" onclick="OpenBase" disabled="{NoProject}"/>
+        <DvButton variant="secondary" icon="fa-crosshairs" text="@edit.teach" onclick="Teach" disabled="{NoBase}"/>
       </DvRow>
       <DvRow gap="sm" visible="{ImageCompact}">
-        <DvButton variant="primary" icon="fa-play" text="실행" onclick="RunBase" disabled="{CannotRun}"/>
-        <DvButton variant="secondary" icon="fa-folder-open" text="다른 이미지로 실행" onclick="RunOther" disabled="{CannotRun}"/>
+        <DvButton variant="primary" icon="fa-play" text="@edit.run" onclick="RunBase" disabled="{CannotRun}"/>
+        <DvButton variant="secondary" icon="fa-folder-open" text="@edit.runOther" onclick="RunOther" disabled="{CannotRun}"/>
       </DvRow>
       <!-- 양품 모델: 폴더 · 영역 줄, 학습 줄 -->
       <DvRow gap="sm" visible="{IsModelTab}">
-        <DvButton id="btnGoodFolder" variant="secondary" icon="fa-folder-open" text="양품 폴더" onclick="PickGoodFolder" disabled="{CannotPickGood}"/>
-        <DvButton variant="secondary" icon="fa-expand" text="전체 영역" onclick="ResetGoodRoi" disabled="{CannotResetGoodRoi}"/>
-        <DvButton variant="secondary" icon="fa-trash" text="모델 빼기" onclick="RemoveGood" disabled="{CannotRemoveGood}"/>
+        <DvButton id="btnGoodFolder" variant="secondary" icon="fa-folder-open" text="@edit.goodFolder" onclick="PickGoodFolder" disabled="{CannotPickGood}"/>
+        <DvButton variant="secondary" icon="fa-expand" text="@edit.wholeRegion" onclick="ResetGoodRoi" disabled="{CannotResetGoodRoi}"/>
+        <DvButton variant="secondary" icon="fa-trash" text="@edit.removeModel" onclick="RemoveGood" disabled="{CannotRemoveGood}"/>
       </DvRow>
       <DvRow gap="sm" visible="{IsModelTab}">
-        <DvButton id="btnTrain" variant="primary" icon="fa-graduation-cap" text="학습" onclick="TrainGood" disabled="{CannotTrain}"/>
-        <DvButton variant="secondary" icon="fa-stop" text="취소" onclick="CancelTrain" visible="{IsTraining}"/>
+        <DvButton id="btnTrain" variant="primary" icon="fa-graduation-cap" text="@edit.train" onclick="TrainGood" disabled="{CannotTrain}"/>
+        <DvButton variant="secondary" icon="fa-stop" text="@edit.cancel" onclick="CancelTrain" visible="{IsTraining}"/>
         <DvSpacer/>
-        <DvButton variant="secondary" icon="fa-play" text="실행" onclick="RunBase" disabled="{CannotRun}"/>
-        <DvButton variant="secondary" icon="fa-folder-open" text="다른 이미지로 실행" onclick="RunOther" disabled="{CannotRun}"/>
+        <DvButton variant="secondary" icon="fa-play" text="@edit.run" onclick="RunBase" disabled="{CannotRun}"/>
+        <DvButton variant="secondary" icon="fa-folder-open" text="@edit.runOther" onclick="RunOther" disabled="{CannotRun}"/>
       </DvRow>
       <DvLabel class="meta" text="{GoodFolderText}" visible="{IsModelTab}"/>
       <DvLabel class="meta" text="{GoodRoiText}" visible="{IsModelTab}"/>
@@ -60,7 +60,7 @@
         <DvIcon icon="fa-image" style="font-size:40; color: token(text-subtle)"/>
         <DvLabel class="empty-title" text="{EmptyTitle}"/>
         <DvLabel class="sub" text="{EmptyText}" style="text-align:center"/>
-        <DvButton id="btnOpenBase" variant="primary" icon="fa-image" text="기준 이미지 열기" onclick="OpenBase" visible="{HasProject}"/>
+        <DvButton id="btnOpenBase" variant="primary" icon="fa-image" text="@edit.openBase" onclick="OpenBase" visible="{HasProject}"/>
       </DvStack>
       <VisionView id="view" source="{View}" style="flex:1; height:0" visible="{HasImage}"/>
 
@@ -69,17 +69,17 @@
         <DvLabel class="sub" text="{LastRun}"/>
       </DvRow>
       <DvDataGrid items="{LastValues}" row-height="30" header-height="30" visible="{HasValues}" style="height:122; border-radius: token(radius.md)">
-        <DvColumn header="검사" field="Check" width="140"/>
-        <DvColumn header="값" field="Name" width="170"/>
-        <DvColumn header="측정" field="Value" width="110" align="right"/>
-        <DvColumn header="기준" field="Range"/>
-        <DvColumn header="판정" field="Judge" width="64" align="center" cell-class="JudgeClass"/>
+        <DvColumn header="{L10n.edit.col.check}" field="Check" width="140"/>
+        <DvColumn header="{L10n.edit.col.value}" field="Name" width="170"/>
+        <DvColumn header="{L10n.edit.col.measured}" field="Value" width="110" align="right"/>
+        <DvColumn header="{L10n.edit.col.range}" field="Range"/>
+        <DvColumn header="{L10n.edit.col.judge}" field="Judge" width="64" align="center" cell-class="JudgeClass"/>
       </DvDataGrid>
     </DvCard>
 
     <!-- 오른쪽: 속성 -->
     <DvStack width="{PanelWidth}" style="flex-shrink:0; gap:16; overflow:scroll">
-      <DvCard title="검사 속성" grow="1" visible="{NoSelection}">
+      <DvCard title="{L10n.edit.checkProps}" grow="1" visible="{NoSelection}">
         <DvStack gap="sm" grow="1" style="align-items:center; justify-content:center">
           <DvIcon icon="fa-list-check" style="font-size:28; color: token(text-subtle)"/>
           <DvLabel class="sub" text="{NoSelectionText}" style="text-align:center"/>
@@ -89,23 +89,23 @@
       <DvCard title="{SelectedTitle}" badge="{PanelBadge}" visible="{HasSelection}">
         <DvLabel class="meta" text="{RoiText}"/>
         <DvRow gap="sm">
-          <DvLabel class="field" text="이름"/>
+          <DvLabel class="field" text="@edit.name"/>
           <DvInput value="{Bind CheckName}" style="flex:1; width:0"/>
         </DvRow>
 
         <DvStack gap="sm" visible="{HasBlob}">
-          <DvLabel class="sub" text="이진화"/>
+          <DvLabel class="sub" text="@edit.binarize"/>
           <DvSegment value="{Bind BlobMode}" fill="true">
-            <DvOption value="Otsu" text="자동 (Otsu)"/>
-            <DvOption value="Fixed" text="고정 문턱"/>
+            <DvOption value="Otsu" text="{L10n.edit.blobMode.otsu}"/>
+            <DvOption value="Fixed" text="{L10n.edit.blobMode.fixed}"/>
           </DvSegment>
           <DvRow gap="sm">
-            <DvLabel class="field" text="문턱"/>
+            <DvLabel class="field" text="@edit.threshold"/>
             <DvInput value="{Bind BlobThreshold}" keyboard-type="numeric" min="0" max="255" style="flex:1; width:0"/>
           </DvRow>
-          <DvCheckBox text="어두운 것을 찾기 (반전)" value="{Bind BlobInvert}"/>
+          <DvCheckBox text="@edit.invert" value="{Bind BlobInvert}"/>
           <DvRow gap="sm">
-            <DvLabel class="field" text="최소 면적"/>
+            <DvLabel class="field" text="@edit.minArea"/>
             <DvInput value="{Bind BlobMinArea}" keyboard-type="numeric" min="0" unit="px²" style="flex:1; width:0"/>
           </DvRow>
         </DvStack>
@@ -116,7 +116,7 @@
         </DvRow>
 
         <DvRow gap="sm" visible="{IsBlobCount}">
-          <DvLabel class="field" text="개수"/>
+          <DvLabel class="field" text="@edit.count"/>
           <DvInput value="{Bind CountMin}" keyboard-type="numeric" min="0" style="flex:1; width:0"/>
           <DvLabel class="sub" text="~"/>
           <DvInput value="{Bind CountMax}" keyboard-type="numeric" min="0" style="flex:1; width:0"/>
@@ -124,19 +124,19 @@
 
         <DvStack gap="sm" visible="{IsPixelCount}">
           <DvRow gap="sm">
-            <DvLabel class="field" text="밝기"/>
+            <DvLabel class="field" text="@edit.brightness"/>
             <DvInput value="{Bind PixelLow}" keyboard-type="numeric" min="0" max="255" style="flex:1; width:0"/>
             <DvLabel class="sub" text="~"/>
             <DvInput value="{Bind PixelHigh}" keyboard-type="numeric" min="0" max="255" style="flex:1; width:0"/>
           </DvRow>
           <DvRow gap="sm">
-            <DvLabel class="field" text="최대 픽셀"/>
+            <DvLabel class="field" text="@edit.maxPixels"/>
             <DvInput value="{Bind PixelMax}" keyboard-type="numeric" min="0" style="flex:1; width:0"/>
           </DvRow>
         </DvStack>
 
         <DvRow gap="sm" visible="{IsBrightness}">
-          <DvLabel class="field" text="평균 밝기"/>
+          <DvLabel class="field" text="@edit.meanBrightness"/>
           <DvInput value="{Bind BrightMin}" keyboard-type="numeric" min="0" max="255" style="flex:1; width:0"/>
           <DvLabel class="sub" text="~"/>
           <DvInput value="{Bind BrightMax}" keyboard-type="numeric" min="0" max="255" style="flex:1; width:0"/>
@@ -144,27 +144,27 @@
 
         <DvStack gap="sm" visible="{IsLength}">
           <DvRow gap="sm">
-            <DvLabel class="field" text="에지"/>
+            <DvLabel class="field" text="@edit.edge"/>
             <DvSelect value="{Bind LengthPolarity}" style="flex:1; width:0">
-              <DvOption value="BrightObject" text="밝은 물체"/>
-              <DvOption value="DarkObject" text="어두운 물체"/>
-              <DvOption value="Both" text="둘 다"/>
+              <DvOption value="BrightObject" text="{L10n.edit.polarity.bright}"/>
+              <DvOption value="DarkObject" text="{L10n.edit.polarity.dark}"/>
+              <DvOption value="Both" text="{L10n.edit.polarity.both}"/>
             </DvSelect>
           </DvRow>
           <DvRow gap="sm">
-            <DvLabel class="field" text="최소 대비"/>
+            <DvLabel class="field" text="@edit.minContrast"/>
             <DvInput value="{Bind LengthContrast}" keyboard-type="numeric" min="0" style="flex:1; width:0"/>
           </DvRow>
           <DvRow gap="sm">
-            <DvLabel class="field" text="공칭값"/>
+            <DvLabel class="field" text="@edit.nominal"/>
             <DvInput value="{Bind LengthNominal}" keyboard-type="numeric" unit="{LengthUnit}" style="flex:1; width:0"/>
           </DvRow>
           <DvRow gap="sm">
-            <DvLabel class="field" text="위 공차"/>
+            <DvLabel class="field" text="@edit.plusTol"/>
             <DvInput value="{Bind LengthPlus}" keyboard-type="numeric" min="0" unit="{LengthUnit}" style="flex:1; width:0"/>
           </DvRow>
           <DvRow gap="sm">
-            <DvLabel class="field" text="아래 공차"/>
+            <DvLabel class="field" text="@edit.minusTol"/>
             <DvInput value="{Bind LengthMinus}" keyboard-type="numeric" min="0" unit="{LengthUnit}" style="flex:1; width:0"/>
           </DvRow>
         </DvStack>
@@ -172,41 +172,41 @@
         <DvStack gap="sm" visible="{IsOnnx}">
           <DvLabel class="meta" text="{DefectFolderText}"/>
           <DvRow gap="sm">
-            <DvButton variant="secondary" icon="fa-folder-open" text="불량 폴더" onclick="PickDefectFolder" disabled="{IsTraining}" style="flex:1; width:0"/>
-            <DvButton id="btnTrainDefect" variant="primary" icon="fa-graduation-cap" text="학습" onclick="TrainDefect" disabled="{CannotTrainDefect}" style="flex:1; width:0"/>
+            <DvButton variant="secondary" icon="fa-folder-open" text="@edit.defectFolder" onclick="PickDefectFolder" disabled="{IsTraining}" style="flex:1; width:0"/>
+            <DvButton id="btnTrainDefect" variant="primary" icon="fa-graduation-cap" text="@edit.train" onclick="TrainDefect" disabled="{CannotTrainDefect}" style="flex:1; width:0"/>
           </DvRow>
           <DvRow gap="sm">
-            <DvButton variant="secondary" icon="fa-file-import" text="ONNX 가져오기" onclick="ImportOnnx" disabled="{IsTraining}" style="flex:1; width:0"/>
-            <DvButton variant="secondary" icon="fa-stop" text="취소" onclick="CancelTrain" visible="{IsTraining}"/>
+            <DvButton variant="secondary" icon="fa-file-import" text="@edit.importOnnx" onclick="ImportOnnx" disabled="{IsTraining}" style="flex:1; width:0"/>
+            <DvButton variant="secondary" icon="fa-stop" text="@edit.cancel" onclick="CancelTrain" visible="{IsTraining}"/>
           </DvRow>
-          <DvButton variant="secondary" icon="fa-download" text="Python 준비 (PyTorch 내려받기)" onclick="SetupPython" visible="{NoPython}" disabled="{SettingUpPython}"/>
+          <DvButton variant="secondary" icon="fa-download" text="@edit.setupPython" onclick="SetupPython" visible="{NoPython}" disabled="{SettingUpPython}"/>
           <DvLabel class="sub" text="{DefectStatusText}"/>
           <DvRow gap="sm">
-            <DvLabel class="field" text="불량 확률"/>
+            <DvLabel class="field" text="@edit.defectProb"/>
             <DvInput value="{Bind OnnxThreshold}" keyboard-type="numeric" min="0" max="1" style="flex:1; width:0"/>
           </DvRow>
-          <DvLabel class="meta" text="이 값보다 크면 NG (0~1). NG 코드는 가장 그럴듯한 불량 이름"/>
+          <DvLabel class="meta" text="@edit.defectProbHelp"/>
         </DvStack>
 
         <DvRow gap="sm" visible="{HasCode}">
-          <DvLabel class="field" text="NG 코드"/>
+          <DvLabel class="field" text="@edit.ngCode"/>
           <DvInput value="{Bind Code}" style="flex:1; width:0"/>
         </DvRow>
 
         <DvStack gap="sm" visible="{CanHaveRole}">
           <DvRow gap="sm">
-            <DvLabel class="field" text="역할"/>
+            <DvLabel class="field" text="@edit.role"/>
             <DvSegment value="{Bind Role}" fill="true" style="flex:1; width:0">
-              <DvOption value="Judge" text="판정"/>
-              <DvOption value="Reason" text="사유"/>
+              <DvOption value="Judge" text="{L10n.edit.roleJudge}"/>
+              <DvOption value="Reason" text="{L10n.edit.roleReason}"/>
             </DvSegment>
           </DvRow>
           <DvLabel class="meta" text="{RoleText}"/>
         </DvStack>
       </DvCard>
 
-      <DvCard title="캘리브레이션" badge="{CalibrationBadge}">
-        <DvInput value="{Bind Calibration}" placeholder="비우면 px 로 판정" unit="mm/px" disabled="{NoProject}"/>
+      <DvCard title="{L10n.edit.calibration}" badge="{CalibrationBadge}">
+        <DvInput value="{Bind Calibration}" placeholder="{L10n.edit.calibrationPlaceholder}" unit="mm/px" disabled="{NoProject}"/>
       </DvCard>
     </DvStack>
   </DvRow>

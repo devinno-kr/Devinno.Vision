@@ -78,7 +78,7 @@ internal static class TestRunner
     public static async Task<TestReport> RunAsync(VisionJob job, TestSet set, IProgress<int>? progress, CancellationToken ct, string? exclude = null)
     {
         if (!Directory.Exists(set.Folder))
-            return Fail($"테스트 폴더가 없습니다: {set.Folder}");
+            return Fail(Texts.T("test.noFolder", set.Folder));
         List<TestImage> files;
         try
         {
@@ -86,10 +86,10 @@ internal static class TestRunner
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return Fail($"테스트 폴더를 읽을 수 없습니다: {ex.Message}");
+            return Fail(Texts.T("test.cannotReadFolder", ex.Message));
         }
         if (files.Count == 0)
-            return Fail("이미지 없음");
+            return Fail(Texts.T("test.noImages"));
 
         var items = new List<TestItem>(files.Count);
         foreach (var f in files)
@@ -106,7 +106,7 @@ internal static class TestRunner
             .ToList();
         var correct = judged.Count(i => i.Correct == true);
         var unlabeled = items.Count - judged.Count;
-        var msg = $"{correct}/{judged.Count} 맞음" + (unlabeled > 0 ? $" · 라벨 없음 {unlabeled}장" : "");
+        var msg = Texts.T("test.summary", correct, judged.Count) + (unlabeled > 0 ? Texts.T("test.summary.unlabeled", unlabeled) : "");
         return new TestReport(true, msg, labels, items, correct, judged.Count, unlabeled, set.Folder);
     }
 
@@ -119,7 +119,7 @@ internal static class TestRunner
         }
         catch (Exception ex)
         {
-            return new TestItem(f.File, f.Label, f.ExpectOk, "Error", [], $"이미지를 읽을 수 없습니다: {ex.Message}", f.Label is null ? null : false);
+            return new TestItem(f.File, f.Label, f.ExpectOk, "Error", [], Texts.T("test.cannotReadImage", ex.Message), f.Label is null ? null : false);
         }
         using (img)
         {

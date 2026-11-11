@@ -116,9 +116,9 @@ internal sealed class StudioTools(StudioSession session)
         }
         catch (JsonException ex)
         {
-            return Error($"properties_json 이 JSON 이 아닙니다: {ex.Message} (예: {{\"Min\":1}})");
+            return Error(Texts.T("mcp.props.notJson", ex.Message));
         }
-        return props is null ? Error("properties_json 은 JSON 객체여야 합니다 (예: {\"Min\":1})") : Of(session.UpdateCheck(id, props));
+        return props is null ? Error(Texts.T("mcp.props.notObject")) : Of(session.UpdateCheck(id, props));
     }
 
     public CallToolResult TeachBase() => Of(session.TeachBase());
@@ -178,7 +178,7 @@ internal sealed class StudioTools(StudioSession session)
     public CallToolResult AddTestSet([Description("Folder with test images.")] string folder, [Description("FileName or Folder.")] string rule)
     {
         if (!Enum.TryParse<LabelRule>(rule, ignoreCase: true, out var r) || !Enum.IsDefined(r))
-            return Error($"rule 은 FileName 또는 Folder 입니다 (받은 값 {rule})");
+            return Error(Texts.T("mcp.rule", rule));
         return Of(session.AddTestSet(folder, r));
     }
 
@@ -198,10 +198,10 @@ internal sealed class StudioTools(StudioSession session)
     public CallToolResult GetFailures()
     {
         if (session.LastReport is not { } r)
-            return Error("테스트 보고서가 없습니다 (run_test 를 먼저)");
+            return Error(Texts.T("mcp.noReport"));
         var wrong = r.Items.Select((item, index) => (item, index)).Where(x => x.item.Correct == false).ToList();
         if (wrong.Count == 0)
-            return Text($"틀린 이미지 없음 ({r.Correct}/{r.Total})");
+            return Text(Texts.T("mcp.noFailures", r.Correct, r.Total));
         var sb = new StringBuilder($"{wrong.Count} wrong of {r.Total}:\n");
         foreach (var (i, index) in wrong)
             sb.AppendLine($"- index {index}: {Path.GetFileName(i.File)} label={i.Label} expected={(i.ExpectOk == true ? "Ok" : "Ng")} got={i.State}"
@@ -212,12 +212,12 @@ internal sealed class StudioTools(StudioSession session)
     public async Task<CallToolResult> ViewTestItem([Description("Item index from get_failures.")] int index)
     {
         if (session.LastReport is not { } r)
-            return Error("테스트 보고서가 없습니다 (run_test 를 먼저)");
+            return Error(Texts.T("mcp.noReport"));
         if (index < 0 || index >= r.Items.Count)
-            return Error($"index 는 0 ~ {r.Items.Count - 1} 입니다 (받은 값 {index})");
+            return Error(Texts.T("mcp.index", r.Items.Count - 1, index));
         var png = await session.RenderTestItemAsync(index);
         if (png is null)
-            return Error("결과 그림을 만들 수 없습니다 (이미지를 읽을 수 없거나 보고서가 바뀌었습니다)");
+            return Error(Texts.T("mcp.noPicture"));
         var item = r.Items[index];
         return WithImage($"{Path.GetFileName(item.File)} label={item.Label} (re-run with the current logic)", png);
     }

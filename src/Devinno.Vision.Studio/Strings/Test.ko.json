@@ -1,0 +1,8 @@
+{
+  "test.noFolder": "테스트 폴더가 없습니다: {0}",
+  "test.cannotReadFolder": "테스트 폴더를 읽을 수 없습니다: {0}",
+  "test.noImages": "이미지 없음",
+  "test.summary": "{0}/{1} 맞음",
+  "test.summary.unlabeled": " · 라벨 없음 {0}장",
+  "test.cannotReadImage": "이미지를 읽을 수 없습니다: {0}"
+}

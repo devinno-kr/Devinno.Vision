@@ -17,7 +17,7 @@ public sealed record GoodTrainingSummary(string Folder, int Images, int Learned,
 // 양품 모델 기준 — 양품 폴더 · 영역 · 학습 · 취소
 public sealed partial class StudioSession
 {
-    internal const string Training = "양품 모델을 학습하는 중입니다 — 끝나거나 취소(cancel_training)한 뒤에 하세요";
+    internal static string Training => Texts.T("good.training");
     internal const string GoodSetFile = "goodset.json";
     internal const string TrainFile = "train.json";
 
@@ -94,35 +94,35 @@ public sealed partial class StudioSession
     public CommandResult SetGoodFolder(string folder) => Change(() =>
     {
         if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
-            return CommandResult.Fail($"폴더가 없습니다: {folder}");
+            return CommandResult.Fail(Texts.T("good.noFolder", folder));
         var full = Path.GetFullPath(folder);
-        if (NotAnImageFolder(full, "양품 폴더") is { } refuse)
+        if (NotAnImageFolder(full, Texts.T("good.goodFolder")) is { } refuse)
             return CommandResult.Fail(refuse);
         var count = ImagesIn(full).Count;
         if (count == 0)
-            return CommandResult.Fail($"이미지가 없습니다: {full} (png · bmp · jpg · tif)");
+            return CommandResult.Fail(Texts.T("good.noImages", full));
         _goods.Folder = full;
         if (SaveGoodSet() is { } error)
             return CommandResult.Fail(error);
-        var warnings = string.Concat(_project!.TestSets.Select(t => OverlapWarning(full, t.Folder, "테스트 폴더")));
-        return CommandResult.Done($"양품 폴더: {full} ({count}장){FewWarning(count + _goods.Extra.Count)}{warnings}");
+        var warnings = string.Concat(_project!.TestSets.Select(t => OverlapWarning(full, t.Folder, Texts.T("good.testFolder"))));
+        return CommandResult.Done(Texts.T("good.folderSet", full, count) + FewWarning(count + _goods.Extra.Count) + warnings);
     }, markDirty: false);
 
     /// <summary>양품 이미지 한 장을 더한다 (테스트에서 양품인데 NG 로 나온 이미지). 다시 학습해야 반영된다.</summary>
     public CommandResult AddGoodImage(string file) => Change(() =>
     {
         if (string.IsNullOrWhiteSpace(file) || !File.Exists(file))
-            return CommandResult.Fail($"이미지 파일이 없습니다: {file}");
+            return CommandResult.Fail(Texts.T("good.noImageFile", file));
         var full = Path.GetFullPath(file);
         if (GoodImagesCore().Contains(full, StringComparer.OrdinalIgnoreCase))
-            return CommandResult.Fail($"이미 양품 목록에 있습니다: {Path.GetFileName(full)}");
+            return CommandResult.Fail(Texts.T("good.alreadyGood", Path.GetFileName(full)));
         _goods.Extra.Add(full);
         if (SaveGoodSet() is { } error)
         {
             _goods.Extra.Remove(full);
             return CommandResult.Fail(error);
         }
-        return CommandResult.Done($"양품에 더함: {Path.GetFileName(full)} (양품 {GoodImagesCore().Count}장) — [학습] 을 다시 누르면 반영됩니다");
+        return CommandResult.Done(Texts.T("good.imageAdded", Path.GetFileName(full), GoodImagesCore().Count));
     }, markDirty: false);
 
     /// <summary>양품 모델이 볼 영역. 빈 값이면 전체 이미지. 학습한 모델이 있으면 다시 학습해야 한다.</summary>
@@ -131,8 +131,8 @@ public sealed partial class StudioSession
         _goodRoi = roi.IsEmpty ? default : roi;
         if (_project!.GoodModel is { } g && !roi.IsEmpty)
             g.Roi = roi;
-        var stale = _project.GoodModel is not null && !_project.GoodModelIsCurrent ? " — 양품 모델을 다시 학습하세요" : "";
-        return CommandResult.Done($"양품 모델 영역: {Describe(_goodRoi)}{stale}");
+        var stale = _project.GoodModel is not null && !_project.GoodModelIsCurrent ? Texts.T("good.retrain") : "";
+        return CommandResult.Done(Texts.T("good.roiSet", Describe(_goodRoi)) + stale);
     });
 
     /// <summary>양품 모델을 뺀다 (저장할 때 모델 폴더도 지운다). 사유 검사는 그대로 남는다.</summary>
@@ -140,10 +140,10 @@ public sealed partial class StudioSession
     {
         var p = _project!;
         if (p.GoodModel is null)
-            return CommandResult.Fail("양품 모델이 없습니다");
+            return CommandResult.Fail(Texts.T("good.noModel"));
         p.GoodModel = null;
         var reasons = p.Checks.Count(c => c.Role == StepRole.Reason);
-        return CommandResult.Done("양품 모델을 뺐습니다" + (reasons > 0 ? $" — 사유 검사 {reasons}개는 판정하지 않습니다. 필요하면 판정으로 바꾸세요" : ""));
+        return CommandResult.Done(Texts.T("good.modelRemoved") + (reasons > 0 ? Texts.T("good.reasonsNotJudged", reasons) : ""));
     });
 
     /// <summary>양품 폴더로 양품 모델을 학습한다 (오래 걸린다 — 진행률, <see cref="CancelTraining"/>). 학습 중에는 다른 명령을 막는다.</summary>
@@ -157,14 +157,14 @@ public sealed partial class StudioSession
         lock (_gate)
         {
             if (_training is not null)
-                return CommandResult.Fail("이미 학습하는 중입니다");
+                return CommandResult.Fail(Texts.T("good.alreadyTraining"));
             if (_project is not { } cur)
                 return CommandResult.Fail(NoProject);
             images = GoodImagesCore();
             if (images.Count == 0)
-                return CommandResult.Fail("양품 폴더를 먼저 지정하세요 (set_good_folder)");
+                return CommandResult.Fail(Texts.T("good.folderFirst"));
             if (!File.Exists(FeaturesPath))
-                return CommandResult.Fail($"특징 모델이 없습니다: {FeaturesPath} — tools/export_features.py 로 만들어 이 위치에 두세요");
+                return CommandResult.Fail(Texts.T("good.noFeatures", FeaturesPath));
             p = cur;
             roi = _goodRoi;
             folder = _goods.Folder;
@@ -199,18 +199,18 @@ public sealed partial class StudioSession
                 _revision++;
                 _dirty = true;
             }
-            var skipped = r.Skipped.Count > 0 ? $" · 뺀 이미지 {r.Skipped.Count}장 ({string.Join(", ", r.Skipped.Take(3).Select(s => Path.GetFileName(s.File)))})" : "";
+            var skipped = r.Skipped.Count > 0 ? Texts.T("good.skipped", r.Skipped.Count, string.Join(", ", r.Skipped.Take(3).Select(s => Path.GetFileName(s.File)))) : "";
             // Bracket: 전체 이미지(640×480 → 256)로는 구멍 · 변색 6장을 놓쳤고, 부품만 감싸면 18/18 (2026-11-11)
-            var whole = roi.IsEmpty ? " — 주의: 전체 이미지로 학습했습니다. 이미지에서 끌어 부품만 감싸게 영역을 좁히면 작은 결함을 더 잘 잡습니다" : "";
-            return CommandResult.Done($"양품 모델 학습됨: {r.Learned}장 학습 · 보정 {r.CalibrationScores.Count}장 · 문턱 {r.Model.Max} · 장당 {r.MsPerImage:0} ms{skipped}{FewWarning(images.Count)}{whole}");
+            var whole = roi.IsEmpty ? Texts.T("good.wholeImage") : "";
+            return CommandResult.Done(Texts.T("good.trained", r.Learned, r.CalibrationScores.Count, r.Model.Max, r.MsPerImage) + skipped + FewWarning(images.Count) + whole);
         }
         catch (OperationCanceledException)
         {
-            return CommandResult.Fail("학습을 취소했습니다 (양품 모델은 그대로입니다)");
+            return CommandResult.Fail(Texts.T("good.canceled"));
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            return CommandResult.Fail($"학습할 수 없습니다: {ex.Message}");
+            return CommandResult.Fail(Texts.T("good.trainFailed", ex.Message));
         }
         finally
         {
@@ -230,10 +230,10 @@ public sealed partial class StudioSession
         lock (_gate)
         {
             if (_training is not { } cts)
-                return CommandResult.Fail("학습하는 중이 아닙니다");
+                return CommandResult.Fail(Texts.T("good.notTraining"));
             cts.Cancel();
         }
-        return CommandResult.Done("학습을 취소하는 중입니다");
+        return CommandResult.Done(Texts.T("good.canceling"));
     }
 
     // ── 내부 ─────────────────────────────────────────────
@@ -273,7 +273,7 @@ public sealed partial class StudioSession
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return $"양품 목록을 저장할 수 없습니다: {ex.Message}";
+            return Texts.T("good.saveListFailed", ex.Message);
         }
     }
 
@@ -304,11 +304,11 @@ public sealed partial class StudioSession
     }
 
     private static string FewWarning(int count) => count < RecommendedGoods
-        ? $" — 주의: 양품이 {count}장뿐입니다. {RecommendedGoods}장 이상이면 양품 오판이 줄어듭니다"
+        ? Texts.T("good.fewWarning", count, RecommendedGoods)
         : "";
 
     private static string OverlapWarning(string folder, string? other, string what) => other is not null && Overlaps(folder, other)
-        ? $" — 주의: {what}({other})와 겹칩니다. 학습한 이미지로 테스트하면 결과가 실제보다 좋게 나옵니다"
+        ? Texts.T("good.overlapWarning", what, other)
         : "";
 
     // 잠금 안에서: Job 을 만든다. 못 만들면 이유 (모델 없음 · 다시 학습 필요 등)
@@ -316,7 +316,7 @@ public sealed partial class StudioSession
     {
         job = null!;
         if (p.Checks.Count == 0 && p.GoodModel is null)
-            return "검사가 없습니다 (add_check)";
+            return Texts.T("good.noChecks");
         try
         {
             job = p.CreateJob();

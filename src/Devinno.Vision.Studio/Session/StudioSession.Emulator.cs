@@ -22,13 +22,13 @@ public sealed partial class StudioSession
             if (_project is null)
                 return CommandResult.Fail(NoProject);
             if (_emulator is not null)
-                return CommandResult.Fail("에뮬레이터가 이미 돌고 있습니다 (stop_emulator)");
+                return CommandResult.Fail(Texts.T("emu.alreadyRunningStop"));
             if (setIndex < 0 || setIndex >= _project.TestSets.Count)
-                return CommandResult.Fail(_project.TestSets.Count == 0 ? "테스트 폴더가 없습니다 (add_test_set)" : $"테스트 폴더 번호는 0 ~ {_project.TestSets.Count - 1} 입니다 (받은 값 {setIndex})");
+                return CommandResult.Fail(_project.TestSets.Count == 0 ? Texts.T("emu.noTestSets") : Texts.T("emu.setIndexRange", _project.TestSets.Count - 1, setIndex));
         }
         files = [.. TestImages(setIndex).Select(i => i.File)];
         if (files.Count == 0)
-            return CommandResult.Fail("테스트 폴더에 이미지가 없습니다");
+            return CommandResult.Fail(Texts.T("emu.noTestImages"));
         var o = options ?? new EmulatorOptions();
         CameraEmulator emulator;
         try
@@ -39,19 +39,19 @@ public sealed partial class StudioSession
         }
         catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException or InvalidOperationException or ArgumentException or System.ComponentModel.Win32Exception)
         {
-            return CommandResult.Fail($"에뮬레이터를 시작할 수 없습니다: {ex.Message}");
+            return CommandResult.Fail(Texts.T("emu.startFailed", ex.Message));
         }
         lock (_gate)
         {
             if (_emulator is not null)
             {
                 emulator.Dispose();
-                return CommandResult.Fail("에뮬레이터가 이미 돌고 있습니다");
+                return CommandResult.Fail(Texts.T("emu.alreadyRunning"));
             }
             _emulator = emulator;
         }
         ProjectChanged?.Invoke();
-        return CommandResult.Done($"가상 카메라: {emulator.Url} · Modbus TCP {o.ModbusPort} (D100 ← 1 다음 장, D0 1 = 넘기는 중 · 0 = 정지) · 이미지 {files.Count}장");
+        return CommandResult.Done(Texts.T("emu.started", emulator.Url, o.ModbusPort, files.Count));
     }
 
     /// <summary>에뮬레이터를 멈춘다 (RTSP · Modbus 를 닫는다).</summary>
@@ -64,9 +64,9 @@ public sealed partial class StudioSession
             _emulator = null;
         }
         if (e is null)
-            return CommandResult.Fail("에뮬레이터가 돌고 있지 않습니다");
+            return CommandResult.Fail(Texts.T("emu.notRunning"));
         e.Dispose();
         ProjectChanged?.Invoke();
-        return CommandResult.Done("가상 카메라를 멈췄습니다");
+        return CommandResult.Done(Texts.T("emu.stopped"));
     }
 }

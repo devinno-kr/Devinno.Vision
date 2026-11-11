@@ -35,7 +35,7 @@ public sealed partial class CheckListBar : DvBar
             {
                 var (badge, tone) = Status(c, mm);
                 var on = c.Id == SelectedId;
-                return new CheckRow(c.Id, Icon(c), c.Name, c.KindLabel, badge, tone, on ? "item item-on" : "item", on ? "ico ico-on" : "ico");
+                return new CheckRow(c.Id, Icon(c), c.Name, Texts.KindLabel(c), badge, tone, on ? "item item-on" : "item", on ? "ico ico-on" : "ico");
             })];
         }
     }
@@ -57,20 +57,20 @@ public sealed partial class CheckListBar : DvBar
     private static (string Badge, string Tone) Status(CheckDef c, bool mm)
     {
         if (c is BlobAlignCheck a)
-            return a.Reference is null ? ("티칭 필요", "warning") : ("티칭됨", "info");
+            return a.Reference is null ? (Texts.T("list.badge.teach"), "warning") : (Texts.T("list.badge.taught"), "info");
         if (c.Roi.IsEmpty)
-            return ("ROI 없음", "warning");
+            return (Texts.T("list.badge.noRoi"), "warning");
         if (c is OnnxCheck { Model.Length: 0 })
-            return ("학습 필요", "warning");
+            return (Texts.T("list.badge.train"), "warning");
         var (badge, tone) = Range(c, mm);
-        return c.Role == StepRole.Reason ? ($"사유 · {badge}", "neutral") : (badge, tone);
+        return c.Role == StepRole.Reason ? (Texts.T("list.badge.reason", badge), "neutral") : (badge, tone);
     }
 
     private static (string Badge, string Tone) Range(CheckDef c, bool mm)
     {
         return c switch
         {
-            BlobCountCheck b => ($"{b.Min}~{b.Max}개", "neutral"),
+            BlobCountCheck b => (Texts.T("list.badge.count", b.Min, b.Max), "neutral"),
             PixelCountCheck p => ($"≤{p.Max}", "neutral"),
             BrightnessCheck br => ($"{br.Min:0.#}~{br.Max:0.#}", "neutral"),
             LengthCheck l => ($"{l.Nominal:0.##} {(mm ? "mm" : "px")}", "neutral"),
@@ -90,7 +90,7 @@ public sealed partial class CheckListBar : DvBar
     public bool NoProjectFlag => _session.Project is null;
     public bool HasRows => _session.Checks.Count > 0;
     public bool NoRows => !HasRows;
-    public string EmptyText => NoProjectFlag ? "로직이 없습니다.\n위 [새 로직] 또는 [열기] 로 시작하세요." : "검사가 없습니다.\n[추가] 로 검사를 더하세요.\n부품 위치는 '블롭 정렬' 을 먼저.";
+    public string EmptyText => Texts.T(NoProjectFlag ? "list.empty.noProject" : "list.empty.noChecks");
 
     public bool NoSelection => SelectedId is null || _session.GetCheck(SelectedId) is null;
     public bool CannotUp => NoSelection || Index(SelectedId!) <= 0;
@@ -111,7 +111,7 @@ public sealed partial class CheckListBar : DvBar
         {
             if (await App.ShowDialog<AddCheckDialog, AddCheckRequest>() is not { } req)
             {
-                _status.Ok("검사 추가: 취소함");
+                _status.Ok(Texts.T("list.add.canceled"));
                 return;
             }
             var r = _session.AddCheck(req.Kind, req.Name);
@@ -135,9 +135,9 @@ public sealed partial class CheckListBar : DvBar
         {
             if (SelectedId is not { } id || _session.GetCheck(id) is not { } check)
                 return;
-            if (await App.MessageBox($"정말 삭제할까요?\n\n{check.Name} ({check.KindLabel})", "검사 삭제", DvMessageButtons.YesNo) != DvDialogResult.Yes)
+            if (await App.MessageBox(Texts.T("list.remove.confirm", check.Name, Texts.KindLabel(check)), Texts.T("list.remove.title"), DvMessageButtons.YesNo) != DvDialogResult.Yes)
             {
-                _status.Ok("삭제 취소함");
+                _status.Ok(Texts.T("list.remove.canceled"));
                 return;
             }
             var r = _session.RemoveCheck(id);

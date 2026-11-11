@@ -48,7 +48,7 @@ internal sealed class CameraEmulator : IDisposable
     public CameraEmulator(IReadOnlyList<string> files, EmulatorOptions options, IFrameSink sink)
     {
         if (files.Count == 0)
-            throw new ArgumentException("내보낼 이미지가 없습니다.", nameof(files));
+            throw new ArgumentException(Texts.T("emu.noFiles"), nameof(files));
         _files = files;
         _options = options;
         _sink = sink;
@@ -227,7 +227,7 @@ internal sealed class CameraEmulator : IDisposable
     {
         using var raw = Cv2.ImRead(file, ImreadModes.Color);
         if (raw.Empty())
-            throw new IOException($"이미지를 읽을 수 없습니다: {file}");
+            throw new IOException(Texts.T("emu.cannotReadImage", file));
         var (w, h) = size ?? (raw.Width & ~1, raw.Height & ~1);
         var m = new Mat();
         if (raw.Width == w && raw.Height == h)
@@ -303,10 +303,10 @@ internal sealed class RtspSink(EmulatorOptions options) : IFrameSink
     public void Start(int width, int height, int fps)
     {
         if (!File.Exists(MediaMtxPath))
-            throw new FileNotFoundException($"RTSP 서버(MediaMTX)가 없습니다: {MediaMtxPath} — tools/mediamtx 에 mediamtx.exe 를 두세요", MediaMtxPath);
-        var ffmpeg = FfmpegPath ?? throw new FileNotFoundException("ffmpeg 를 찾을 수 없습니다 — 설치하거나(winget install ffmpeg) 환경 변수 DEVINNO_STUDIO_FFMPEG 에 경로를 지정하세요");
+            throw new FileNotFoundException(Texts.T("emu.noMediaMtx", MediaMtxPath), MediaMtxPath);
+        var ffmpeg = FfmpegPath ?? throw new FileNotFoundException(Texts.T("emu.noFfmpeg"));
         if (PortInUse(options.RtspPort))
-            throw new IOException($"RTSP 포트 {options.RtspPort} 를 다른 프로그램이 쓰고 있습니다");
+            throw new IOException(Texts.T("emu.rtspPortInUse", options.RtspPort));
 
         // RTSP 만 켠 최소 설정
         _config = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"devinno-studio-mediamtx-{options.RtspPort}.yml");
@@ -332,9 +332,9 @@ internal sealed class RtspSink(EmulatorOptions options) : IFrameSink
         while (!PortInUse(options.RtspPort))
         {
             if (_server.HasExited)
-                throw new IOException($"RTSP 서버(MediaMTX)가 바로 끝났습니다 (코드 {_server.ExitCode})");
+                throw new IOException(Texts.T("emu.serverExited", _server.ExitCode));
             if (wait.Elapsed > TimeSpan.FromSeconds(10))
-                throw new IOException("RTSP 서버(MediaMTX)가 10 초 안에 열리지 않았습니다");
+                throw new IOException(Texts.T("emu.serverTimeout"));
             Thread.Sleep(50);
         }
 
@@ -350,7 +350,7 @@ internal sealed class RtspSink(EmulatorOptions options) : IFrameSink
     public void Write(Mat bgr)
     {
         if (_ffmpeg is not { } p || p.HasExited)
-            throw new IOException($"ffmpeg 가 끝났습니다{(_ffmpeg is { HasExited: true } e ? $" (코드 {e.ExitCode})" : "")}");
+            throw new IOException(Texts.T("emu.ffmpegExited") + (_ffmpeg is { HasExited: true } e ? Texts.T("emu.exitCode", e.ExitCode) : ""));
         var bytes = new byte[bgr.Total() * bgr.ElemSize()];
         System.Runtime.InteropServices.Marshal.Copy(bgr.Data, bytes, 0, bytes.Length);
         p.StandardInput.BaseStream.Write(bytes);
@@ -390,7 +390,7 @@ internal sealed class RtspSink(EmulatorOptions options) : IFrameSink
         var psi = new ProcessStartInfo(exe) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = redirectInput };
         foreach (var a in args)
             psi.ArgumentList.Add(a);
-        return Process.Start(psi) ?? throw new IOException($"실행할 수 없습니다: {exe}");
+        return Process.Start(psi) ?? throw new IOException(Texts.T("emu.cannotLaunch", exe));
     }
 
     private static bool PortInUse(int port)

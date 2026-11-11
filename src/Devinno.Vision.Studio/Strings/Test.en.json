@@ -1,0 +1,8 @@
+{
+  "test.noFolder": "Test folder not found: {0}",
+  "test.cannotReadFolder": "Cannot read the test folder: {0}",
+  "test.noImages": "No images",
+  "test.summary": "{0}/{1} correct",
+  "test.summary.unlabeled": " · {0} images without a label",
+  "test.cannotReadImage": "Cannot read the image: {0}"
+}

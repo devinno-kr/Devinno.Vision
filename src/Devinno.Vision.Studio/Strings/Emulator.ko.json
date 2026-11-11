@@ -1,0 +1,21 @@
+{
+  "emu.alreadyRunningStop": "에뮬레이터가 이미 돌고 있습니다 (stop_emulator)",
+  "emu.noTestSets": "테스트 폴더가 없습니다 (add_test_set)",
+  "emu.setIndexRange": "테스트 폴더 번호는 0 ~ {0} 입니다 (받은 값 {1})",
+  "emu.noTestImages": "테스트 폴더에 이미지가 없습니다",
+  "emu.startFailed": "에뮬레이터를 시작할 수 없습니다: {0}",
+  "emu.alreadyRunning": "에뮬레이터가 이미 돌고 있습니다",
+  "emu.started": "가상 카메라: {0} · Modbus TCP {1} (D100 ← 1 다음 장, D0 1 = 넘기는 중 · 0 = 정지) · 이미지 {2}장",
+  "emu.notRunning": "에뮬레이터가 돌고 있지 않습니다",
+  "emu.stopped": "가상 카메라를 멈췄습니다",
+  "emu.noFiles": "내보낼 이미지가 없습니다.",
+  "emu.cannotReadImage": "이미지를 읽을 수 없습니다: {0}",
+  "emu.noMediaMtx": "RTSP 서버(MediaMTX)가 없습니다: {0} — tools/mediamtx 에 mediamtx.exe 를 두세요",
+  "emu.noFfmpeg": "ffmpeg 를 찾을 수 없습니다 — 설치하거나(winget install ffmpeg) 환경 변수 DEVINNO_STUDIO_FFMPEG 에 경로를 지정하세요",
+  "emu.rtspPortInUse": "RTSP 포트 {0} 를 다른 프로그램이 쓰고 있습니다",
+  "emu.serverExited": "RTSP 서버(MediaMTX)가 바로 끝났습니다 (코드 {0})",
+  "emu.serverTimeout": "RTSP 서버(MediaMTX)가 10 초 안에 열리지 않았습니다",
+  "emu.ffmpegExited": "ffmpeg 가 끝났습니다",
+  "emu.exitCode": " (코드 {0})",
+  "emu.cannotLaunch": "실행할 수 없습니다: {0}"
+}

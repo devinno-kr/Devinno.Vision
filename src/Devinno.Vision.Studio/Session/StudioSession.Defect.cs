@@ -92,22 +92,22 @@ public sealed partial class StudioSession
     public CommandResult SetDefectFolder(string id, string folder) => Change(() =>
     {
         if (Find(id) is not OnnxCheck o)
-            return CommandResult.Fail($"ONNX 검사가 아닙니다: {id}");
+            return CommandResult.Fail(Texts.T("defect.notOnnx", id));
         if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
-            return CommandResult.Fail($"폴더가 없습니다: {folder}");
+            return CommandResult.Fail(Texts.T("defect.noFolder", folder));
         var full = Path.GetFullPath(folder);
-        if (NotAnImageFolder(full, "불량 폴더") is { } refuse)
+        if (NotAnImageFolder(full, Texts.T("defect.folder")) is { } refuse)
             return CommandResult.Fail(refuse);
         var labels = LabelsIn(full);
         if (!labels.ContainsKey(GoodLabel) || labels.Count < 2)
-            return CommandResult.Fail($"하위 폴더 '{GoodLabel}'(양품)와 불량 종류 폴더가 1개 이상 있어야 합니다 (있는 것: {(labels.Count == 0 ? "없음" : string.Join(", ", labels.Keys))})");
+            return CommandResult.Fail(Texts.T("defect.needLabels", GoodLabel, labels.Count == 0 ? Texts.T("defect.none") : string.Join(", ", labels.Keys)));
         _goods.Defects[id] = full;
         if (SaveGoodSet() is { } error)
             return CommandResult.Fail(error);
-        var few = labels.Where(kv => kv.Value < 10).Select(kv => $"{kv.Key} {kv.Value}장").ToList();
-        var warnings = string.Concat(_project!.TestSets.Select(t => OverlapWarning(full, t.Folder, "테스트 폴더")));
-        return CommandResult.Done($"{o.Name} 불량 폴더: {full} ({string.Join(", ", labels.Select(kv => $"{kv.Key} {kv.Value}장"))})" +
-                                  (few.Count > 0 ? $" — 주의: 적은 라벨이 있습니다 ({string.Join(", ", few)})" : "") + warnings);
+        var few = labels.Where(kv => kv.Value < 10).Select(kv => Texts.T("defect.labelCount", kv.Key, kv.Value)).ToList();
+        var warnings = string.Concat(_project!.TestSets.Select(t => OverlapWarning(full, t.Folder, Texts.T("defect.testFolder"))));
+        return CommandResult.Done(Texts.T("defect.folderSet", o.Name, full, string.Join(", ", labels.Select(kv => Texts.T("defect.labelCount", kv.Key, kv.Value)))) +
+                                  (few.Count > 0 ? Texts.T("defect.fewWarning", string.Join(", ", few)) : "") + warnings);
     }, markDirty: false);
 
     /// <summary>
@@ -125,19 +125,19 @@ public sealed partial class StudioSession
         lock (_gate)
         {
             if (_training is not null)
-                return CommandResult.Fail("이미 학습하는 중입니다");
+                return CommandResult.Fail(Texts.T("defect.alreadyTraining"));
             if (_project is not { } cur)
                 return CommandResult.Fail(NoProject);
             if (Find(id) is not OnnxCheck o)
-                return CommandResult.Fail($"ONNX 검사가 아닙니다: {id}");
+                return CommandResult.Fail(Texts.T("defect.notOnnx", id));
             if (o.Roi.IsEmpty)
-                return CommandResult.Fail($"{o.Name}: ROI 를 먼저 그리세요");
+                return CommandResult.Fail(Texts.T("defect.drawRoiFirst", o.Name));
             if (_goods.Defects.GetValueOrDefault(id) is not { } f || !Directory.Exists(f))
-                return CommandResult.Fail($"{o.Name}: 불량 폴더를 먼저 지정하세요 (set_defect_folder)");
+                return CommandResult.Fail(Texts.T("defect.setFolderFirst", o.Name));
             if (!HasPython)
-                return CommandResult.Fail($"Python 환경이 없습니다: {PythonPath} — [Python 준비] (setup_python) 로 만드세요 (PyTorch 를 내려받습니다)");
+                return CommandResult.Fail(Texts.T("defect.noPython", PythonPath));
             if (!File.Exists(TrainScriptPath))
-                return CommandResult.Fail($"학습 스크립트가 없습니다: {TrainScriptPath}");
+                return CommandResult.Fail(Texts.T("defect.noScript", TrainScriptPath));
             (p, check, folder) = (cur, o, f);
             (python, script, weights, epochs, size) = (PythonPath, TrainScriptPath, WeightsPath, DefectEpochs, DefectInputSize);
             _training = cts = new CancellationTokenSource();
@@ -182,7 +182,7 @@ public sealed partial class StudioSession
                 Report(new GoodModelProgress("crop", i + 1, files.Count));
             }
             if (!counts.ContainsKey(GoodLabel) || counts.Count < 2)
-                return CommandResult.Fail($"자를 수 있는 이미지가 모자랍니다 ({string.Join(", ", counts.Select(kv => $"{kv.Key} {kv.Value}장"))}). 뺀 이미지: {string.Join("; ", skipped.Take(3))}");
+                return CommandResult.Fail(Texts.T("defect.notEnoughImages", string.Join(", ", counts.Select(kv => Texts.T("defect.labelCount", kv.Key, kv.Value))), string.Join("; ", skipped.Take(3))));
 
             // 2. Python 학습
             var args = new List<string> { script, "--data", data, "--out", outDir, "--size", size.ToString(CultureInfo.InvariantCulture),
@@ -196,7 +196,7 @@ public sealed partial class StudioSession
                     Report(new GoodModelProgress("train", e, n));
             }, cts.Token).ConfigureAwait(false);
             if (code != 0)
-                return CommandResult.Fail($"학습 스크립트가 실패했습니다 (코드 {code}): {string.Join(" / ", errors.TakeLast(3))}");
+                return CommandResult.Fail(Texts.T("defect.scriptFailed", code, string.Join(" / ", errors.TakeLast(3))));
 
             // 3. 결과 확인 · 요약 · 검사에 걸기
             double? accuracy;
@@ -210,19 +210,19 @@ public sealed partial class StudioSession
                 _revision++;
                 _dirty = true;
             }
-            return CommandResult.Done($"{check.Name} 불량 모델 학습됨: {string.Join(", ", counts.Select(kv => $"{kv.Key} {kv.Value}장"))}" +
-                                      (accuracy is { } a ? $" · 검증 정확도 {a * 100:0.#}%" : " · 검증 이미지 없음") +
-                                      (skipped.Count > 0 ? $" · 뺀 이미지 {skipped.Count}장" : ""));
+            return CommandResult.Done(Texts.T("defect.trained", check.Name, string.Join(", ", counts.Select(kv => Texts.T("defect.labelCount", kv.Key, kv.Value)))) +
+                                      (accuracy is { } a ? Texts.T("defect.trained.accuracy", a * 100) : Texts.T("defect.trained.noValidation")) +
+                                      (skipped.Count > 0 ? Texts.T("defect.trained.skipped", skipped.Count) : ""));
         }
         catch (OperationCanceledException)
         {
             TryDelete(outDir);
-            return CommandResult.Fail("학습을 취소했습니다 (모델은 그대로입니다)");
+            return CommandResult.Fail(Texts.T("defect.canceled"));
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             TryDelete(outDir);
-            return CommandResult.Fail($"학습할 수 없습니다: {ex.Message}");
+            return CommandResult.Fail(Texts.T("defect.cannotTrain", ex.Message));
         }
         finally
         {
@@ -245,14 +245,14 @@ public sealed partial class StudioSession
     {
         var p = _project!;
         if (Find(id) is not OnnxCheck o)
-            return CommandResult.Fail($"ONNX 검사가 아닙니다: {id}");
+            return CommandResult.Fail(Texts.T("defect.notOnnx", id));
         if (string.IsNullOrWhiteSpace(file) || !File.Exists(file) || !file.EndsWith(".onnx", StringComparison.OrdinalIgnoreCase))
-            return CommandResult.Fail($".onnx 파일이 없습니다: {file}");
+            return CommandResult.Fail(Texts.T("defect.noOnnxFile", file));
         var dir = Path.GetDirectoryName(Path.GetFullPath(file))!;
         var info = new[] { Path.ChangeExtension(file, ".json"), Path.Combine(dir, DefectModel.InfoFile) }.FirstOrDefault(File.Exists);
         if (info is null)
-            return CommandResult.Fail($"설명 파일이 없습니다: {Path.GetFileNameWithoutExtension(file)}.json 또는 model.json 을 같은 폴더에 두세요 — " +
-                                      """{ "Labels": ["good", "scratch"], "GoodLabel": "good", "InputWidth": 224, "InputHeight": 224, "Normalize": "ImageNet" } (출력은 라벨마다 점수 하나 [1, N])""");
+            return CommandResult.Fail(Texts.T("defect.noInfoFile", Path.GetFileNameWithoutExtension(file),
+                                      """{ "Labels": ["good", "scratch"], "GoodLabel": "good", "InputWidth": 224, "InputHeight": 224, "Normalize": "ImageNet" }"""));
         var rel = $"models/defect-{o.Id}-{DateTime.Now:yyyyMMdd-HHmmss}";
         var outDir = Path.Combine(p.Folder, rel);
         try
@@ -262,12 +262,12 @@ public sealed partial class StudioSession
             File.Copy(info, Path.Combine(outDir, DefectModel.InfoFile));
             using var m = DefectModel.Load(outDir);   // 읽히는지 확인
             o.Model = rel;
-            return CommandResult.Done($"{o.Name} 모델을 가져왔습니다: {Path.GetFileName(file)} (라벨 {string.Join(", ", m.Labels)}, 입력 {m.InputWidth}×{m.InputHeight})");
+            return CommandResult.Done(Texts.T("defect.imported", o.Name, Path.GetFileName(file), string.Join(", ", m.Labels), m.InputWidth, m.InputHeight));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException || ex.GetType().Name == "OnnxRuntimeException")
         {
             TryDelete(outDir);
-            return CommandResult.Fail($"가져올 수 없습니다: {ex.Message}");
+            return CommandResult.Fail(Texts.T("defect.cannotImport", ex.Message));
         }
     });
 
@@ -279,23 +279,23 @@ public sealed partial class StudioSession
     {
         var baseline = FindSystemPython();
         if (baseline is null)
-            return CommandResult.Fail("이 PC 에 Python 3 이 없습니다 — python.org 에서 설치한 뒤 다시 누르세요");
+            return CommandResult.Fail(Texts.T("defect.noSystemPython"));
         var venv = ManagedPythonFolder;
         var steps = new List<(string Exe, List<string> Args, string What)>();
         if (!File.Exists(ManagedPython))
-            steps.Add((baseline.Value.Exe, [.. baseline.Value.Prefix, "-m", "venv", venv], "Python 환경 만들기"));
-        steps.Add((ManagedPython, ["-m", "pip", "install", "--upgrade", "pip"], "pip 올리기"));
-        steps.Add((ManagedPython, ["-m", "pip", "install", "torch", "--index-url", "https://download.pytorch.org/whl/cpu"], "PyTorch(CPU) 설치 — 수백 MB"));
-        steps.Add((ManagedPython, ["-m", "pip", "install", "onnx", "numpy", "pillow"], "onnx · numpy · pillow 설치"));
+            steps.Add((baseline.Value.Exe, [.. baseline.Value.Prefix, "-m", "venv", venv], Texts.T("defect.step.venv")));
+        steps.Add((ManagedPython, ["-m", "pip", "install", "--upgrade", "pip"], Texts.T("defect.step.pip")));
+        steps.Add((ManagedPython, ["-m", "pip", "install", "torch", "--index-url", "https://download.pytorch.org/whl/cpu"], Texts.T("defect.step.torch")));
+        steps.Add((ManagedPython, ["-m", "pip", "install", "onnx", "numpy", "pillow"], Texts.T("defect.step.packages")));
         foreach (var (exe, args, what) in steps)
         {
             progress?.Report(what);
             var (code, errors) = await RunPythonAsync(exe, args, line => progress?.Report(line), ct).ConfigureAwait(false);
             if (code != 0)
-                return CommandResult.Fail($"{what} 실패 (코드 {code}): {string.Join(" / ", errors.TakeLast(3))}");
+                return CommandResult.Fail(Texts.T("defect.stepFailed", what, code, string.Join(" / ", errors.TakeLast(3))));
         }
         _pythonPath = null;
-        return CommandResult.Done($"Python 환경을 만들었습니다: {ManagedPython}");
+        return CommandResult.Done(Texts.T("defect.pythonReady", ManagedPython));
     }
 
     // ── 내부 ─────────────────────────────────────────────
