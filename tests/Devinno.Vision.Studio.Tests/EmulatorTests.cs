@@ -5,6 +5,7 @@ using OpenCvSharp;
 
 namespace Devinno.Vision.Studio.Tests;
 
+// 테스트의 가상 카메라는 모두 127.0.0.1 에서만 연다 — Windows 방화벽 허용 창이 뜨지 않게 (2026-11-11 사용자 보고)
 // 가상 카메라 — Modbus 핸드셰이크 (D100 ← 1 → D100 0 · D0 1 → 다음 장 → D0 0). 프레임은 메모리로 받는다.
 // 실제 RTSP(ffmpeg + MediaMTX)는 Real_rtsp_stream_follows_the_handshake 가 돈다 (둘 다 있을 때만).
 public class EmulatorTests
@@ -76,7 +77,7 @@ public class EmulatorTests
         var s = new StudioSession { FrameSink = _ => sink };
         Assert.True(s.NewProject(dir.Sub("p"), "t").Ok);
         Assert.True(s.AddTestSet(Images(dir), LabelRule.FileName).Ok);
-        var o = new EmulatorOptions(NextPort(), NextPort(), Fps: 20, SlideMs: slideMs, SettleMs: settleMs);
+        var o = new EmulatorOptions(NextPort(), NextPort(), Fps: 20, SlideMs: slideMs, SettleMs: settleMs, LocalOnly: true);
         var r = s.StartEmulator(0, o);
         Assert.True(r.Ok, r.Message);
         return (s, sink, o);
@@ -175,7 +176,7 @@ public class EmulatorTests
         try
         {
             Environment.SetEnvironmentVariable("DEVINNO_STUDIO_MEDIAMTX", Path.Combine(dir.Path, "none.exe"));
-            var r = s.StartEmulator(0, new EmulatorOptions(NextPort(), NextPort()));
+            var r = s.StartEmulator(0, new EmulatorOptions(NextPort(), NextPort(), LocalOnly: true));
             Assert.False(r.Ok);
             Assert.Contains("MediaMTX", r.Message);
             Assert.Null(s.EmulatorStatus);
@@ -195,7 +196,7 @@ public class EmulatorTests
         var s = new StudioSession();
         Assert.True(s.NewProject(dir.Sub("p"), "t").Ok);
         Assert.True(s.AddTestSet(Images(dir), LabelRule.FileName).Ok);
-        var o = new EmulatorOptions(NextPort(), NextPort(), Path: "t", Fps: 10);
+        var o = new EmulatorOptions(NextPort(), NextPort(), Path: "t", Fps: 10, LocalOnly: true);
         var start = s.StartEmulator(0, o);
         Assert.True(start.Ok, start.Message);
         try

@@ -52,6 +52,7 @@
 
       <DvCard title="가상 카메라" badge="{EmulatorBadge}">
         <DvButton id="btnEmulator" variant="secondary" icon="fa-tower-broadcast" text="{EmulatorButton}" onclick="ToggleEmulator" disabled="{CannotEmulate}"/>
+        <DvCheckBox text="이 PC 에서만 (방화벽 허용 창 없음 · 다른 PC 는 접속 불가)" value="{Bind EmulatorLocalOnly}" disabled="{EmulatorNotIdle}"/>
         <DvLabel class="meta" text="{EmulatorUrl}" style="white-space:nowrap" visible="{EmulatorRunning}"/>
         <DvLabel class="sub" text="{EmulatorText}"/>
       </DvCard>

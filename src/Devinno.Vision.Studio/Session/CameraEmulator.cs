@@ -12,7 +12,8 @@ namespace Devinno.Vision.Studio.Session;
 /// <param name="Fps">초당 프레임.</param>
 /// <param name="SlideMs">다음 이미지로 밀려 들어오는 시간 (0 = 바로 바꿈).</param>
 /// <param name="SettleMs">새 이미지를 내보내기 시작한 뒤 D0 을 0 으로 내리기까지 (RTSP 지연 여유).</param>
-public sealed record EmulatorOptions(int ModbusPort = 502, int RtspPort = 8554, string Path = "studio", int Fps = 10, int SlideMs = 300, int SettleMs = 500);
+/// <param name="LocalOnly">이 PC 에서만 (127.0.0.1) 연다 — Windows 방화벽 허용 창이 뜨지 않지만 다른 PC 는 붙을 수 없다.</param>
+public sealed record EmulatorOptions(int ModbusPort = 502, int RtspPort = 8554, string Path = "studio", int Fps = 10, int SlideMs = 300, int SettleMs = 500, bool LocalOnly = false);
 
 /// <summary>에뮬레이터 상태 (화면 · MCP).</summary>
 public sealed record EmulatorStatus(bool Running, string Url, int ModbusPort, int Index, int Count, string File, bool Busy, int Clients, string? Error);
@@ -54,7 +55,7 @@ internal sealed class CameraEmulator : IDisposable
         _sink = sink;
     }
 
-    public string Url => $"rtsp://{Environment.MachineName}:{_options.RtspPort}/{_options.Path}";
+    public string Url => $"rtsp://{(_options.LocalOnly ? "127.0.0.1" : Environment.MachineName)}:{_options.RtspPort}/{_options.Path}";
 
     /// <summary>장 · 넘기는 중 · 오류가 바뀌었다 (에뮬레이터 스레드에서 온다).</summary>
     public event Action? Changed;
@@ -79,7 +80,7 @@ internal sealed class CameraEmulator : IDisposable
         try
         {
             _sink.Start(_size.W, _size.H, _options.Fps);
-            var slave = new ModbusTCPSlave { LocalPort = _options.ModbusPort, Slave = 1, HoldingRegisters = new int[200] };
+            var slave = new ModbusTCPSlave { LocalIP = _options.LocalOnly ? "127.0.0.1" : "0.0.0.0", LocalPort = _options.ModbusPort, Slave = 1, HoldingRegisters = new int[200] };
             slave.WordWritten += OnWritten;
             slave.Start();
             lock (slave.SyncRoot)
@@ -328,7 +329,7 @@ internal sealed class RtspSink(EmulatorOptions options) : IFrameSink
             moq: no
             rtsp: yes
             rtspTransports: [tcp]
-            rtspAddress: :{options.RtspPort}
+            rtspAddress: {(options.LocalOnly ? "127.0.0.1" : "")}:{options.RtspPort}
             paths:
               all_others:
             """);

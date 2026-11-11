@@ -388,10 +388,17 @@ public sealed partial class TestPage : DvPage
         ? e.Error is { } err ? $"멈춤: {err}" : $"{e.Index + 1} / {e.Count}  ·  {e.File}  ·  Modbus 클라이언트 {e.Clients}"
         : "고른 테스트 폴더를 RTSP 카메라로 내보냅니다. D100 ← 1 이면 다음 장 (D0 1 = 넘기는 중, 0 = 완료), D1 1 = 가동";
 
+    /// <summary>이 PC 에서만 (127.0.0.1) — 방화벽 허용 창이 뜨지 않는다. 다른 PC 의 HMI 가 붙으려면 끈다.</summary>
+    public bool EmulatorLocalOnly { get; set; }
+
+    public bool EmulatorIdle => _session.EmulatorStatus is null;
+
+    public bool EmulatorNotIdle => !EmulatorIdle;
+
     public void ToggleEmulator()
     {
         if (_session.EmulatorStatus is null)
-            _status.Report(_session.StartEmulator(_selectedSet));
+            _status.Report(_session.StartEmulator(_selectedSet, new EmulatorOptions(LocalOnly: EmulatorLocalOnly)));
         else
             _status.Report(_session.StopEmulator());
     }

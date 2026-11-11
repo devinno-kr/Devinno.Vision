@@ -152,8 +152,9 @@ internal sealed class StudioTools(StudioSession session)
         [Description("Modbus TCP port (default 502).")] int modbus_port = 502,
         [Description("RTSP port (default 8554).")] int rtsp_port = 8554,
         [Description("Frames per second (default 10).")] int fps = 10,
-        [Description("Milliseconds between sending the new image and setting D0 to 0 — margin for the client's RTSP delay (default 500).")] int settle_ms = 500) =>
-        Of(session.StartEmulator(set_index, new EmulatorOptions(modbus_port, rtsp_port, Fps: fps, SettleMs: settle_ms)));
+        [Description("Milliseconds between sending the new image and setting D0 to 0 — margin for the client's RTSP delay (default 500).")] int settle_ms = 500,
+        [Description("Listen on 127.0.0.1 only: no Windows firewall prompt, but other PCs cannot connect (default false).")] bool local_only = false) =>
+        Of(session.StartEmulator(set_index, new EmulatorOptions(modbus_port, rtsp_port, Fps: fps, SettleMs: settle_ms, LocalOnly: local_only)));
 
     public CallToolResult StopEmulator() => Of(session.StopEmulator());
 
