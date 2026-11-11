@@ -1,5 +1,5 @@
 using System.Text.Json.Nodes;
-using Devinno.Vision.Studio.Model;
+using Devinno.Vision.Recipes;
 using Devinno.Vision.Studio.Session;
 
 namespace Devinno.Vision.Studio.Tests;
@@ -248,7 +248,7 @@ public class SessionTests
         bad.AddCheck("BlobCount", "a");
         bad.AddCheck("BlobCount", "b");
         bad.SaveProject();
-        var file = Path.Combine(dir.Path, "bad", StudioProject.FileName);
+        var file = Path.Combine(dir.Path, "bad", VisionRecipe.FileName);
         var text = File.ReadAllText(file);
         Assert.Contains(find, text);
         File.WriteAllText(file, text.Replace(find, replace));

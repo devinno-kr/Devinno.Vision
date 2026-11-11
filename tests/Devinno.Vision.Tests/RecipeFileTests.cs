@@ -1,12 +1,11 @@
-using Devinno.Vision.Studio.Model;
+using Devinno.Vision;
+using Devinno.Vision.Recipes;
 
-namespace Devinno.Vision.Studio.Tests;
-
-public class ProjectTests
+public class RecipeFileTests
 {
-    private static StudioProject AllKinds(string folder)
+    private static VisionRecipe AllKinds(string folder)
     {
-        var p = StudioProject.Create(folder, "브래킷");
+        var p = VisionRecipe.Create(folder, "브래킷");
         p.BaseImage = "images/base.png";
         p.Calibration = VisionCalibration.Scale(0.1);
         p.Checks.Add(new BlobAlignCheck { Name = "정렬", Blob = new BlobParams { MinArea = 20000 }, Reference = new VisionPose(330.4, 256, -0.07) });
@@ -25,7 +24,7 @@ public class ProjectTests
         var saved = AllKinds(dir.Path);
         saved.Save();
 
-        var p = StudioProject.Load(dir.Path);
+        var p = VisionRecipe.Load(dir.Path);
 
         Assert.Equal(dir.Path, p.Folder);
         Assert.Equal("브래킷", p.Name);
@@ -62,10 +61,10 @@ public class ProjectTests
     {
         using var dir = new TempDir();
         AllKinds(dir.Path).Save();
-        var file = Path.Combine(dir.Path, StudioProject.FileName);
+        var file = Path.Combine(dir.Path, VisionRecipe.FileName);
         File.WriteAllText(file, File.ReadAllText(file).Replace("\"Kind\": \"BlobCount\"", "\"Kind\": \"Hologram\""));
 
-        var ex = Assert.Throws<InvalidDataException>(() => StudioProject.Load(dir.Path));
+        var ex = Assert.Throws<InvalidDataException>(() => VisionRecipe.Load(dir.Path));
 
         Assert.Contains("Hologram", ex.Message);
         Assert.Contains("알 수 없는 검사 종류", ex.Message);
@@ -77,7 +76,7 @@ public class ProjectTests
         using var dir = new TempDir();
         AllKinds(dir.Path).Save();
 
-        var text = File.ReadAllText(Path.Combine(dir.Path, StudioProject.FileName));
+        var text = File.ReadAllText(Path.Combine(dir.Path, VisionRecipe.FileName));
 
         Assert.Contains("\"Kind\": \"BlobCount\"", text);
         Assert.Contains("\"Shape\": \"Rect\"", text);

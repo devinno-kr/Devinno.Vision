@@ -1,6 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Devinno.Vision.Studio.Model;
+using Devinno.Vision.Recipes;
 
 namespace Devinno.Vision.Studio.Session;
 
@@ -30,11 +30,11 @@ public sealed class StudioSession
     internal const string NoBaseImage = "기준 이미지를 먼저 지정하세요 (set_base_image)";
 
     private readonly object _gate = new();
-    private StudioProject? _project;
+    private VisionRecipe? _project;
     private TestReport? _lastReport;
 
     /// <summary>열린 프로젝트. 화면이 읽기용으로 쓴다 — 바꾸는 것은 반드시 명령으로.</summary>
-    public StudioProject? Project { get { lock (_gate) return _project; } }
+    public VisionRecipe? Project { get { lock (_gate) return _project; } }
 
     /// <summary>지금 검사 목록 (복사본 — 화면이 열거하는 동안 MCP 가 바꿔도 안전).</summary>
     public IReadOnlyList<CheckDef> Checks { get { lock (_gate) return _project?.Checks.ToArray() ?? []; } }
@@ -43,7 +43,7 @@ public sealed class StudioSession
     public IReadOnlyList<TestSet> TestSets { get { lock (_gate) return _project?.TestSets.ToArray() ?? []; } }
 
     /// <summary>기준 이미지 파일의 전체 경로. 없으면 null.</summary>
-    public string? BaseImageFile { get { lock (_gate) return _project is { } p ? BaseImagePath(p) : null; } }
+    public string? BaseImageFile { get { lock (_gate) return _project?.BaseImagePath; } }
 
     /// <summary>프로젝트가 바뀐 뒤 (어느 스레드에서든 올 수 있다).</summary>
     public event Action? ProjectChanged;
@@ -61,11 +61,11 @@ public sealed class StudioSession
         {
             if (Unsaved(discardChanges) is { } refuse)
                 return refuse;
-            StudioProject p;
+            VisionRecipe p;
             try
             {
-                p = StudioProject.Create(folder, name.Trim());
-                if (File.Exists(Path.Combine(p.Folder, StudioProject.FileName)))
+                p = VisionRecipe.Create(folder, name.Trim());
+                if (File.Exists(Path.Combine(p.Folder, VisionRecipe.FileName)))
                     return CommandResult.Fail($"이 폴더에는 이미 프로젝트가 있습니다: {p.Folder} (open_project 로 여세요)");
                 p.Save();
             }
@@ -89,10 +89,10 @@ public sealed class StudioSession
         {
             if (Unsaved(discardChanges) is { } refuse)
                 return refuse;
-            StudioProject p;
+            VisionRecipe p;
             try
             {
-                p = StudioProject.Load(folder);
+                p = VisionRecipe.Load(folder);
             }
             catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {
@@ -125,7 +125,7 @@ public sealed class StudioSession
             {
                 p.Save();
                 _dirty = false;
-                r = CommandResult.Done($"저장됨: {Path.Combine(p.Folder, StudioProject.FileName)}");
+                r = CommandResult.Done($"저장됨: {Path.Combine(p.Folder, VisionRecipe.FileName)}");
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -244,13 +244,13 @@ public sealed class StudioSession
             return NotFound(id);
         if (properties is null)
             return CommandResult.Fail("바꿀 속성을 주세요 (JSON 객체)");
-        var current = JsonSerializer.SerializeToNode(c, StudioProject.Json)!.AsObject();
+        var current = JsonSerializer.SerializeToNode(c, VisionRecipe.JsonOptions)!.AsObject();
         if (Merge(current, properties, "") is { } error)
             return CommandResult.Fail(error);
         CheckDef updated;
         try
         {
-            updated = current.Deserialize<CheckDef>(StudioProject.Json)!;
+            updated = current.Deserialize<CheckDef>(VisionRecipe.JsonOptions)!;
         }
         catch (JsonException ex)
         {
@@ -259,7 +259,7 @@ public sealed class StudioSession
         updated.Name = updated.Name?.Trim() ?? "";
         if (updated.Name.Length == 0)
             return CommandResult.Fail("검사 이름은 비울 수 없습니다");
-        if (StudioProject.Problem(updated) is { } problem)
+        if (updated.Validate() is { } problem)
             return CommandResult.Fail(problem);
         if (p.Checks.Any(o => o != c && o.Name == updated.Name))
             return CommandResult.Fail($"같은 이름의 검사가 있습니다: {updated.Name}");
@@ -277,7 +277,7 @@ public sealed class StudioSession
     public string? ProjectJson()
     {
         lock (_gate)
-            return _project is { } p ? JsonSerializer.Serialize(p, StudioProject.Json) : null;
+            return _project is { } p ? JsonSerializer.Serialize(p, VisionRecipe.JsonOptions) : null;
     }
 
     // ── 티칭 · 실행 ───────────────────────────────────────
@@ -286,12 +286,12 @@ public sealed class StudioSession
     public CommandResult TeachBase() => Change(() =>
     {
         var p = _project!;
-        if (BaseImagePath(p) is not { } path)
+        if (p.BaseImagePath is not { } path)
             return CommandResult.Fail(NoBaseImage);
         if (p.Checks.OfType<BlobAlignCheck>().FirstOrDefault() is not { } align)
             return CommandResult.Fail("정렬 검사(BlobAlign)가 없어 티칭할 것이 없습니다");
         var probe = new BlobAlignCheck { Name = align.Name, Roi = align.Roi, Blob = align.Blob };   // 기준 없이 = 지금 위치 그대로
-        var job = new VisionJob("teach").Add(probe.Build(p), roi: align.Roi.IsEmpty ? null : () => probe.Roi, pose: JobBuilder.PoseName);
+        var job = new VisionJob("teach").Add(probe.CreateStep(p), roi: align.Roi.IsEmpty ? null : () => probe.Roi, pose: VisionRecipe.PoseName);
         VisionImage img;
         try
         {
@@ -303,7 +303,7 @@ public sealed class StudioSession
         }
         using var loaded = img;
         using var r = job.RunAsync(img).GetAwaiter().GetResult();
-        if (!r.Poses.TryGetValue(JobBuilder.PoseName, out var pose))
+        if (!r.Poses.TryGetValue(VisionRecipe.PoseName, out var pose))
             return CommandResult.Fail($"기준 이미지에서 부품을 찾지 못했습니다: {r.Error} (정렬 검사의 Blob 설정을 확인하세요)");
         align.Reference = pose;
         return CommandResult.Done($"기준 위치: x {pose.X:0.0}, y {pose.Y:0.0}, 각도 {pose.Angle:0.00}°");
@@ -324,7 +324,7 @@ public sealed class StudioSession
                 return Failed(NoProject);
             if (p.Checks.Count == 0)
                 return Failed("검사가 없습니다 (add_check)");
-            job = JobBuilder.Build(p);
+            job = p.CreateJob();
         }
         VisionImage img;
         try
@@ -424,13 +424,13 @@ public sealed class StudioSession
         {
             if (_project is not { } p)
                 return TestRunner.Fail(NoProject);
-            if (BaseImagePath(p) is null)
+            if (p.BaseImagePath is null)
                 return TestRunner.Fail(NoBaseImage);
             if (p.Checks.Count == 0)
                 return TestRunner.Fail("검사가 없습니다 (add_check)");
             if (setIndex < 0 || setIndex >= p.TestSets.Count)
                 return TestRunner.Fail(p.TestSets.Count == 0 ? "테스트 폴더가 없습니다 (add_test_set)" : $"테스트 폴더 번호는 0 ~ {p.TestSets.Count - 1} 입니다 (받은 값 {setIndex})");
-            job = JobBuilder.Build(p);
+            job = p.CreateJob();
             var s = p.TestSets[setIndex];
             set = new TestSet { Folder = s.Folder, Rule = s.Rule, GoodLabel = s.GoodLabel };
         }
@@ -456,14 +456,6 @@ public sealed class StudioSession
     private static RunResult Failed(string message) => new(false, message, "Error", [], [], null);
 
     // ── 내부 ─────────────────────────────────────────────
-
-    internal static string? BaseImagePath(StudioProject p)
-    {
-        if (string.IsNullOrEmpty(p.BaseImage))
-            return null;
-        var path = Path.Combine(p.Folder, p.BaseImage);
-        return File.Exists(path) ? path : null;
-    }
 
     // 잠금 안에서 바꾸고, 성공했으면 잠금 밖에서 알린다
     private CommandResult Change(Func<CommandResult> change, bool needsProject = true, bool markDirty = true)

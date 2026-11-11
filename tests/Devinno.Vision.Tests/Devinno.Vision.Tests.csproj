@@ -25,6 +25,9 @@
   <ItemGroup>
     <None Include="Samples\**\*" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Models\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Studio 예제(studio-bracket-test)와 같은 구성의 레시피 폴더. 기준 이미지는 01_good 과 같은 파일이라 링크로 둔다 -->
+    <None Include="Recipes\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Samples/Bracket/01_good.bmp" Link="Recipes/Bracket/images/base.bmp" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

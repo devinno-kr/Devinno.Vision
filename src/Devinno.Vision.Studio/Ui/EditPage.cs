@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using Devinno.UI.App;
-using Devinno.Vision.Studio.Model;
+using Devinno.Vision.Recipes;
 using Devinno.Vision.Studio.Session;
 using Devinno.Vision.UI;
 

@@ -1,0 +1,124 @@
+{
+  "Name": "브래킷",
+  "FormatVersion": 1,
+  "BaseImage": "images/base.bmp",
+  "Calibration": {
+    "MmPerPx": 0.218978
+  },
+  "Checks": [
+    {
+      "Kind": "BlobAlign",
+      "Blob": {
+        "Mode": "Otsu",
+        "Threshold": 128,
+        "Invert": false,
+        "MinArea": 20000,
+        "MaxArea": 2147483647
+      },
+      "Reference": {
+        "X": 330.4164563051792,
+        "Y": 256.03058368114955,
+        "Angle": -0.07183547849026792
+      },
+      "Id": "bdba9c42",
+      "Name": "정렬",
+      "Roi": {
+        "Shape": "None",
+        "X": 0,
+        "Y": 0,
+        "Width": 0,
+        "Height": 0,
+        "Angle": 0
+      }
+    },
+    {
+      "Kind": "BlobCount",
+      "Blob": {
+        "Mode": "Fixed",
+        "Threshold": 80,
+        "Invert": true,
+        "MinArea": 300,
+        "MaxArea": 2147483647
+      },
+      "Min": 1,
+      "Max": 1,
+      "Code": "HOLE",
+      "Id": "772b0558",
+      "Name": "왼쪽 구멍",
+      "Roi": {
+        "Shape": "Rect",
+        "X": 194,
+        "Y": 251,
+        "Width": 60,
+        "Height": 60,
+        "Angle": 0
+      }
+    },
+    {
+      "Kind": "BlobCount",
+      "Blob": {
+        "Mode": "Fixed",
+        "Threshold": 80,
+        "Invert": true,
+        "MinArea": 300,
+        "MaxArea": 2147483647
+      },
+      "Min": 1,
+      "Max": 1,
+      "Code": "HOLE",
+      "Id": "948973f5",
+      "Name": "오른쪽 구멍",
+      "Roi": {
+        "Shape": "Rect",
+        "X": 417,
+        "Y": 251,
+        "Width": 60,
+        "Height": 60,
+        "Angle": 0
+      }
+    },
+    {
+      "Kind": "PixelCount",
+      "Low": 0,
+      "High": 100,
+      "Max": 200,
+      "Code": "DISCOLOR",
+      "Id": "573ab5b2",
+      "Name": "상단 변색",
+      "Roi": {
+        "Shape": "Rect",
+        "X": 268,
+        "Y": 192,
+        "Width": 134,
+        "Height": 36,
+        "Angle": 0
+      }
+    },
+    {
+      "Kind": "Length",
+      "Polarity": "BrightObject",
+      "MinContrast": 8,
+      "Nominal": 90,
+      "Plus": 1,
+      "Minus": 1,
+      "Code": "LENGTH",
+      "Id": "4fb79f9b",
+      "Name": "길이",
+      "Roi": {
+        "Shape": "Rect",
+        "X": 100,
+        "Y": 305,
+        "Width": 470,
+        "Height": 30,
+        "Angle": 0
+      }
+    }
+  ],
+  "TestSets": [
+    {
+      "Folder": "Samples/Bracket",
+      "Rule": "FileName",
+      "GoodLabel": "good"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-using Devinno.Vision.Studio.Model;
+using Devinno.Vision.Recipes;
 
 namespace Devinno.Vision.Studio.Session;
 

@@ -1,21 +1,19 @@
-using Devinno.Vision.Studio.Model;
-using Devinno.Vision.Studio.Session;
+using Devinno.Vision;
+using Devinno.Vision.Recipes;
 using OpenCvSharp;
 
-namespace Devinno.Vision.Studio.Tests;
-
-public class CheckTests
+public class RecipeCheckTests
 {
-    private static async Task<VisionResult> Run(StudioProject p, string sample)
+    private static async Task<VisionResult> Run(VisionRecipe p, string sample)
     {
-        using var img = VisionImage.Load(Samples.Bracket(sample));
-        return await JobBuilder.Build(p).RunAsync(img);
+        using var img = VisionImage.Load(BracketInspection.Sample(sample));
+        return await p.CreateJob().RunAsync(img);
     }
 
     [Fact]
     public async Task BlobCount_counts_the_left_hole()
     {
-        var p = StudioProject.Create(Path.GetTempPath(), "t");
+        var p = VisionRecipe.Create(Path.GetTempPath(), "t");
         p.Checks.Add(new BlobCountCheck
         {
             Name = "왼쪽 구멍",
@@ -38,7 +36,7 @@ public class CheckTests
     [Fact]
     public async Task Length_uses_px_without_calibration_and_mm_with_it()
     {
-        var p = StudioProject.Create(Path.GetTempPath(), "t");
+        var p = VisionRecipe.Create(Path.GetTempPath(), "t");
         var len = new LengthCheck { Name = "길이", Roi = VisionRoi.Rect(100, 305, 470, 30), MinContrast = 8, Nominal = 410, Plus = 7, Minus = 5 };
         p.Checks.Add(len);
 
@@ -64,13 +62,13 @@ public class CheckTests
     [Fact]
     public async Task Align_without_blob_fails_the_step()
     {
-        var p = StudioProject.Create(Path.GetTempPath(), "t");
+        var p = VisionRecipe.Create(Path.GetTempPath(), "t");
         p.Checks.Add(new BlobAlignCheck { Name = "정렬", Blob = new BlobParams { MinArea = 20000 } });
         p.Checks.Add(new BrightnessCheck { Name = "밝기", Roi = VisionRoi.Rect(10, 10, 20, 20) });
         using var mat = new Mat(480, 640, MatType.CV_8UC1, Scalar.Black);
         using var black = VisionImage.From(mat);
 
-        using var r = await JobBuilder.Build(p).RunAsync(black);
+        using var r = await p.CreateJob().RunAsync(black);
 
         Assert.Equal(VisionState.Error, r.State);
         Assert.Equal(StepState.Error, r.Steps["정렬"].State);

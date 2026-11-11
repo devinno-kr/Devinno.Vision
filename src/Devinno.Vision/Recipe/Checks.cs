@@ -1,4 +1,4 @@
-namespace Devinno.Vision.Studio.Model;
+namespace Devinno.Vision.Recipes;
 
 // 검사 정의 → Job 단계 (이름 = 검사 이름)
 internal sealed class CheckStep(string name, Action<VisionContext> run) : IVisionStep
@@ -12,20 +12,23 @@ internal sealed class CheckStep(string name, Action<VisionContext> run) : IVisio
     }
 }
 
-/// <summary>가장 큰 블롭으로 부품 위치(Pose)를 잡는다. 뒤 검사들의 ROI 가 따라간다.</summary>
+/// <summary>Finds the part position (pose) from the largest blob. The ROIs of the checks after it follow the part.</summary>
 public sealed class BlobAlignCheck : CheckDef
 {
+    /// <summary>The <c>Kind</c> value in JSON.</summary>
     public const string KindName = "BlobAlign";
     private protected override string Label => "블롭 정렬";
 
+    /// <summary>How the part blob is found.</summary>
     public BlobParams Blob { get; set; } = new();
 
-    /// <summary>기준 이미지에서 티칭한 부품 위치. 없으면 정렬하지 않는다.</summary>
+    /// <summary>The part position taught on the base image. Without it the ROIs are not moved.</summary>
     public VisionPose? Reference { get; set; }
 
     internal override bool MakesPose => true;
 
-    internal override IVisionStep Build(StudioProject p)
+    /// <inheritdoc/>
+    public override IVisionStep CreateStep(VisionRecipe recipe)
     {
         var blob = Copy(Blob);
         var reference = Reference;
@@ -45,18 +48,27 @@ public sealed class BlobAlignCheck : CheckDef
     internal static BlobParams Copy(BlobParams b) => new() { Mode = b.Mode, Threshold = b.Threshold, Invert = b.Invert, MinArea = b.MinArea, MaxArea = b.MaxArea };
 }
 
-/// <summary>ROI 안 블롭 개수를 범위로 판정.</summary>
+/// <summary>Judges the number of blobs in the ROI against a range.</summary>
 public sealed class BlobCountCheck : CheckDef
 {
+    /// <summary>The <c>Kind</c> value in JSON.</summary>
     public const string KindName = "BlobCount";
     private protected override string Label => "블롭 개수";
 
+    /// <summary>How the blobs are found.</summary>
     public BlobParams Blob { get; set; } = new();
+
+    /// <summary>The smallest count that is OK.</summary>
     public int Min { get; set; }
+
+    /// <summary>The largest count that is OK.</summary>
     public int Max { get; set; } = 1;
+
+    /// <summary>The NG code.</summary>
     public string Code { get; set; } = "COUNT";
 
-    internal override IVisionStep Build(StudioProject p)
+    /// <inheritdoc/>
+    public override IVisionStep CreateStep(VisionRecipe recipe)
     {
         var (blob, name, min, max, code) = (BlobAlignCheck.Copy(Blob), Name, Min, Max, Code);
         return new CheckStep(name, ctx =>
@@ -68,58 +80,91 @@ public sealed class BlobCountCheck : CheckDef
     }
 }
 
-/// <summary>ROI 안 밝기 Low~High 픽셀 수가 Max 이하인지.</summary>
+/// <summary>Judges that the number of pixels in the ROI with brightness <see cref="Low"/>–<see cref="High"/> is at most <see cref="Max"/>.</summary>
 public sealed class PixelCountCheck : CheckDef
 {
+    /// <summary>The <c>Kind</c> value in JSON.</summary>
     public const string KindName = "PixelCount";
     private protected override string Label => "픽셀 수";
 
+    /// <summary>The lowest brightness counted (0–255).</summary>
     public int Low { get; set; }
+
+    /// <summary>The highest brightness counted (0–255).</summary>
     public int High { get; set; } = 100;
+
+    /// <summary>The largest pixel count that is OK.</summary>
     public int Max { get; set; }
+
+    /// <summary>The NG code.</summary>
     public string Code { get; set; } = "PIXEL";
 
-    internal override IVisionStep Build(StudioProject p)
+    /// <inheritdoc/>
+    public override IVisionStep CreateStep(VisionRecipe recipe)
     {
         var (name, low, high, max, code) = (Name, Low, High, Max, Code);
         return new CheckStep(name, ctx => ctx.Value($"{name} 픽셀", Brightness.Count(ctx.Image, low, high), max: max, code: code));
     }
 }
 
-/// <summary>ROI 평균 밝기를 범위로 판정.</summary>
+/// <summary>Judges the mean brightness of the ROI against a range.</summary>
 public sealed class BrightnessCheck : CheckDef
 {
+    /// <summary>The <c>Kind</c> value in JSON.</summary>
     public const string KindName = "Brightness";
     private protected override string Label => "평균 밝기";
 
+    /// <summary>The lowest mean brightness that is OK.</summary>
     public double Min { get; set; }
+
+    /// <summary>The highest mean brightness that is OK.</summary>
     public double Max { get; set; } = 255;
+
+    /// <summary>The NG code.</summary>
     public string Code { get; set; } = "BRIGHT";
 
-    internal override IVisionStep Build(StudioProject p)
+    /// <inheritdoc/>
+    public override IVisionStep CreateStep(VisionRecipe recipe)
     {
         var (name, min, max, code) = (Name, Min, Max, Code);
         return new CheckStep(name, ctx => ctx.Value($"{name} 밝기", Brightness.Mean(ctx.Image), min, max, code));
     }
 }
 
-/// <summary>ROI 가로 방향 두 에지 사이 거리를 공칭값 ± 공차로 판정 (캘리브레이션 있으면 mm, 없으면 px).</summary>
+/// <summary>
+/// Judges the distance between two edges along the ROI's horizontal direction as nominal ± tolerance
+/// (mm when the recipe has a calibration, px otherwise).
+/// </summary>
 public sealed class LengthCheck : CheckDef
 {
+    /// <summary>The <c>Kind</c> value in JSON.</summary>
     public const string KindName = "Length";
     private protected override string Label => "폭/길이";
 
+    /// <summary>Whether the object is brighter or darker than the background.</summary>
     public EdgePolarity Polarity { get; set; } = EdgePolarity.BrightObject;
+
+    /// <summary>The smallest brightness step that counts as an edge.</summary>
     public double MinContrast { get; set; } = 8;
+
+    /// <summary>The nominal length (mm with a calibration, px without).</summary>
     public double Nominal { get; set; }
+
+    /// <summary>The tolerance above <see cref="Nominal"/>.</summary>
     public double Plus { get; set; }
+
+    /// <summary>The tolerance below <see cref="Nominal"/>.</summary>
     public double Minus { get; set; }
+
+    /// <summary>The NG code.</summary>
     public string Code { get; set; } = "LENGTH";
 
-    internal override IVisionStep Build(StudioProject p)
+    /// <inheritdoc/>
+    public override IVisionStep CreateStep(VisionRecipe recipe)
     {
+        ArgumentNullException.ThrowIfNull(recipe);
         var (name, polarity, contrast, nominal, plus, minus, code) = (Name, Polarity, MinContrast, Nominal, Plus, Minus, Code);
-        var mm = p.Calibration is not null;
+        var mm = recipe.Calibration is not null;
         return new CheckStep(name, ctx =>
         {
             var e = Edge.Caliper(ctx.Image, polarity, contrast);

@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using Devinno.UI;
 using Devinno.UI.App;
-using Devinno.Vision.Studio.Model;
+using Devinno.Vision.Recipes;
 using Devinno.Vision.Studio.Session;
 using Devinno.Vision.Studio.Ui;
 using SkiaSharp;
@@ -601,7 +601,7 @@ public class UiTests
 
         Assert.Equal(openName, s.Session.Project!.Name);
         Assert.Equal(stillDirty, s.Session.IsDirty);
-        var savedFile = File.ReadAllText(Path.Combine(dir.Path, "cur", Model.StudioProject.FileName));
+        var savedFile = File.ReadAllText(Path.Combine(dir.Path, "cur", VisionRecipe.FileName));
         Assert.Equal(savedChecks, savedFile.Contains("저장 안 한 검사"));
     }
 
