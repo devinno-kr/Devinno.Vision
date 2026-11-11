@@ -325,6 +325,37 @@ public sealed partial class TestPage : DvPage
     internal SkiaSharp.SKRect NextBounds => btnNext.Bounds;
     internal SkiaSharp.SKRect FixBounds => btnFix.Bounds;
 
+
+    // ── 좁은 창 ──────────────────────────────────────────
+    // 페이지에는 창 크기 API 가 없으므로 본문 줄의 지난 배치 폭(Bounds)으로 판단한다. 바뀌면 한 번 더 그린다 (한 프레임 늦음)
+    private bool _compact;
+
+    /// <summary>본문 폭이 좁다 (창을 화면 절반쯤으로 줄였을 때) — 도구 줄을 두 줄로, 옆 칸을 좁게.</summary>
+    public bool Compact
+    {
+        get
+        {
+            if (body is { } b && b.Bounds.Width > 0)
+            {
+                var c = b.Bounds.Width < 880;
+                if (c != _compact)
+                {
+                    _compact = c;
+                    try { App.Invalidate(); }
+                    catch (InvalidOperationException) { }
+                }
+            }
+            return _compact;
+        }
+    }
+
+    public bool Wide => !Compact;
+
+    /// <summary>왼쪽 칸 폭.</summary>
+    public int LeftWidth => Compact ? 300 : 420;
+
+    public bool CompactReport => Compact && HasReport;
+
     // ── 명령 ─────────────────────────────────────────────
 
     /// <summary>폴더 고르기 → 라벨 읽는 법 고르기 → 추가 → 그 폴더의 이미지 목록이 바로 뜬다.</summary>

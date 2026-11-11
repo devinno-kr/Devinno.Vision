@@ -88,14 +88,16 @@ public class UiTests
             }
         }
 
-        public byte[] Png(string? scenario = null, [CallerFilePath] string source = "")
+        public byte[] Png(string? scenario = null, [CallerFilePath] string source = "") => Png(scenario, W, H, "2026-11-11-studio-ux", source);
+
+        public byte[] Png(string? scenario, int width, int height, string folder, [CallerFilePath] string source = "")
         {
             App.Invalidate();
-            var png = Tests.Png.Render(App.Surface, W, H);
+            var png = Tests.Png.Render(App.Surface, width, height);
             if (scenario is not null)
             {
                 // tests/Devinno.Vision.Studio.Tests/UiTests.cs → 저장소 루트
-                var dir = Path.Combine(Path.GetDirectoryName(source)!, "..", "..", ".superpowers", "sdd", "2026-11-11-studio-ux");
+                var dir = Path.Combine(Path.GetDirectoryName(source)!, "..", "..", ".superpowers", "sdd", folder);
                 Directory.CreateDirectory(dir);
                 File.WriteAllBytes(Path.Combine(dir, scenario), png);
             }
@@ -469,5 +471,86 @@ public class UiTests
         Assert.Equal(picked, s.Test.SelectedRow?.File);
         Assert.StartsWith("1 / ", s.Test.Position);
         Assert.Equal("틀림", s.Test.JudgeBadge);
+    }
+
+    // 길이 단위: 캘리브레이션을 넣거나 빼면 목록 배지 · 속성 단위 · 결과 라벨이 바로 같은 단위로 바뀐다
+    [Fact]
+    public async Task Length_displays_follow_the_calibration_unit()
+    {
+        using var dir = new TempDir();
+        var session = new StudioSession();
+        BracketStudioTests.BuildBracket(session, dir.Path);
+        var s = new Studio(session);
+        var len = session.Checks.Single(c => c.Name == "길이").Id;
+        s.List.SelectedId = len;
+        s.Frame();
+        string Badge() => s.List.Rows.Single(r => r.Name == "길이").Badge;
+        async Task<string?> LineLabel()
+        {
+            string? label = null;
+            await session.RunImageAsync(Samples.Bracket("01_good.bmp"), r => label = r.Overlays.Single(o => o.Kind == VisionOverlayKind.Line).Label);
+            return label;
+        }
+
+        Assert.Equal("411 px", Badge());
+        Assert.Equal("px", s.Edit.LengthUnit);
+        Assert.EndsWith(" px", await LineLabel());
+
+        s.Edit.Calibration = "0.218978";
+        s.Edit.LengthNominal = 90;
+        s.Frame();
+
+        Assert.Equal("90 mm", Badge());
+        Assert.Equal("mm", s.Edit.LengthUnit);
+        Assert.Equal("mm", s.Edit.CalibrationBadge);
+        Assert.Matches(@"^\d+\.\d\d mm$", await LineLabel());
+
+        s.Edit.Calibration = "";                 // 빼면 다시 px
+        s.Frame();
+        Assert.Equal("90 px", Badge());
+        Assert.Equal("px", s.Edit.LengthUnit);
+    }
+
+    private static string SourceDir([CallerFilePath] string source = "") => Path.GetDirectoryName(source)!;
+
+    // 글꼴에 없는 기호(− U+2212, ✓, ✗)는 한글 앞뒤에서 네모로 깨진다 — 화면 마크업에 쓰지 않는다
+    [Fact]
+    public void Screen_markup_has_no_glyphs_missing_from_the_font()
+    {
+        var ui = Path.GetFullPath(Path.Combine(SourceDir(), "..", "..", "src", "Devinno.Vision.Studio", "Ui"));
+        foreach (var file in Directory.GetFiles(ui, "*.dvml").Concat(Directory.GetFiles(ui, "*.cs")))
+        {
+            var text = string.Join("\n", File.ReadAllLines(file).Where(l => !l.TrimStart().StartsWith("//") && !l.TrimStart().StartsWith("///")));
+            foreach (var bad in new[] { '−', '✓', '✗' })
+                Assert.False(text.Contains(bad), $"{Path.GetFileName(file)} 에 U+{(int)bad:X4}");
+        }
+    }
+
+    // 좁은 창 (화면 절반 정도): 결과 이미지가 보기 영역 가운데에 맞춰 보여야 한다
+    [Theory]
+    [InlineData(960, 1000)]
+    [InlineData(800, 900)]
+    [InlineData(1280, 800)]
+    public void Edit_result_image_fits_a_narrow_window(int width, int height)
+    {
+        using var dir = new TempDir();
+        var session = new StudioSession();
+        BracketStudioTests.BuildBracket(session, dir.Path);
+        var s = new Studio(session);
+        s.Tap(() => s.Edit.RunBounds);
+        s.Until(() => s.Edit.ShowingResult && s.Edit.HasValues);
+
+        void Settle() { for (var i = 0; i < 3; i++) s.App.Surface.Layout(width, height); }   // 좁음 판단은 지난 배치 폭 → 한 번 더
+        Settle();
+        Assert.Equal(width < 1100, s.Edit.Compact);
+        s.Png($"edit-{width}x{height}.png", width, height, "2026-11-11-studio-narrow");
+
+        s.App.Show(s.Test);
+        Settle();
+        s.Test.SelectedRow = s.Test.Rows[1];
+        s.Until(() => s.Test.Showing.IsCompleted);
+        Settle();
+        Assert.Equal(width < 1100, s.Test.Compact);
+        s.Png($"test-{width}x{height}.png", width, height, "2026-11-11-studio-narrow");
     }
 }

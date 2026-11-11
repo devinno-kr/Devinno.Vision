@@ -12,15 +12,24 @@
     <DvIcon icon="fa-lightbulb" style="font-size:13; color: token(tone-warning-fg)"/>
     <DvLabel class="sub" text="{Hint}"/>
   </DvRow>
-  <DvRow grow="1" style="align-items:stretch; gap:16; height:0">
+  <DvRow id="body" grow="1" style="align-items:stretch; gap:16; height:0">
     <!-- 가운데: 이미지 (남는 폭 전부) -->
     <DvCard title="{ImageTitle}" badge="{ImageBadge}" style="flex:1; width:0">
-      <DvRow gap="sm">
+      <DvRow gap="sm" visible="{Wide}">
         <DvButton variant="secondary" icon="fa-image" text="기준 이미지" onclick="OpenBase" disabled="{NoProject}"/>
         <DvButton id="btnTeach" variant="secondary" icon="fa-crosshairs" text="기준 티칭" onclick="Teach" disabled="{NoBase}"/>
         <DvSpacer/>
         <DvButton id="btnRun" variant="primary" icon="fa-play" text="실행" onclick="RunBase" disabled="{CannotRun}"/>
         <DvButton id="btnRunOther" variant="secondary" icon="fa-folder-open" text="다른 이미지로 실행" onclick="RunOther" disabled="{CannotRun}"/>
+      </DvRow>
+      <!-- 좁은 창: 준비 줄 · 실행 줄 -->
+      <DvRow gap="sm" visible="{Compact}">
+        <DvButton variant="secondary" icon="fa-image" text="기준 이미지" onclick="OpenBase" disabled="{NoProject}"/>
+        <DvButton variant="secondary" icon="fa-crosshairs" text="기준 티칭" onclick="Teach" disabled="{NoBase}"/>
+      </DvRow>
+      <DvRow gap="sm" visible="{Compact}">
+        <DvButton variant="primary" icon="fa-play" text="실행" onclick="RunBase" disabled="{CannotRun}"/>
+        <DvButton variant="secondary" icon="fa-folder-open" text="다른 이미지로 실행" onclick="RunOther" disabled="{CannotRun}"/>
       </DvRow>
 
       <DvStack gap="sm" style="flex:1; height:0; align-items:center; justify-content:center" visible="{NoBase}">
@@ -45,7 +54,7 @@
     </DvCard>
 
     <!-- 오른쪽: 속성 -->
-    <DvStack style="width:320; flex-shrink:0; gap:16; overflow:scroll">
+    <DvStack width="{PanelWidth}" style="flex-shrink:0; gap:16; overflow:scroll">
       <DvCard title="검사 속성" grow="1" visible="{NoSelection}">
         <DvStack gap="sm" grow="1" style="align-items:center; justify-content:center">
           <DvIcon icon="fa-list-check" style="font-size:28; color: token(text-subtle)"/>
@@ -127,9 +136,12 @@
             <DvInput value="{Bind LengthNominal}" keyboard-type="numeric" unit="{LengthUnit}" style="flex:1; width:0"/>
           </DvRow>
           <DvRow gap="sm">
-            <DvLabel class="field" text="공차 + / −"/>
-            <DvInput value="{Bind LengthPlus}" keyboard-type="numeric" min="0" style="flex:1; width:0"/>
-            <DvInput value="{Bind LengthMinus}" keyboard-type="numeric" min="0" style="flex:1; width:0"/>
+            <DvLabel class="field" text="위 공차"/>
+            <DvInput value="{Bind LengthPlus}" keyboard-type="numeric" min="0" unit="{LengthUnit}" style="flex:1; width:0"/>
+          </DvRow>
+          <DvRow gap="sm">
+            <DvLabel class="field" text="아래 공차"/>
+            <DvInput value="{Bind LengthMinus}" keyboard-type="numeric" min="0" unit="{LengthUnit}" style="flex:1; width:0"/>
           </DvRow>
         </DvStack>
 
@@ -140,7 +152,7 @@
       </DvCard>
 
       <DvCard title="캘리브레이션" badge="{CalibrationBadge}">
-        <DvInput value="{Bind Calibration}" placeholder="mm/px — 비우면 px 로 판정" unit="mm/px" disabled="{NoProject}"/>
+        <DvInput value="{Bind Calibration}" placeholder="비우면 px 로 판정" unit="mm/px" disabled="{NoProject}"/>
       </DvCard>
     </DvStack>
   </DvRow>

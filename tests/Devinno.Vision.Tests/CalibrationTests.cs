@@ -81,4 +81,20 @@ public class CalibrationTests
         Assert.Equal(0.05, System.Text.Json.JsonSerializer.Deserialize<VisionCalibration>(json)!.MmPerPx);
         Assert.Throws<ArgumentOutOfRangeException>(() => VisionCalibration.Scale(0));
     }
+
+    // 화면 라벨 단위 = 판정 단위: 캘리브레이션이 있으면 mm, 없으면 px — 단위를 항상 붙인다
+    [Theory]
+    [InlineData(true, "5.00 mm")]
+    [InlineData(false, "100.00 px")]
+    public async Task Caliper_label_uses_the_judgment_unit(bool calibrated, string label)
+    {
+        using var img = Bar();
+        var job = new VisionJob("t") { Calibration = calibrated ? VisionCalibration.FromLength(px: 100, mm: 5) : null }
+            .Add("길이", () => VisionRoi.Rect(5, 20, 150, 20), ctx => ctx.Draw(Edge.Caliper(ctx.Image, EdgePolarity.BrightObject)));
+
+        using var r = await job.RunAsync(img);
+
+        var line = Assert.Single(r.Overlays, o => o.Kind == VisionOverlayKind.Line);
+        Assert.Equal(label, line.Label);
+    }
 }

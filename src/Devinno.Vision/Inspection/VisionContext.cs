@@ -199,14 +199,18 @@ public sealed class VisionContext
         Add(VisionOverlayKind.Point, [blob.Center], null, blob.ToSource);
     }
 
-    /// <summary>Draws a caliper result (the two edges and the line between them, with the distance).</summary>
+    /// <summary>
+    /// Draws a caliper result (the two edges and the line between them, with the distance).
+    /// The label carries its unit: mm when the job has a calibration ("89.95 mm"), otherwise px ("410.75 px") — the same unit the length is usually judged in.
+    /// </summary>
     /// <param name="caliper">The result.</param>
     public void Draw(CaliperResult caliper)
     {
         ArgumentNullException.ThrowIfNull(caliper);
         if (!caliper.Found)
             return;
-        Add(VisionOverlayKind.Line, [caliper.P1, caliper.P2], $"{caliper.Distance:0.00}", caliper.ToSource);
+        var label = _run.Calibration is null ? $"{caliper.Distance:0.00} px" : $"{Mm(caliper):0.00} mm";
+        Add(VisionOverlayKind.Line, [caliper.P1, caliper.P2], label, caliper.ToSource);
         Add(VisionOverlayKind.Point, [caliper.P1], null, caliper.ToSource);
         Add(VisionOverlayKind.Point, [caliper.P2], null, caliper.ToSource);
     }

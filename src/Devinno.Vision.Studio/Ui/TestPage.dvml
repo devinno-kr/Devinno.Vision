@@ -16,16 +16,17 @@
     <DvIcon icon="fa-lightbulb" style="font-size:13; color: token(tone-warning-fg)"/>
     <DvLabel class="sub" text="{Hint}"/>
   </DvRow>
-  <DvRow grow="1" style="align-items:stretch; gap:16; height:0">
+  <DvRow id="body" grow="1" style="align-items:stretch; gap:16; height:0">
     <!-- 왼쪽: 테스트 · 이미지 목록 -->
-    <DvStack style="width:420; flex-shrink:0; gap:16">
+    <DvStack width="{LeftWidth}" style="flex-shrink:0; gap:16">
       <DvCard title="테스트" badge="{ReportBadge}">
         <DvRow gap="sm">
           <DvSelect value="{Bind SelectedSet}" items="{Sets}" item-value="Index" item-text="Text" placeholder="테스트 폴더 없음" disabled="{NoSets}" style="flex:1; width:0"/>
           <DvButton id="btnAddSet" variant="secondary" icon="fa-folder-plus" onclick="AddSet" disabled="{NoProject}"/>
           <DvButton id="btnRemoveSet" variant="secondary" icon="fa-trash" onclick="RemoveSet" disabled="{NoSets}"/>
-          <DvButton id="btnRun" variant="primary" icon="fa-play" text="실행" onclick="Run" disabled="{CannotRun}"/>
+          <DvButton id="btnRun" variant="primary" icon="fa-play" text="실행" onclick="Run" disabled="{CannotRun}" visible="{Wide}"/>
         </DvRow>
+        <DvButton variant="primary" icon="fa-play" text="실행" onclick="Run" disabled="{CannotRun}" visible="{Compact}"/>
         <DvLabel class="meta" text="{SetMeta}" style="white-space:nowrap" visible="{HasSets}"/>
         <DvLabel class="sub" style="color: token(primary)" text="{Progress}" visible="{Running}"/>
         <DvRow gap="lg" visible="{HasReport}">
@@ -33,13 +34,20 @@
           <DvStack gap="none"><DvLabel class="kpi kpi-bad" text="{WrongText}"/><DvLabel class="meta" text="틀림"/></DvStack>
           <DvStack gap="none"><DvLabel class="kpi kpi-dim" text="{UnlabeledText}"/><DvLabel class="meta" text="라벨 없음"/></DvStack>
           <DvSpacer/>
-          <DvRepeat items="{Labels}" gap="xs">
+          <DvRepeat items="{Labels}" gap="xs" visible="{Wide}">
             <DvRow gap="sm">
               <DvLabel class="sub" text="{Item.Label}" style="width:110"/>
               <DvBadge text="{Item.Score}" tone="{Item.Tone}"/>
             </DvRow>
           </DvRepeat>
         </DvRow>
+        <!-- 좁은 창: 라벨별 점수는 숫자 아래로 -->
+        <DvRepeat items="{Labels}" gap="xs" visible="{CompactReport}">
+          <DvRow gap="sm">
+            <DvLabel class="sub" text="{Item.Label}" style="flex:1; width:0"/>
+            <DvBadge text="{Item.Score}" tone="{Item.Tone}"/>
+          </DvRow>
+        </DvRepeat>
       </DvCard>
 
       <DvCard title="이미지" grow="1" style="height:0">
@@ -75,17 +83,25 @@
 
     <!-- 오른쪽: 고른 이미지 (남는 폭 전부) -->
     <DvCard title="{ViewerTitle}" badge="{Position}" style="flex:1; width:0">
-      <DvRow gap="sm">
+      <DvRow gap="sm" visible="{Wide}">
         <DvButton variant="secondary" icon="fa-chevron-left" text="이전" onclick="Prev" disabled="{CannotPrev}"/>
         <DvButton id="btnNext" variant="secondary" icon="fa-chevron-right" text="다음" onclick="Next" disabled="{CannotNext}"/>
         <DvLabel class="meta" text="← → 키"/>
         <DvSpacer/>
         <DvButton id="btnFix" variant="primary" icon="fa-wrench" text="이 검사 고치기" onclick="Fix" disabled="{CannotFix}"/>
       </DvRow>
+      <!-- 좁은 창: 넘기기 줄 · 고치기 줄 -->
+      <DvRow gap="sm" visible="{Compact}">
+        <DvButton variant="secondary" icon="fa-chevron-left" text="이전" onclick="Prev" disabled="{CannotPrev}"/>
+        <DvButton variant="secondary" icon="fa-chevron-right" text="다음" onclick="Next" disabled="{CannotNext}"/>
+      </DvRow>
+      <DvRow gap="sm" visible="{Compact}">
+        <DvButton variant="primary" icon="fa-wrench" text="이 검사 고치기" onclick="Fix" disabled="{CannotFix}"/>
+      </DvRow>
       <DvRow gap="sm" visible="{HasSelection}">
         <DvBadge text="{ResultBadge}" tone="{ResultTone}" visible="{HasResultBadge}"/>
         <DvBadge text="{JudgeBadge}" tone="{JudgeTone}" visible="{HasJudgeBadge}"/>
-        <DvLabel class="sub" text="{DetailLine}"/>
+        <DvLabel class="sub" text="{DetailLine}" style="flex:1; width:0"/>
       </DvRow>
       <VisionView source="{View}" style="flex:1; height:0" visible="{HasSelection}"/>
       <DvStack gap="sm" style="flex:1; height:0; align-items:center; justify-content:center" visible="{NoSelection}">

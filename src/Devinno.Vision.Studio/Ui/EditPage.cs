@@ -210,6 +210,35 @@ public sealed partial class EditPage : DvPage
     internal SkiaSharp.SKRect RunBounds => btnRun.Bounds;
     internal SkiaSharp.SKRect RunOtherBounds => btnRunOther.Bounds;
 
+
+    // ── 좁은 창 ──────────────────────────────────────────
+    // 페이지에는 창 크기 API 가 없으므로 본문 줄의 지난 배치 폭(Bounds)으로 판단한다. 바뀌면 한 번 더 그린다 (한 프레임 늦음)
+    private bool _compact;
+
+    /// <summary>본문 폭이 좁다 (창을 화면 절반쯤으로 줄였을 때) — 도구 줄을 두 줄로, 옆 칸을 좁게.</summary>
+    public bool Compact
+    {
+        get
+        {
+            if (body is { } b && b.Bounds.Width > 0)
+            {
+                var c = b.Bounds.Width < 820;
+                if (c != _compact)
+                {
+                    _compact = c;
+                    try { App.Invalidate(); }
+                    catch (InvalidOperationException) { }
+                }
+            }
+            return _compact;
+        }
+    }
+
+    public bool Wide => !Compact;
+
+    /// <summary>오른쪽 속성 칸 폭.</summary>
+    public int PanelWidth => Compact ? 260 : 320;
+
     // ── 명령 ─────────────────────────────────────────────
 
     public void OpenBase()
