@@ -50,6 +50,7 @@ public class GoodModelStudioTests
 
         Assert.Contains("양품 모델 학습됨: 8장 학습", msg);
         Assert.Contains("주의: 양품이 9장뿐입니다", msg);
+        Assert.Contains("주의: 전체 이미지로 학습했습니다", msg);
         Assert.True(s.IsDirty);
         Assert.False(s.IsTraining);
         var summary = Assert.IsType<GoodTrainingSummary>(s.GoodSummary);

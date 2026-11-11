@@ -200,7 +200,9 @@ public sealed partial class StudioSession
                 _dirty = true;
             }
             var skipped = r.Skipped.Count > 0 ? $" · 뺀 이미지 {r.Skipped.Count}장 ({string.Join(", ", r.Skipped.Take(3).Select(s => Path.GetFileName(s.File)))})" : "";
-            return CommandResult.Done($"양품 모델 학습됨: {r.Learned}장 학습 · 보정 {r.CalibrationScores.Count}장 · 문턱 {r.Model.Max} · 장당 {r.MsPerImage:0} ms{skipped}{FewWarning(images.Count)}");
+            // Bracket: 전체 이미지(640×480 → 256)로는 구멍 · 변색 6장을 놓쳤고, 부품만 감싸면 18/18 (2026-11-11)
+            var whole = roi.IsEmpty ? " — 주의: 전체 이미지로 학습했습니다. 이미지에서 끌어 부품만 감싸게 영역을 좁히면 작은 결함을 더 잘 잡습니다" : "";
+            return CommandResult.Done($"양품 모델 학습됨: {r.Learned}장 학습 · 보정 {r.CalibrationScores.Count}장 · 문턱 {r.Model.Max} · 장당 {r.MsPerImage:0} ms{skipped}{FewWarning(images.Count)}{whole}");
         }
         catch (OperationCanceledException)
         {

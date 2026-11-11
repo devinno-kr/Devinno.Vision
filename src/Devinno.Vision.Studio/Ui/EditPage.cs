@@ -417,7 +417,9 @@ public sealed partial class EditPage : DvPage
         {
             if (IsTraining) return "학습하는 중입니다 — 끝나면 [실행] 이나 테스트로 확인하세요";
             if (_session.GoodFolder is null) return "다음: [양품 폴더] 로 양품 이미지만 든 폴더를 고르세요";
-            if (!HasGoodModel) return "다음: 필요하면 이미지에서 끌어 볼 영역을 정하고 [학습]";
+            if (!HasGoodModel) return _session.GoodRoi.IsEmpty
+                ? "다음: 이미지에서 끌어 부품만 감싸게 영역을 정하고 [학습] (전체 이미지면 작은 결함을 놓치기 쉽습니다)"
+                : "다음: [학습]";
             if (_session.Project?.GoodModelIsCurrent == false) return "다음: [학습] 으로 다시 학습하세요";
             return "양품 모델이 판정합니다. 표준 검사는 '사유' 로 두면 NG 일 때 이유만 붙입니다";
         }
