@@ -254,3 +254,58 @@ public class GoodModelStudioTests
         public void Report(T value) => report(value);
     }
 }
+
+// ROI 가 빈 검사 · 양품 모델 영역도 이미지에서 끌어 그릴 수 있어야 한다 (2026-11-11 사용자 보고: 새 검사에 ROI 가 안 그려짐)
+public class RoiDrawingTests
+{
+    private static void Drag(DvApp app, SKRect view, float dx0, float dy0, float dx1, float dy1)
+    {
+        Png.Render(app.Surface, 1280, 800);   // 뷰는 그릴 때 이미지 배치를 잡는다 (Layout 만으로는 끌기를 받지 않음)
+        var a = new SKPoint(view.MidX + dx0, view.MidY + dy0);
+        var b = new SKPoint(view.MidX + dx1, view.MidY + dy1);
+        app.Surface.PointerDown(a);
+        app.Surface.PointerMove(b);
+        app.Surface.PointerUp(b);
+        app.Surface.Layout(1280, 800);
+    }
+
+    [Fact]
+    public void A_new_check_without_a_roi_gets_one_by_dragging()
+    {
+        using var dir = new TempDir();
+        var s = new StudioSession();
+        Assert.True(s.NewProject(dir.Sub("p"), "t").Ok);
+        Assert.True(s.SetBaseImage(Samples.Bracket("01_good.bmp")).Ok);
+        var id = s.AddCheck("BlobCount", "좌상 구멍").Id!;
+        var app = StudioApp.Create(s, new NullDialogs());
+        var edit = app.Pages.OfType<EditPage>().Single();
+        edit.SelectedId = id;
+        app.Invalidate();
+        app.Surface.Layout(1280, 800);
+        Assert.True(s.GetCheck(id)!.Roi.IsEmpty);
+
+        Drag(app, edit.ViewBounds, -60, -40, 20, 30);
+
+        var roi = s.GetCheck(id)!.Roi;
+        Assert.False(roi.IsEmpty);
+        Assert.True(roi.Width > 10 && roi.Height > 10, roi.ToString());
+    }
+
+    [Fact]
+    public void The_good_model_region_is_drawn_by_dragging()
+    {
+        using var dir = new TempDir();
+        var s = new StudioSession();
+        Assert.True(s.NewProject(dir.Sub("p"), "t").Ok);
+        Assert.True(s.SetBaseImage(Samples.Bracket("01_good.bmp")).Ok);
+        var app = StudioApp.Create(s, new NullDialogs());
+        var edit = app.Pages.OfType<EditPage>().Single();
+        edit.Tab = RefTab.Model;
+        app.Invalidate();
+        app.Surface.Layout(1280, 800);
+
+        Drag(app, edit.ViewBounds, -80, -50, 80, 50);
+
+        Assert.False(s.GoodRoi.IsEmpty);
+    }
+}

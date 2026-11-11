@@ -62,7 +62,7 @@
         <DvLabel class="sub" text="{EmptyText}" style="text-align:center"/>
         <DvButton id="btnOpenBase" variant="primary" icon="fa-image" text="기준 이미지 열기" onclick="OpenBase" visible="{HasProject}"/>
       </DvStack>
-      <VisionView source="{View}" style="flex:1; height:0" visible="{HasImage}"/>
+      <VisionView id="view" source="{View}" style="flex:1; height:0" visible="{HasImage}"/>
 
       <DvRow gap="sm">
         <DvBadge text="{ResultBadge}" tone="{ResultTone}" visible="{HasResultBadge}"/>

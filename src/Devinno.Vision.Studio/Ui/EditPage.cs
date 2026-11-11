@@ -323,6 +323,7 @@ public sealed partial class EditPage : DvPage
     internal SkiaSharp.SKRect RunBounds => btnRun.Bounds;
     internal SkiaSharp.SKRect RunOtherBounds => btnRunOther.Bounds;
     internal SkiaSharp.SKRect TrainBounds => btnTrain.Bounds;
+    internal SkiaSharp.SKRect ViewBounds => view.Bounds;
 
 
     // ── 좁은 창 ──────────────────────────────────────────
@@ -579,7 +580,8 @@ public sealed partial class EditPage : DvPage
                 }
             }
             var roi = IsModelTab ? _session.GoodRoi : Selected?.Roi;
-            View.EditRoi = roi is { IsEmpty: false } r ? r : null;
+            // 빈 ROI 도 그대로 넘긴다 — 뷰는 빈 ROI 면 새로 그리기를 받는다 (null 은 "편집 안 함")
+            View.EditRoi = roi;
         }
     }
 }
