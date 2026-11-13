@@ -41,3 +41,6 @@ docs/
 
 # 카메라 에뮬레이터의 RTSP 서버 실행 파일 (MediaMTX 릴리스에서 받는다, 57 MB)
 tools/mediamtx/
+
+# 라즈베리파이용 네이티브 런타임 (OpenCvSharpExtern + FFmpeg 8, 약 120 MB)
+native/
