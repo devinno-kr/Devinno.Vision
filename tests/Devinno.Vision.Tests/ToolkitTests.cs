@@ -124,5 +124,19 @@ public class DiffModelTests
         Assert.Contains("same ROI", ex.Message);
     }
 
+    [Fact]
+    public void Dispose_releases_the_model()
+    {
+        var model = DiffModel.Train([Plate(1), Plate(2)]);
+        Assert.IsAssignableFrom<IDisposable>(model);
+        using var img = Plate(3);
+
+        ((IDisposable)model).Dispose();
+        ((IDisposable)model).Dispose();   // 두 번 불러도 된다
+
+        Assert.False(model.IsReady);
+        Assert.Throws<InvalidOperationException>(() => model.Compare(img));
+    }
+
     public sealed class Holder { public DiffModel Diff { get; set; } = new(); }
 }

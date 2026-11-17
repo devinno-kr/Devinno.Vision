@@ -856,9 +856,10 @@
             <summary>Job 이름입니다.</summary>
         </member><member name="P:Devinno.Vision.VisionJob.AfterNg" en-hash="84c35ccabe9f553e">
             <summary>한 단계가 NG가 된 뒤 남은 단계를 어떻게 처리할지 정합니다. 기본값은 <see cref="F:Devinno.Vision.AfterNg.Continue" />입니다.</summary>
-        </member><member name="P:Devinno.Vision.VisionJob.Timeout" en-hash="143173c684c5d23d">
-            <summary>각 단계의 기본 시간 제한입니다. <see langword="null" />(기본값) = 제한 없음. 초과하면 <c>ctx.Cancel</c>에 신호가 가고, 실행은 그 단계가
+        </member><member name="P:Devinno.Vision.VisionJob.Timeout" en-hash="f8ccbd6f14288e70">
+            <summary>각 단계의 기본 시간 제한입니다. <see langword="null" />(기본값) 또는 <see cref="F:System.Threading.Timeout.InfiniteTimeSpan" /> = 제한 없음. 초과하면 <c>ctx.Cancel</c>에 신호가 가고, 실행은 그 단계가
             실제로 끝날 때까지 기다린 다음(OpenCV 호출은 중단할 수 없습니다) 남은 단계를 건너뛰고 Error로 끝납니다.</summary>
+            <exception cref="T:System.ArgumentOutOfRangeException">값이 0이거나 음수이거나 약 49일보다 깁니다. 단계의 <c>timeout</c>에도 같은 규칙이 적용됩니다.</exception>
         </member><member name="P:Devinno.Vision.VisionJob.Calibration" en-hash="9fa934721e73b08c">
             <summary><c>ctx.Mm</c>이 사용하는 픽셀 → mm 변환입니다(장비 값이므로 제품 설정이 아니라 카메라 설정과 함께 보관합니다). <see langword="null" /> = 없음. 이 경우 <c>ctx.Mm</c>을 호출하면 그 단계는 Error가 됩니다.</summary>
         </member><member name="P:Devinno.Vision.VisionJob.ReasonSteps" en-hash="e68db779ebe26baa">
@@ -1573,16 +1574,18 @@
              <exception cref="T:System.ObjectDisposedException">레시피가 해제되었습니다.</exception>
              <exception cref="T:System.InvalidOperationException">레시피를 지금 상태로는 실행할 수 없습니다(검사가 없음, 다시 학습해야 하는 모델, 모델이 없는 ONNX 검사 …).</exception>
              <exception cref="T:System.IO.FileNotFoundException">레시피에 필요한 파일이 없습니다.</exception>
-        </member><member name="T:Devinno.Vision.VisionState" en-hash="7f69a1731a7cb740">
+        </member><member name="T:Devinno.Vision.VisionState" en-hash="853a870390798ad9">
             <summary>Job 실행 전체의 판정입니다.</summary>
+            <remarks>값은 1부터 시작합니다. <c>default(VisionState)</c>는 어느 값도 아니므로, 한 번도 설정되지 않은 상태는 <see cref="F:Devinno.Vision.VisionState.Ok" />가 아닙니다. 더 나쁜 상태일수록 값이 큽니다.</remarks>
         </member><member name="F:Devinno.Vision.VisionState.Ok" en-hash="5002286058bcd74e">
             <summary>검사했고 양품입니다.</summary>
         </member><member name="F:Devinno.Vision.VisionState.Ng" en-hash="4e0c543abbf42a57">
             <summary>검사했고 불량입니다(이유는 <see cref="P:Devinno.Vision.VisionResult.Codes" />에 있습니다).</summary>
         </member><member name="F:Devinno.Vision.VisionState.Error" en-hash="9524f7e07e059d6e">
             <summary>검사하지 못했습니다. 예외, 시간 제한 초과, 정렬 없음, 사용 중 등입니다(이유는 <see cref="P:Devinno.Vision.VisionResult.Error" />에 있습니다).</summary>
-        </member><member name="T:Devinno.Vision.StepState" en-hash="e158852336e578d5">
+        </member><member name="T:Devinno.Vision.StepState" en-hash="7c48c51dff127445">
             <summary>단계 하나의 상태입니다.</summary>
+            <remarks>값은 1부터 시작합니다. <c>default(StepState)</c>는 어느 값도 아니므로, 한 번도 설정되지 않은 상태는 <see cref="F:Devinno.Vision.StepState.Ok" />가 아닙니다.</remarks>
         </member><member name="F:Devinno.Vision.StepState.Ok" en-hash="5ec308f6d0dcd777">
             <summary>실행했고 양품입니다.</summary>
         </member><member name="F:Devinno.Vision.StepState.Ng" en-hash="8a7d4912242322d3">
@@ -1787,7 +1790,7 @@
             var part = VisionResult.Worst(top, side);
             </code>
             </example>
-        </member><member name="M:Devinno.Vision.VisionResult.ToJson(System.Boolean)" en-hash="5cc75e5bf3d061cb">
+        </member><member name="M:Devinno.Vision.VisionResult.ToJson(System.Boolean)" en-hash="867c7635749e0b3e">
             <summary>결과를 JSON으로 나타냅니다(이미지 제외). 판정, 코드, 오류, 한계 범위가 있는 값, 단계 상태와 시간, Pose, 비활성화된 단계, 오버레이를 담습니다.
             형식은 Devinno.Vision이 정의하며, 언제 어디에 저장할지는 앱이 결정합니다.</summary>
             <param name="indented">들여쓰기하여 보기 좋게 출력할지 여부입니다.</param>
@@ -1797,6 +1800,7 @@
             <c>values</c>(<c>name</c>, <c>value</c>, <c>min</c>, <c>max</c>, <c>nominal</c>, <c>deviation</c>, <c>unit</c>, <c>code</c>, <c>ok</c>, <c>step</c>),
             <c>steps</c>(<c>name</c>, <c>state</c>, <c>reason</c>, <c>elapsedMs</c>, <c>followed</c>), <c>poses</c>(이름 → <c>x</c>, <c>y</c>, <c>angle</c>),
             <c>disabled</c>, <c>overlays</c>(<c>kind</c>, [x, y] 쌍으로 된 <c>points</c>, <c>label</c>, <c>step</c>). ASCII가 아닌 텍스트는 이스케이프하지 않고 그대로 기록합니다.
+            유한하지 않은 숫자(아무것도 측정하지 못했을 때의 NaN, 무한대)는 <c>null</c>로 기록합니다.
             </remarks>
         </member><member name="M:Devinno.Vision.VisionResult.Dispose" en-hash="712e711da7099c9a">
             <summary>단계 이미지를 해제합니다. 검사한 이미지는 건드리지 않습니다(호출한 쪽이 소유합니다).</summary>
@@ -2133,6 +2137,8 @@
             <exception cref="T:System.IO.FileNotFoundException">모델 폴더의 파일이 없거나 읽을 수 없습니다.</exception>
             <exception cref="T:System.IO.DirectoryNotFoundException">모델 폴더가 없습니다.</exception>
             <exception cref="T:System.IO.InvalidDataException">폴더가 차이 모델이 아닙니다.</exception>
+        </member><member name="M:Devinno.Vision.DiffModel.Dispose" en-hash="fdfdca3a51aded71">
+            <summary>모델 데이터를 해제합니다. <c>VisionSetup.Copy</c>로 만든 사본은 데이터를 공유하므로, 어떤 설정도 더 이상 이 모델을 쓰지 않을 때만 해제하십시오.</summary>
         </member><member name="T:Devinno.Vision.DiffResult" en-hash="cf0a472850554fe5">
             <summary><see cref="M:Devinno.Vision.DiffModel.Compare(Devinno.Vision.VisionImage,System.Double,System.Double,System.Int32)" />의 결과입니다.</summary>
         </member><member name="P:Devinno.Vision.DiffResult.Regions" en-hash="785fb6ec3bef5b10">

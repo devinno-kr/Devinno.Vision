@@ -152,7 +152,7 @@ using var r = await job.RunAsync(img);
 
 - **MUST** receive every frame and every result with `using`: `using var img = …; using var r = await job.RunAsync(img);`. The result borrows the image, so it must be disposed first — two `using var` lines in this order do that.
 - **MUST** dispose a `VisionRecipe` when the app no longer runs its jobs (it holds the loaded ONNX models). **NEVER** dispose it while its jobs are still used: after that the model steps end in Error.
-- **MUST** dispose cameras with `await using` (`IVisionCamera` is `IAsyncDisposable`), and `OnnxModel`, `AnomalyModel`, `DefectModel` with `using`/`Dispose`.
+- **MUST** dispose cameras with `await using` (`IVisionCamera` is `IAsyncDisposable`), and `OnnxModel`, `AnomalyModel`, `DefectModel`, `DiffModel` with `using`/`Dispose`.
 - **NEVER** dispose `image.Mat`, `r.Image`, `StepResult.Image` or `VisionModel.Image`. Dispose the owner instead (the image you created, the result).
 - **NEVER** keep an image created inside a step (`ctx.Image`, `ctx.Crop(...)`, `img.Gray()`, …) for use after the run: it is released when the run ends. To keep one, call `.Keep()` (then the app disposes it) or `.Clone()` inside the step.
 - **NEVER** use `r.Image` or `r.Steps[...].Image` after the result (or the frame) is disposed. To show a result later, hand it to the view first (`DvVisionView.Show` copies what it needs) or copy the data you need.

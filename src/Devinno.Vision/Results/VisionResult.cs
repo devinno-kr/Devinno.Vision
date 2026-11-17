@@ -42,7 +42,7 @@ public sealed class VisionResult : IDisposable
 
     /// <summary>The judgment.</summary>
     /// <remarks>Handle all three values. <see cref="VisionState.Error"/> means the part was not inspected (see <see cref="Error"/>) — it is neither good nor a defect.</remarks>
-    public VisionState State { get; internal set; }
+    public VisionState State { get; internal set; } = VisionState.Error;   // 판정이 채워지기 전에는 '검사 못 함'
 
     /// <summary>Shorthand for <c>State == VisionState.Ok</c>.</summary>
     public bool Ok => State == VisionState.Ok;
@@ -134,6 +134,7 @@ public sealed class VisionResult : IDisposable
     /// <c>values</c> (<c>name</c>, <c>value</c>, <c>min</c>, <c>max</c>, <c>nominal</c>, <c>deviation</c>, <c>unit</c>, <c>code</c>, <c>ok</c>, <c>step</c>),
     /// <c>steps</c> (<c>name</c>, <c>state</c>, <c>reason</c>, <c>elapsedMs</c>, <c>followed</c>), <c>poses</c> (name → <c>x</c>, <c>y</c>, <c>angle</c>),
     /// <c>disabled</c>, <c>overlays</c> (<c>kind</c>, <c>points</c> as [x, y] pairs, <c>label</c>, <c>step</c>). Text that is not ASCII is written as it is, not escaped.
+    /// A number that is not finite (NaN when nothing was measured, infinity) is written as <c>null</c>.
     /// </remarks>
     public string ToJson(bool indented = false)
     {
@@ -145,14 +146,17 @@ public sealed class VisionResult : IDisposable
             error = Error,
             elapsedMs = Math.Round(Elapsed.TotalMilliseconds, 1),
             time = _image?.Info.Time,
-            values = Values.Select(v => new { name = v.Name, value = v.Value, min = v.Min, max = v.Max, nominal = v.Nominal, deviation = v.Deviation, unit = v.Unit, code = v.Code, ok = v.Ok, step = v.Step }),
+            values = Values.Select(v => new { name = v.Name, value = Num(v.Value), min = Num(v.Min), max = Num(v.Max), nominal = Num(v.Nominal), deviation = Num(v.Deviation), unit = v.Unit, code = v.Code, ok = v.Ok, step = v.Step }),
             steps = Steps.Select(s => new { name = s.Name, state = s.State.ToString(), reason = s.Reason, elapsedMs = Math.Round(s.Elapsed.TotalMilliseconds, 1), followed = s.Followed }),
-            poses = Poses.ToDictionary(p => p.Key, p => new { x = p.Value.X, y = p.Value.Y, angle = p.Value.Angle }),
+            poses = Poses.ToDictionary(p => p.Key, p => new { x = Num(p.Value.X), y = Num(p.Value.Y), angle = Num(p.Value.Angle) }),
             disabled = Disabled,
-            overlays = Overlays.Select(o => new { kind = o.Kind.ToString(), points = o.Points.Select(p => new[] { Math.Round(p.X, 2), Math.Round(p.Y, 2) }), label = o.Label, step = o.Step }),
+            overlays = Overlays.Select(o => new { kind = o.Kind.ToString(), points = o.Points.Select(p => new[] { Num(Math.Round(p.X, 2)), Num(Math.Round(p.Y, 2)) }), label = o.Label, step = o.Step }),
         };
         return JsonSerializer.Serialize(dto, new JsonSerializerOptions { WriteIndented = indented, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
     }
+
+    // JSON 에는 NaN · 무한대가 없다 (System.Text.Json 은 예외를 던진다) — 못 잰 값은 null 로 남긴다
+    private static double? Num(double? v) => v is { } d && double.IsFinite(d) ? d : null;
 
     /// <summary>Releases the step images. The inspected image is not touched (it belongs to the caller).</summary>
     public void Dispose()

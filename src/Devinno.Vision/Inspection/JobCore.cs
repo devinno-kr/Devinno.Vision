@@ -104,7 +104,19 @@ internal sealed class JobCore(string name)
 
     public AfterNg AfterNg { get; set; } = AfterNg.Continue;
 
-    public TimeSpan? Timeout { get; set; }
+    private TimeSpan? _timeout;
+
+    public TimeSpan? Timeout { get => _timeout; set => _timeout = CheckTimeout(value, nameof(value)); }
+
+    // null · Timeout.InfiniteTimeSpan = 제한 없음 (null 로 돌려준다). 그 밖에는 0 보다 크고 CancelAfter 가 받는 범위여야 한다
+    public static TimeSpan? CheckTimeout(TimeSpan? value, string name)
+    {
+        if (value is not { } t || t == System.Threading.Timeout.InfiniteTimeSpan)
+            return null;
+        if (t <= TimeSpan.Zero || t.TotalMilliseconds > uint.MaxValue - 1)
+            throw new ArgumentOutOfRangeException(name, t, "A time limit must be positive (and at most about 49 days); null or Timeout.InfiniteTimeSpan = none.");
+        return t;
+    }
 
     public VisionCalibration? Calibration { get; set; }
 
@@ -115,6 +127,7 @@ internal sealed class JobCore(string name)
         var stepName = entry.Step.Name;
         if (string.IsNullOrWhiteSpace(stepName))
             throw new ArgumentException("A step needs a name.");
+        CheckTimeout(entry.Timeout, "timeout");   // 값만 확인한다 — '제한 없음'은 단계에 그대로 남아 Job 의 제한을 이긴다
         lock (_gate)
         {
             if (entry.Role == StepRole.Reason && entry.Pose is not null)
@@ -355,7 +368,7 @@ internal sealed class JobCore(string name)
 
                 // ── 실행 ──
                 scope.CurrentStep = name;
-                var limit = entry.Timeout ?? jobTimeout;
+                var limit = entry.Timeout is { } own ? CheckTimeout(own, nameof(entry.Timeout)) : jobTimeout;   // 단계의 '제한 없음'은 Job 의 제한을 이긴다
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 if (limit is { } lim)
                     cts.CancelAfter(lim);

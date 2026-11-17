@@ -32,7 +32,7 @@ namespace Devinno.Vision;
 /// </code>
 /// </example>
 [JsonConverter(typeof(DiffModelConverter))]
-public sealed class DiffModel
+public sealed class DiffModel : IDisposable
 {
     private Mat? _meanGray, _stdGray, _meanSat, _stdSat;
 
@@ -100,7 +100,8 @@ public sealed class DiffModel
             using var sat = Outliers(Channel(image, saturation: true), _meanSat, _stdSat, k, minSpread);
             Cv2.BitwiseOr(mask, sat, mask);
         }
-        Cv2.MorphologyEx(mask, mask, MorphTypes.Open, Cv2.GetStructuringElement(MorphShapes.Rect, new Size(3, 3)));
+        using var kernel = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(3, 3));
+        Cv2.MorphologyEx(mask, mask, MorphTypes.Open, kernel);
         Cv2.FindContours(mask, out var contours, out _, RetrievalModes.External, ContourApproximationModes.ApproxSimple);
         return new DiffResult(Blob.FromContours(contours, minArea, double.MaxValue, image.ToSourceTransform));
     }
@@ -147,6 +148,16 @@ public sealed class DiffModel
             _meanSat = Read(System.IO.Path.Combine(dir, "mean_sat.png"));
             _stdSat = Read(System.IO.Path.Combine(dir, "std_sat.png"));
         }
+    }
+
+    /// <summary>Releases the model data. Copies made by <c>VisionSetup.Copy</c> share the data: dispose the model only when no setup uses it any more.</summary>
+    public void Dispose()
+    {
+        _meanGray?.Dispose();
+        _stdGray?.Dispose();
+        _meanSat?.Dispose();
+        _stdSat?.Dispose();
+        _meanGray = _stdGray = _meanSat = _stdSat = null;
     }
 
     internal static DiffModel Shared(string? path, DiffModel? from) => from is null

@@ -60,7 +60,7 @@ Every run returns one `VisionResult`, whatever happens. Receive it with `using`;
 | `Image` | The inspected image (borrowed; do not dispose it). Throws `ObjectDisposedException` after the result is disposed |
 | `Elapsed` | Total run time |
 | `Job` | The job name |
-| `ToJson(indented)` | Everything above except the image, as JSON text — the record format. The app decides where to store it |
+| `ToJson(indented)` | Everything above except the image, as JSON text — the record format. The app decides where to store it. A number that is not finite (`NaN` when nothing was measured) is written as `null` |
 | `VisionResult.Worst(r1, r2, …)` | The worst state of several results (`Error` > `Ng` > `Ok`); `Error` when none is given |
 
 How the judgment is formed:

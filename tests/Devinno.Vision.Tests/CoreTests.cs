@@ -286,3 +286,67 @@ public class SetupTests
         Assert.Contains("\"Mark\":{\"Path\":\"m/mark.png\"}", json);
     }
 }
+
+// 게시 전에 굳힌 약속: 채우지 않은 상태는 OK 가 아니다 · 측정 못 한 값(NaN)도 JSON 으로 남는다 · 시간 제한 값은 넣을 때 확인한다
+public class ContractTests
+{
+    private static VisionImage Frame()
+    {
+        using var m = new Mat(80, 100, MatType.CV_8UC1, Scalar.All(50));
+        return VisionImage.From(m);
+    }
+
+    [Fact]
+    public void A_state_that_was_never_set_is_not_ok()
+    {
+        Assert.NotEqual(VisionState.Ok, default);
+        Assert.NotEqual(StepState.Ok, default);
+        // 나쁜 쪽이 더 크다 (Worst 가 기대는 순서)
+        Assert.True(VisionState.Ok < VisionState.Ng && VisionState.Ng < VisionState.Error);
+    }
+
+    [Fact]
+    public async Task ToJson_writes_null_for_a_value_that_is_not_a_number()
+    {
+        var job = new VisionJob("j").Add("measure", ctx =>
+        {
+            ctx.Value("width", double.NaN, min: 1, max: 2, code: "WIDTH");
+            ctx.Value("ratio", double.PositiveInfinity);
+            ctx.DrawLine(new Point2d(double.NaN, 0), new Point2d(10, 10), "n/a");
+        });
+        using var img = Frame();
+        using var r = await job.RunAsync(img);
+        Assert.Equal(VisionState.Ng, r.State);
+
+        using var doc = System.Text.Json.JsonDocument.Parse(r.ToJson());
+
+        var values = doc.RootElement.GetProperty("values");
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, values[0].GetProperty("value").ValueKind);
+        Assert.Equal(1, values[0].GetProperty("min").GetDouble());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, values[1].GetProperty("value").ValueKind);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, doc.RootElement.GetProperty("overlays")[0].GetProperty("points")[0][0].ValueKind);
+    }
+
+    [Fact]
+    public async Task Timeout_values_are_checked_when_set_and_infinite_means_no_limit()
+    {
+        var job = new VisionJob("j");
+        Assert.Throws<ArgumentOutOfRangeException>(() => job.Timeout = TimeSpan.FromSeconds(-5));
+        Assert.Throws<ArgumentOutOfRangeException>(() => job.Timeout = TimeSpan.Zero);
+        Assert.Throws<ArgumentOutOfRangeException>(() => job.Timeout = TimeSpan.MaxValue);
+        Assert.Throws<ArgumentOutOfRangeException>(() => job.Add("bad", _ => { }, timeout: TimeSpan.FromMilliseconds(-2)));
+        Assert.Null(job.Timeout);
+
+        job.Timeout = Timeout.InfiniteTimeSpan;   // .NET 의 "제한 없음"
+        job.Add("a", ctx => ctx.Value("v", 1));
+        using var img = Frame();
+        using (var r = await job.RunAsync(img))
+            Assert.True(r.Ok, r.Error);
+
+        // 단계의 "제한 없음"은 Job 의 제한을 이긴다
+        var mixed = new VisionJob("m") { Timeout = TimeSpan.FromMilliseconds(20) }
+            .Add("slow but allowed", _ => Thread.Sleep(60), timeout: Timeout.InfiniteTimeSpan);
+        using (var r = await mixed.RunAsync(img))
+            Assert.True(r.Ok, r.Error);
+    }
+}

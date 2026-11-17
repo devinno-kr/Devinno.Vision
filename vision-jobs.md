@@ -198,7 +198,7 @@ ctx.Value("width", ctx.Mm(e), nominal: 100, plus: 1, minus: 1, code: "WIDTH", un
 | No step ran (all disabled) | — | — | `Error` |
 | The job is still running | — | — | `Error`, `r.Error == "Busy"`, returned at once |
 
-- A time limit cannot stop an OpenCV call. The run signals `ctx.Cancel`, waits for the step to return, and then reports the timeout. The default is no limit.
+- A time limit cannot stop an OpenCV call. The run signals `ctx.Cancel`, waits for the step to return, and then reports the timeout. The default is no limit (`null`; `Timeout.InfiniteTimeSpan` means the same, and on a step it overrides the job's limit). A limit of zero, a negative one or one longer than about 49 days is refused with `ArgumentOutOfRangeException` when it is set.
 - `job.Disable(name)` is for commissioning. A disabled step does not judge, so a part can pass unchecked.
 
 **Reason steps** (`role: StepRole.Reason`, only on `Add(stepObject, …)`): a reason step does not judge. It runs after all judging steps, by default only when they made the result NG (`job.ReasonSteps = ReasonRun.WhenNg`), and its NG codes are added to that NG result. It never turns OK into NG or NG into Error. `ReasonRun.Always` runs it every time to show its values. Use it when one step (for example a model) decides and others only name the defect.

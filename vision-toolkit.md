@@ -117,6 +117,7 @@ ctx.Value("largest difference", d.MaxArea, max: 30, code: "SURFACE", unit: "px²
 - `Compare(image, k, minSpread, minArea)`: a pixel differs when `|value − mean| > k · (spread + minSpread)`. Lower `k` = more sensitive. `InvalidOperationException` when not trained or loaded, `ArgumentException` when the image size differs from the model.
 - `DiffResult`: `Regions` (`Blob[]`, largest first), `MaxArea`, `TotalArea`.
 - In a setup only `Path` is saved; after reading the setup call `model.Load(root)`. `IsReady` tells whether it has data.
+- `Dispose()` releases the model data. Copies made by `VisionSetup.Copy` share it, so dispose a model only when no setup uses it any more.
 - The images must be well aligned: the difference is per pixel. For surfaces where alignment to the pixel is not possible, use `AnomalyModel`.
 
 ---

@@ -350,8 +350,9 @@ public sealed class VisionJob
     /// <summary>What happens to the remaining steps after a step is NG. Default <see cref="Vision.AfterNg.Continue"/>.</summary>
     public AfterNg AfterNg { get => _core.AfterNg; set => _core.AfterNg = value; }
 
-    /// <summary>Default time limit of each step; <see langword="null"/> (default) = none. When exceeded, <c>ctx.Cancel</c> is signaled, the run waits for the step
+    /// <summary>Default time limit of each step; <see langword="null"/> (default) or <see cref="System.Threading.Timeout.InfiniteTimeSpan"/> = none. When exceeded, <c>ctx.Cancel</c> is signaled, the run waits for the step
     /// to really end (OpenCV calls cannot be stopped), skips the remaining steps and ends in Error.</summary>
+    /// <exception cref="ArgumentOutOfRangeException">The value is zero, negative or longer than about 49 days. The same holds for the <c>timeout</c> of a step.</exception>
     public TimeSpan? Timeout { get => _core.Timeout; set => _core.Timeout = value; }
 
     /// <summary>Pixel → mm conversion used by <c>ctx.Mm</c> (a machine value: keep it with the camera setup, not with the product setup). <see langword="null"/> = none; <c>ctx.Mm</c> then makes the step Error.</summary>

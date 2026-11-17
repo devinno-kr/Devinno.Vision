@@ -4,32 +4,34 @@ using OpenCvSharp;
 namespace Devinno.Vision;
 
 /// <summary>Judgment of a whole job run.</summary>
+/// <remarks>The values start at 1: <c>default(VisionState)</c> is none of them, so a state that was never set is not <see cref="Ok"/>. A worse state has a larger value.</remarks>
 public enum VisionState
 {
     /// <summary>Inspected and good.</summary>
-    Ok,
+    Ok = 1,
 
     /// <summary>Inspected and defective (<see cref="VisionResult.Codes"/> says why).</summary>
-    Ng,
+    Ng = 2,
 
     /// <summary>Could not inspect: exception, timeout, alignment missing, busy, … (<see cref="VisionResult.Error"/> says why).</summary>
-    Error,
+    Error = 3,
 }
 
 /// <summary>State of one step.</summary>
+/// <remarks>The values start at 1: <c>default(StepState)</c> is none of them, so a state that was never set is not <see cref="Ok"/>.</remarks>
 public enum StepState
 {
     /// <summary>Ran and good.</summary>
-    Ok,
+    Ok = 1,
 
     /// <summary>Ran and defective.</summary>
-    Ng,
+    Ng = 2,
 
     /// <summary>Could not inspect (exception, <c>ctx.Fail</c>, timeout, ROI not set, …).</summary>
-    Error,
+    Error = 3,
 
     /// <summary>Did not run: disabled, its pose is missing, after a timeout, or after NG with <see cref="AfterNg.Stop"/>.</summary>
-    Skipped,
+    Skipped = 4,
 }
 
 /// <summary>Result of one step.</summary>
@@ -41,7 +43,7 @@ public sealed class StepResult
     public string Name { get; }
 
     /// <summary>The state.</summary>
-    public StepState State { get; internal set; }
+    public StepState State { get; internal set; } = StepState.Skipped;   // 돌기 전에는 '안 돌았다'
 
     /// <summary>Why it is NG, Error or Skipped; <see langword="null"/> when OK.</summary>
     /// <remarks>
