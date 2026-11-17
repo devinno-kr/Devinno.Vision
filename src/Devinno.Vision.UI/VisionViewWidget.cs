@@ -70,9 +70,9 @@ internal sealed class VisionViewWidget : DvWidget
                     _ => ("ERROR", "tone-warning"),
                 };
                 using var badge = new SKPaint { IsAntialias = true, Color = ctx.Color(tone) };
-                var w = ctx.MeasureText(text, 18, bold: true) + 16;
+                var w = ctx.MeasureText(text, 18, weight: 700) + 16;
                 canvas.DrawRoundRect(new SKRect(bounds.Left + 6, y, bounds.Left + 6 + w, y + 28), 4, 4, badge);
-                ctx.DrawText(canvas, text, bounds.Left + 14, y + 21, 18, SKColors.White, bold: true);
+                ctx.DrawText(canvas, text, bounds.Left + 14, y + 21, 18, SKColors.White, weight: 700);
                 if (snap.StepName is { } sn)
                     ctx.DrawText(canvas, $"[{sn}]", bounds.Left + w + 14, y + 20, 14, SKColors.White);
                 y += 34;
@@ -82,7 +82,7 @@ internal sealed class VisionViewWidget : DvWidget
                 var text = string.Format(disabledFormat, snap.Disabled.Count, string.Join(", ", snap.Disabled));
                 using var band = new SKPaint { Color = ctx.Color("tone-warning").WithAlpha(220) };
                 canvas.DrawRect(new SKRect(bounds.Left, y, bounds.Right, y + 24), band);
-                ctx.DrawText(canvas, text, bounds.Left + 8, y + 17, 14, SKColors.Black, bold: true);
+                ctx.DrawText(canvas, text, bounds.Left + 8, y + 17, 14, SKColors.Black, weight: 700);
             }
             if (snap.Error is { } err)
             {
@@ -132,10 +132,10 @@ internal sealed class VisionViewWidget : DvWidget
             // 회색 이미지 위에서도 읽히게 어두운 받침
             var bold = o.Kind == VisionOverlayKind.Roi;
             const float size = 15;   // 12 → 15: 실제 창에서 길이 라벨이 안 읽혀 키움
-            var w = ctx.MeasureText(label, size, bold);
+            var w = ctx.MeasureText(label, size, bold ? 700 : 400);
             using var back = new SKPaint { Color = new SKColor(0, 0, 0, 170) };
             canvas.DrawRect(new SKRect(at.X - 3, at.Y - size, at.X + w + 3, at.Y + 4), back);
-            ctx.DrawText(canvas, label, at.X, at.Y, size, pen.Color, bold: bold);
+            ctx.DrawText(canvas, label, at.X, at.Y, size, pen.Color, weight: bold ? 700 : 400);
         }
     }
 
