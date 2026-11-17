@@ -205,7 +205,7 @@ internal sealed class VisionViewWidget : DvWidget
                 }
             }
         }
-        // ROI 가 있으면 옮기기(안쪽) · 크기(모서리)만. 바깥을 눌러 새로 그리면 실수 한 번에 설정이 날아간다 (2026-11-11 사용자)
+        // ROI 가 있으면 옮기기(안쪽) · 크기(모서리)만. 바깥을 눌러 새로 그리면 실수 한 번에 설정이 날아간다
         if (!roi.IsEmpty)
         {
             if (!Inside(roi, _start))

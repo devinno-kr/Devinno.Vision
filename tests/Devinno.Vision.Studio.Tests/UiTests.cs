@@ -9,7 +9,7 @@ using SkiaSharp;
 namespace Devinno.Vision.Studio.Tests;
 
 // 헤드리스로 앱을 실제 조작한다: 버튼을 Bounds 로 누르고, 대화상자는 그 안의 버튼을 누르고, 프레임을 돌린다.
-// 시나리오 ①~④ 의 화면 PNG 는 .superpowers/sdd/2026-11-11-studio-ux/ 에 남긴다 (눈으로 확인용).
+// 시나리오 ①~④ 의 화면 PNG 는 TestResults/screens/studio-ux/ 에 남긴다 (눈으로 확인용, git 제외).
 public class UiTests
 {
     private const int W = 1280, H = 800;
@@ -88,7 +88,7 @@ public class UiTests
             }
         }
 
-        public byte[] Png(string? scenario = null, [CallerFilePath] string source = "") => Png(scenario, W, H, "2026-11-11-studio-ux", source);
+        public byte[] Png(string? scenario = null, [CallerFilePath] string source = "") => Png(scenario, W, H, "studio-ux", source);
 
         public byte[] Png(string? scenario, int width, int height, string folder, [CallerFilePath] string source = "")
         {
@@ -97,7 +97,7 @@ public class UiTests
             if (scenario is not null)
             {
                 // tests/Devinno.Vision.Studio.Tests/UiTests.cs → 저장소 루트
-                var dir = Path.Combine(Path.GetDirectoryName(source)!, "..", "..", ".superpowers", "sdd", folder);
+                var dir = Path.Combine(Path.GetDirectoryName(source)!, "..", "..", "TestResults", "screens", folder);
                 Directory.CreateDirectory(dir);
                 File.WriteAllBytes(Path.Combine(dir, scenario), png);
             }
@@ -543,7 +543,7 @@ public class UiTests
         void Settle() { for (var i = 0; i < 3; i++) s.App.Surface.Layout(width, height); }   // 좁음 판단은 지난 배치 폭 → 한 번 더
         Settle();
         Assert.Equal(width < 1100, s.Edit.Compact);
-        s.Png($"edit-{width}x{height}.png", width, height, "2026-11-11-studio-narrow");
+        s.Png($"edit-{width}x{height}.png", width, height, "studio-narrow");
 
         s.App.Show(s.Test);
         Settle();
@@ -551,7 +551,7 @@ public class UiTests
         s.Until(() => s.Test.Showing.IsCompleted);
         Settle();
         Assert.Equal(width < 1100, s.Test.Compact);
-        s.Png($"test-{width}x{height}.png", width, height, "2026-11-11-studio-narrow");
+        s.Png($"test-{width}x{height}.png", width, height, "studio-narrow");
     }
 
     // 저장 안 된 변경: 위 바 배지 · 다른 로직 열기 전 확인 (예 = 저장 후 열기, 아니요 = 버리고 열기, 취소 = 그대로)
@@ -574,7 +574,7 @@ public class UiTests
         var s = DirtyStudio(dir, out _);
 
         Assert.True(s.Top.IsDirty);
-        s.Png("dirty-badge.png", 1280, 800, "2026-11-11-studio-unsaved");
+        s.Png("dirty-badge.png", 1280, 800, "studio-unsaved");
         s.Tap(() => s.Top.SaveBounds);
 
         Assert.False(s.Top.IsDirty);
@@ -594,7 +594,7 @@ public class UiTests
         s.Tap(() => s.Top.OpenBounds);
         s.Until(() => s.App.Dialogs.Top is not null);
         if (answer == "cancel")
-            s.Png("open-asks-to-save.png", 1280, 800, "2026-11-11-studio-unsaved");
+            s.Png("open-asks-to-save.png", 1280, 800, "studio-unsaved");
         s.PressDialog(answer);
         s.Until(() => s.App.Dialogs.Top is null);
         s.Frame();

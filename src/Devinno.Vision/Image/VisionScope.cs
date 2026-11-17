@@ -1,6 +1,6 @@
 namespace Devinno.Vision;
 
-// 실행 한 번의 이미지 범위 (docs/02 규칙 2). 파생 이미지는 원본의 범위를 물려받는다 — AsyncLocal 을 쓰지 않는다.
+// 실행 한 번의 이미지 범위. 파생 이미지는 원본의 범위를 물려받는다 — AsyncLocal 을 쓰지 않는다.
 internal sealed class VisionScope(string job)
 {
     private readonly object _gate = new();

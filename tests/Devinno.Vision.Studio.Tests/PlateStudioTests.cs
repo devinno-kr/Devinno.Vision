@@ -15,7 +15,7 @@ public class PlateStudioTests
 
     private static void Update(StudioSession s, string id, string json) => Ok(s.UpdateCheck(id, JsonNode.Parse(json)!.AsObject()));
 
-    /// <summary>Plate 로직을 명령으로 만든다 (Task 6 · 8 테스트도 쓴다).</summary>
+    /// <summary>Plate 로직을 명령으로 만든다 (다른 테스트도 쓴다).</summary>
     internal static void BuildPlate(StudioSession s, string folder)
     {
         Ok(s.NewProject(folder, "플레이트"));

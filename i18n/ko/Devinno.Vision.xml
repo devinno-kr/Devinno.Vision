@@ -1350,8 +1350,8 @@
             <summary>전체 학습 시간입니다.</summary>
         </member><member name="T:Devinno.Vision.Recipes.LabelRule" en-hash="81e65f128ecbc65a">
             <summary>테스트 이미지의 레이블을 읽는 방법입니다.</summary>
-        </member><member name="F:Devinno.Vision.Recipes.LabelRule.Folder" en-hash="6e1a1598e3233006">
-            <summary>하위 폴더 이름이 레이블입니다(MVTec 방식: good/, crack/ …).</summary>
+        </member><member name="F:Devinno.Vision.Recipes.LabelRule.Folder" en-hash="1d4f959ec5573c18">
+            <summary>하위 폴더 이름이 레이블입니다(예: good/, crack/ …).</summary>
         </member><member name="F:Devinno.Vision.Recipes.LabelRule.FileName" en-hash="fcac8cd3d8ca7272">
             <summary>파일 이름에서 첫 번째 '_' 뒤의 토큰이 레이블입니다(02_missinghole.bmp → missinghole).</summary>
         </member><member name="T:Devinno.Vision.Recipes.TestSet" en-hash="404673c8cd8d5821">
@@ -1804,7 +1804,7 @@
             </remarks>
         </member><member name="M:Devinno.Vision.VisionResult.Dispose" en-hash="712e711da7099c9a">
             <summary>단계 이미지를 해제합니다. 검사한 이미지는 건드리지 않습니다(호출한 쪽이 소유합니다).</summary>
-        </member><member name="T:Devinno.Vision.AnomalyModel" en-hash="28089ed3d6d1311e">
+        </member><member name="T:Devinno.Vision.AnomalyModel" en-hash="dbda5af5edc18391">
              <summary>
              양품만으로 학습하는 이상 검출입니다(불량 이미지가 필요 없습니다). 사전 학습된 CNN이 이미지의 작은 패치 각각을 특징으로 기술하고,
              양품의 패치를 위치별로 보관한 뒤, 같은 위치의 어느 양품 패치와도 멀리 떨어진 패치를 이상으로 봅니다 — 긁힘, 얼룩, 휨, 부품 누락 등입니다.
@@ -1816,7 +1816,6 @@
              일반적으로 이미 부품의 Pose를 따라가는 단계의 ROI(<c>ctx.Image</c>)를 사용합니다.</para>
              <para><b>크기</b>: 각 위치는 <c>representatives</c>개의 패치(서로 가장 다른 것들)만 보관하므로, 양품 이미지 수와 관계없이 모델은 수십 MB 수준으로 유지됩니다.
              설정에는 <see cref="P:Devinno.Vision.AnomalyModel.Path" />만 저장되며, <see cref="M:Devinno.Vision.AnomalyModel.Save(System.String,System.String)" />가 폴더(model.json, features.onnx, bank.bin)를 기록합니다.</para>
-             <para>MVTec AD metal_nut에서 테스트한 결과: 양품 이미지 200장, ResNet18 layer2+3, 위치당 48개 → 테스트 이미지 115장 중 97 %.</para>
              <para><b>문턱</b>: 점수에는 고정된 척도가 없습니다. 학습에 사용하지 않은 양품 이미지의 점수를 구하고, 그중 가장 높은 점수보다 조금 높게 문턱을 설정하십시오.</para>
              <para><b>수명</b>: 모델은 자신의 특징 모델을 소유하며, 모델을 해제하면 특징 모델도 해제됩니다. <see cref="M:Devinno.Vision.AnomalyModel.Score(Devinno.Vision.VisionImage)" />는 모델을 변경하지 않습니다.
              레시피에서는 양품 모델(<see cref="M:Devinno.Vision.VisionRecipe.TrainGoodModelAsync(Devinno.Vision.Recipes.GoodModelTraining,System.IProgress{Devinno.Vision.Recipes.GoodModelProgress},System.Threading.CancellationToken)" />)이 학습, 문턱 설정, 로드를 대신 처리합니다.</para>
@@ -1857,10 +1856,10 @@
             <summary>학습에 사용된 양품 이미지 수입니다.</summary>
         </member><member name="P:Devinno.Vision.AnomalyModel.IsReady" en-hash="9c4c93b4b8ec17a0">
             <summary>모델에 데이터가 있는지(학습되었거나 로드되었는지) 여부입니다.</summary>
-        </member><member name="M:Devinno.Vision.AnomalyModel.Train(Devinno.Vision.OnnxModel,System.Collections.Generic.IEnumerable{Devinno.Vision.VisionImage},System.Int32,System.Int32,System.IProgress{System.Int32},System.Threading.CancellationToken)" en-hash="2c438a0da177bc67">
+        </member><member name="M:Devinno.Vision.AnomalyModel.Train(Devinno.Vision.OnnxModel,System.Collections.Generic.IEnumerable{Devinno.Vision.VisionImage},System.Int32,System.Int32,System.IProgress{System.Int32},System.Threading.CancellationToken)" en-hash="93546d8a65d8ac45">
             <summary>양품 이미지로 학습합니다.</summary>
             <param name="features">특징 모델입니다. 이상 모델이 계속 사용하므로 모델을 사용하는 동안에는 해제하지 마십시오.</param>
-            <param name="goods">정렬된 양품 이미지입니다(20장 이상. 양품 이미지가 많을수록 거짓 NG가 줄어듭니다 — metal_nut에서 40장 → 200장으로 늘리자 22장 중 6장에서 1장으로 줄었습니다).</param>
+            <param name="goods">정렬된 양품 이미지입니다(20장 이상. 양품 이미지가 많을수록 거짓 NG가 줄어듭니다).</param>
             <param name="representatives">위치당 보관하는 패치 수입니다(48이면 충분합니다. 많을수록 크고 느려집니다).</param>
             <param name="neighborhood">이 셀 수만큼 떨어진 양품 패치까지 비교합니다(작은 정렬 오차를 흡수합니다).</param>
             <param name="progress">지금까지 특징을 추출한 이미지 수를 보고합니다.</param>

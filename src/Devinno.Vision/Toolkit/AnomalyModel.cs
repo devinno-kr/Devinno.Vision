@@ -16,7 +16,6 @@ namespace Devinno.Vision;
 /// normally the step's ROI (<c>ctx.Image</c>), which already follows the part's pose.</para>
 /// <para><b>Size</b>: every position keeps only <c>representatives</c> patches (the most different ones), so the model stays tens of MB whatever the number of good images.
 /// In a setup only <see cref="Path"/> is saved; <see cref="Save"/> writes the folder (model.json, features.onnx, bank.bin).</para>
-/// <para>Tested on MVTec AD metal_nut: 200 good images, ResNet18 layer2+3, 48 per position → 97 % of 115 test images.</para>
 /// <para><b>Limit</b>: the score has no fixed scale. Score good images that were not used for training and set the limit a little above their highest score.</para>
 /// <para><b>Lifetime</b>: the model owns its feature model; disposing the model disposes it. <see cref="Score"/> does not change the model.
 /// In a recipe, the good-part model (<see cref="VisionRecipe.TrainGoodModelAsync"/>) does the training, the limit and the loading for you.</para>
@@ -73,7 +72,7 @@ public sealed class AnomalyModel : IDisposable
 
     /// <summary>Learns from good images.</summary>
     /// <param name="features">The feature model. The anomaly model keeps using it (do not dispose it while the model is in use).</param>
-    /// <param name="goods">Aligned good images (20 or more; more good images = fewer false NG — 40 → 200 cut them from 6 to 1 of 22 on metal_nut).</param>
+    /// <param name="goods">Aligned good images (20 or more; more good images = fewer false NG).</param>
     /// <param name="representatives">Patches kept per position (48 is plenty; more = larger and slower).</param>
     /// <param name="neighborhood">Compare with good patches up to this many cells away (absorbs small alignment errors).</param>
     /// <param name="progress">Reports the number of images described so far.</param>

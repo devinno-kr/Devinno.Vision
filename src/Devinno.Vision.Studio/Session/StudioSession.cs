@@ -412,7 +412,7 @@ public sealed partial class StudioSession
     }
 
     // 이미지 폴더로 쓸 수 없는 곳: 프로젝트 폴더 자체 · 그 위 폴더 (studio.json · 모델이 섞인다) · models 폴더. 프로젝트 안의 다른 하위 폴더는 된다
-    // (2026-11-11 사용자 프로젝트: images/ 에 테스트 이미지, train_good/ 에 양품). 잠금 안에서. 문제가 없으면 null
+    // (예: images/ 에 테스트 이미지, train_good/ 에 양품). 잠금 안에서. 문제가 없으면 null
     private string? NotAnImageFolder(string full, string what)
     {
         var project = _project!.Folder;

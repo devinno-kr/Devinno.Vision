@@ -255,7 +255,7 @@ public class GoodModelStudioTests
     }
 }
 
-// ROI 가 빈 검사 · 양품 모델 영역도 이미지에서 끌어 그릴 수 있어야 한다 (2026-11-11 사용자 보고: 새 검사에 ROI 가 안 그려짐)
+// ROI 가 빈 검사 · 양품 모델 영역도 이미지에서 끌어 그릴 수 있어야 한다 (새 검사에 ROI 가 안 그려지던 문제)
 public class RoiDrawingTests
 {
     private static void Drag(DvApp app, SKRect view, float dx0, float dy0, float dx1, float dy1)

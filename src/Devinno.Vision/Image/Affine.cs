@@ -2,7 +2,7 @@ using OpenCvSharp;
 
 namespace Devinno.Vision;
 
-// 2×3 affine: x' = A·x + B·y + C, y' = D·x + E·y + F. 파생 이미지 좌표 → 원본(frame) 좌표 (docs/02 좌표 추적).
+// 2×3 affine: x' = A·x + B·y + C, y' = D·x + E·y + F. 파생 이미지 좌표 → 원본(frame) 좌표.
 // 공개하지 않는다 — 공개 API 는 VisionImage.ToSource 하나.
 internal readonly record struct Affine(double A, double B, double C, double D, double E, double F)
 {

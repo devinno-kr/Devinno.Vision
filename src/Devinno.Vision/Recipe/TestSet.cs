@@ -3,7 +3,7 @@ namespace Devinno.Vision.Recipes;
 /// <summary>How the label of a test image is read.</summary>
 public enum LabelRule
 {
-    /// <summary>The subfolder name is the label (MVTec style: good/, crack/ …).</summary>
+    /// <summary>The subfolder name is the label (for example good/, crack/ …).</summary>
     Folder,
 
     /// <summary>The token after the first '_' in the file name is the label (02_missinghole.bmp → missinghole).</summary>

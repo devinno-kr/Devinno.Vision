@@ -21,7 +21,7 @@ public sealed partial class StudioSession
     internal const string GoodSetFile = "goodset.json";
     internal const string TrainFile = "train.json";
 
-    /// <summary>양품이 이보다 적으면 경고한다 (metal_nut: 40장 → 양품 22장 중 6장 오판, 200장 → 1장).</summary>
+    /// <summary>양품이 이보다 적으면 경고한다 (실험: 40장으로 학습하면 양품 22장 중 6장 오판, 200장이면 1장).</summary>
     internal const int RecommendedGoods = 100;
 
     private static readonly string[] ImageExtensions = [".png", ".bmp", ".jpg", ".jpeg", ".tif", ".tiff"];
@@ -200,7 +200,7 @@ public sealed partial class StudioSession
                 _dirty = true;
             }
             var skipped = r.Skipped.Count > 0 ? Texts.T("good.skipped", r.Skipped.Count, string.Join(", ", r.Skipped.Take(3).Select(s => Path.GetFileName(s.File)))) : "";
-            // 이전 샘플(18장)로 잰 결과: 전체 이미지(640×480 → 256)로는 결함 6장을 놓쳤고, 부품만 감싸면 18/18 (2026-11-11)
+            // 이전 샘플(18장)로 잰 결과: 전체 이미지(640×480 → 256)로는 결함 6장을 놓쳤고, 부품만 감싸면 18/18
             var whole = roi.IsEmpty ? Texts.T("good.wholeImage") : "";
             return CommandResult.Done(Texts.T("good.trained", r.Learned, r.CalibrationScores.Count, r.Model.Max, r.MsPerImage) + skipped + FewWarning(images.Count) + whole);
         }

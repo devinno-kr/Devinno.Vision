@@ -5,7 +5,7 @@ using OpenCvSharp;
 
 namespace Devinno.Vision.Studio.Tests;
 
-// 테스트의 가상 카메라는 모두 127.0.0.1 에서만 연다 — Windows 방화벽 허용 창이 뜨지 않게 (2026-11-11 사용자 보고)
+// 테스트의 가상 카메라는 모두 127.0.0.1 에서만 연다 — Windows 방화벽 허용 창이 뜨지 않게
 // 가상 카메라 — Modbus 핸드셰이크 (D100 ← 1 → D100 0 · D0 1 → 다음 장 → D0 0). 프레임은 메모리로 받는다.
 // 실제 RTSP(ffmpeg + MediaMTX)는 Real_rtsp_stream_follows_the_handshake 가 돈다 (둘 다 있을 때만).
 public class EmulatorTests

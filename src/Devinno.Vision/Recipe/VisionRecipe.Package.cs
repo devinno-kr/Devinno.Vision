@@ -7,7 +7,7 @@ using Devinno.Vision.Recipes;
 
 namespace Devinno.Vision;
 
-// 레시피 패키지 (.dvpkg) — 폴더를 zip 하나로 묶어 배포. 실행 코드(DLL)는 넣지 않는다 (docs/11)
+// 레시피 패키지 (.dvpkg) — 폴더를 zip 하나로 묶어 배포. 실행 코드(DLL)는 넣지 않는다
 public sealed partial class VisionRecipe
 {
     /// <summary>The package file extension.</summary>

@@ -29,7 +29,7 @@
 
   <ItemGroup>
     <PackageReference Include="OpenCvSharp4" Version="4.13.0.20261107" />
-    <!-- ONNX 추론 (CPU). 2026-11-10 사용자 결정: 코어가 참조한다 (docs/01). GPU 용 패키지와의 공존은 확인 안 함 (docs/09 P) -->
+    <!-- ONNX 추론 (CPU). 코어가 참조한다. GPU 용 패키지와의 공존은 확인하지 않았다 -->
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.31.1" />
   </ItemGroup>
 

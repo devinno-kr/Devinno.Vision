@@ -78,7 +78,7 @@ public sealed class RtspCamera : IVisionCamera
         while (true)
         {
             // CAP_PROP_OPEN_TIMEOUT_MSEC (53) · CAP_PROP_READ_TIMEOUT_MSEC (54): 끊긴 스트림에서 Read 가 오래 막히지 않게 (닫기도 그만큼만 기다린다)
-            // CAP_PROP_N_THREADS (70) = 1: 디코더 프레임 스레딩은 스레드 수만큼 프레임을 쌓아 늦게 내보낸다 — 2026-11-11 측정 0.8~0.9 s → 0.1~0.2 s
+            // CAP_PROP_N_THREADS (70) = 1: 디코더 프레임 스레딩은 스레드 수만큼 프레임을 쌓아 늦게 내보낸다 — 지연 측정 0.8~0.9 s → 0.1~0.2 s
             capture = await Task.Run(() => new VideoCapture(url, VideoCaptureAPIs.FFMPEG, [53, 10_000, 54, ReadTimeoutMs, 70, 1]), ct).ConfigureAwait(false);
             if (capture.IsOpened())
                 break;
