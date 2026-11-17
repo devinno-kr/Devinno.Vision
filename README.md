@@ -111,13 +111,13 @@ The part in the screenshots is a synthetic sample (a generated stamped plate), n
 - **MCP**: every command is also an MCP tool, at `http://127.0.0.1:5199/mcp` (this PC only) while Studio runs. An AI tool can build and test an inspection and look at the result images.
 - The screen is in Korean or English.
 
-Run it from the repository:
+Download the zip from the [releases](https://github.com/devinno-kr/Devinno.Vision/releases) (tags `studio-v…`; Windows x64, .NET included), unzip it and run `Devinno.Vision.Studio.exe`. The zip has an `llms.txt` for AI tools (how to connect over MCP). Or run it from the repository:
 
 ```
 dotnet run --project src/Devinno.Vision.Studio
 ```
 
-Studio references [Devinno.UI](https://github.com/devinno-kr/Devinno.UI) and Devinno.Communication as projects: clone them next to this repository (`../Devinno.UI`, `../Devinno.Communication`). Optional files that are not in the repository: the feature model for the good-part model (`tools/models/features.onnx`, made with `tools/export_features.py`) and MediaMTX for the virtual camera (`tools/mediamtx/`).
+Studio and the NuGet packages are versioned and released separately. Optional files that are in neither the repository nor the zip: the feature model for the good-part model (`tools/models/features.onnx`, made with `tools/export_features.py`) and MediaMTX for the virtual camera (`tools/mediamtx/`).
 
 ## Documentation
 

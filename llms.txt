@@ -35,6 +35,8 @@ Each has its own `llms.txt`.
 - **Devinno.Vision.UI** (`DvVisionView`): shows a result (image, overlays, judgment) on a Devinno.UI screen and lets the operator drag a ROI.
 - **Devinno.Vision.FlashCap** (`FlashCapCamera`): USB (UVC) cameras.
 
+Devinno.Vision.Studio (the teaching tool that makes recipes) is an app, not a package: a zip from the releases of https://github.com/devinno-kr/Devinno.Vision (tags `studio-v…`), released separately from these packages. While it runs it serves its commands as MCP tools at `http://127.0.0.1:5199/mcp`; the `llms.txt` in the zip says how to connect.
+
 ## C# API
 
 Devinno.Vision.xml (`lib/net9.0/` in the package; the same folder as this file in `.devinno/Devinno.Vision/`): **part of this package and meant to be read** — plain XML, `<member name="T:…">`/`M:`/`P:` entries with `<summary>`, `<param>`, `<returns>`, `<exception>`, `<remarks>`, `<example>` (the same text IntelliSense shows; Korean: `lib/net9.0/ko/Devinno.Vision.xml`). It is the full API reference: every public type, method, overload and property. Search it for anything the documents above do not cover. The namespaces: [llm-rules.md#namespaces](llm-rules.md#namespaces).

@@ -111,13 +111,13 @@ Devinno.Vision.Studio 는 티칭 도구입니다. 코드를 쓰지 않고 검사
 - **MCP**: 모든 명령이 MCP 도구이기도 합니다. Studio 가 떠 있는 동안 `http://127.0.0.1:5199/mcp` (이 PC 에서만) 로 열리므로, AI 도구가 검사를 만들고 테스트하고 결과 이미지를 볼 수 있습니다.
 - 화면은 한국어 또는 영어입니다.
 
-저장소에서 실행합니다:
+[릴리스](https://github.com/devinno-kr/Devinno.Vision/releases)(태그 `studio-v…`, Windows x64, .NET 포함)에서 zip 을 받아 풀고 `Devinno.Vision.Studio.exe` 를 실행합니다. zip 에는 AI 도구용 `llms.txt`(MCP 로 연결하는 방법)가 들어 있습니다. 저장소에서 바로 실행할 수도 있습니다:
 
 ```
 dotnet run --project src/Devinno.Vision.Studio
 ```
 
-Studio 는 [Devinno.UI](https://github.com/devinno-kr/Devinno.UI) 와 Devinno.Communication 을 프로젝트로 참조합니다. 이 저장소 옆에 받아 두세요 (`../Devinno.UI`, `../Devinno.Communication`). 저장소에 없는 선택 파일: 양품 모델의 특징 모델 (`tools/models/features.onnx`, `tools/export_features.py` 로 만듭니다), 가상 카메라용 MediaMTX (`tools/mediamtx/`).
+Studio 와 NuGet 패키지는 버전과 릴리스가 따로입니다. 저장소에도 zip 에도 없는 선택 파일: 양품 모델의 특징 모델 (`tools/models/features.onnx`, `tools/export_features.py` 로 만듭니다), 가상 카메라용 MediaMTX (`tools/mediamtx/`).
 
 ## 문서
 

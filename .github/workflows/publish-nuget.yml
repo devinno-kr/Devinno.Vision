@@ -1,0 +1,70 @@
+# 태그(v1.2.3)를 올리면 테스트 → 패키지 3개(Devinno.Vision · Devinno.Vision.UI · Devinno.Vision.FlashCap)를 그 버전으로 만들어 nuget.org 에 게시한다.
+# Studio 는 다른 태그(studio-v1.2.3)로 따로 나간다 — release-studio.yml.
+# 게시는 nuget.org Trusted Publishing(OIDC) — 오래 가는 API 키를 저장하지 않고, 실행마다 1시간짜리 임시 키를 받는다.
+# 준비: ① nuget.org > 사용자 이름 > Trusted Publishing 에 정책 추가(Owner devinno-kr, Repository Devinno.Vision, Workflow File publish-nuget.yml)
+#       ② GitHub 저장소 시크릿 NUGET_USER = nuget.org 사용자 이름(프로필 이름, 이메일 아님)
+name: Publish NuGet
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  publish:
+    runs-on: windows-latest   # Studio(net9.0-windows) 와 OpenCvSharp4.runtime.win 때문에 Windows
+    permissions:
+      contents: read
+      id-token: write         # GitHub OIDC 토큰 — nuget.org 임시 키로 바꾼다
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Version from tag
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart('v')
+          if ($v -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { throw "태그 '${{ github.ref_name }}' 가 v1.2.3 형식이 아닙니다." }
+          "VERSION=$v" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      # 태그 버전으로 한 번만 빌드하고, 테스트한 그 바이너리를 그대로 pack 한다(--no-build)
+      - name: Build
+        run: dotnet build Devinno.Vision.slnx -c Release -p:Version=${{ env.VERSION }}
+
+      - name: Test
+        run: dotnet test Devinno.Vision.slnx -c Release --no-build
+
+      - name: Pack
+        shell: pwsh
+        run: |
+          foreach ($p in 'Devinno.Vision', 'Devinno.Vision.UI', 'Devinno.Vision.FlashCap') {
+            dotnet pack src/$p -c Release --no-build -p:Version=$env:VERSION -o out
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      # 임시 키는 1시간짜리라 올리기 바로 전에 받는다
+      - name: NuGet login (OIDC → temp API key)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push to nuget.org
+        shell: pwsh
+        # 파일마다 push — Windows 의 dotnet nuget push 는 "out/*.nupkg"(슬래시) 와일드카드를 풀지 못한다("File does not exist")
+        # Devinno.Vision 을 먼저 올린다 (나머지 둘이 의존한다)
+        run: |
+          $pkgs = Get-ChildItem out -Filter *.nupkg | Sort-Object { $_.Name.Length }
+          if ($pkgs.Count -ne 3) { throw "nupkg 가 3개가 아닙니다: $($pkgs.Name -join ', ')" }
+          foreach ($f in $pkgs) {
+            dotnet nuget push $f.FullName --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nupkg-${{ env.VERSION }}
+          path: out/*.nupkg

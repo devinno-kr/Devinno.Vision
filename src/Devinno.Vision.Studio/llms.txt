@@ -1,0 +1,32 @@
+# Devinno.Vision.Studio {{VERSION}}
+
+> Teaching tool for Devinno.Vision (a Windows app): build an image inspection as a list of checks, test it on folders of labelled images, and pack it as one `.dvpkg` file that a line program runs with the Devinno.Vision library. Every command of the app is also an MCP tool, so an AI tool can do the whole job and look at the result images.
+
+This file is for AI tools. Studio is an app, not a library: you do not reference it from code. You drive it through MCP.
+
+## Connect
+
+- Start `Devinno.Vision.Studio.exe`. While it runs it serves MCP over HTTP at `http://127.0.0.1:5199/mcp` (this PC only). The status line at the bottom of the window shows `MCP 127.0.0.1:5199`, or that the port is in use.
+- Register that address in your AI tool as an HTTP MCP server. For example in Claude Code: `claude mcp add --transport http vision-studio http://127.0.0.1:5199/mcp`.
+- The server's own instructions and the tool descriptions are the reference: read them after connecting. Nothing that is not a tool there exists.
+- The window and MCP work on the same project: what a tool changes shows in the window at once, and the other way round.
+
+## Order of work
+
+1. `new_project` (or `open_project`), `set_base_image`, optionally `set_calibration` (mm per pixel).
+2. `add_check` — add the `BlobAlign` check first; the ROIs of the other checks follow the part it finds. Then `set_roi` and `update_check` for each check, and `teach_base`.
+3. `add_test_set` with a folder of labelled images, `run_test`, then `get_failures` and `view_test_item` to see why an image was judged wrongly. Fix the ROI or the properties and run again.
+4. Optional models: `set_good_folder` → `train_good_model` (anomaly model from good images; no Python), or for an `Onnx` check `set_defect_folder` → `train_defect_model` (needs `setup_python` once; it downloads several hundred MB, so ask the user first) or `import_onnx`.
+5. `save_project`, then `pack_project` writes the `.dvpkg`.
+
+Rules:
+
+- Coordinates are pixels of the base image.
+- Look at the result images (`run_image`, `view_test_item`) instead of guessing from numbers.
+- `open_project` and `new_project` refuse while the open project has unsaved changes. Save first; pass `discard_changes=true` only when the user agreed.
+- `start_emulator` turns Studio into a camera (RTSP stream of a test folder, Modbus TCP trigger). It needs `ffmpeg.exe` on the PATH and MediaMTX in `tools/mediamtx/` next to the exe; neither is in the download.
+- The good-part model needs a feature model at `models/features.onnx` next to the exe. When it is missing, `train_good_model` says how to make it.
+
+## Running the result
+
+The line program uses the Devinno.Vision NuGet package: `VisionRecipe.Load(path)` opens the project folder or the `.dvpkg`, `CreateJob()` makes the job, `RunAsync(image)` runs it. That side is documented in the package (`docs/llms.txt`, copied to `.devinno/Devinno.Vision/` in a project that references it).
