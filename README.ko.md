@@ -31,7 +31,7 @@ Devinno.Vision.Studio 는 패키지가 아니라 앱입니다. 이 저장소에 
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="Devinno.Vision" Version="0.1.0" />
+  <PackageReference Include="Devinno.Vision" Version="0.1.1" />
   <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.13.0.20261107" />
 </ItemGroup>
 ```
@@ -96,9 +96,9 @@ using var r = await job.RunAsync(img);
 
 Devinno.Vision.Studio 는 티칭 도구입니다. 코드를 쓰지 않고 검사를 만들고, 라벨이 붙은 이미지로 확인하고, 라인용으로 묶어 내는 Windows 앱입니다 (Devinno.UI 로 만들었습니다).
 
-![Studio 테스트 화면: 라벨이 붙은 이미지 40장을 모두 맞게 판정](assets/studio-test.ko.png)
+![Studio 테스트 화면: 라벨이 붙은 이미지 40장을 모두 맞게 판정](https://raw.githubusercontent.com/devinno-kr/Devinno.Vision/main/assets/studio-test.ko.png)
 
-![Studio 편집 화면: 검사 목록, 기준 이미지 위의 ROI, 측정값](assets/studio-edit.ko.png)
+![Studio 편집 화면: 검사 목록, 기준 이미지 위의 ROI, 측정값](https://raw.githubusercontent.com/devinno-kr/Devinno.Vision/main/assets/studio-edit.ko.png)
 
 스크린샷의 부품은 합성 샘플(코드로 생성한 프레스 플레이트)이며 실제 제품이 아닙니다.
 

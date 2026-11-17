@@ -9,7 +9,7 @@
     <WarningsAsErrors>$(WarningsAsErrors);CS1591;CS1573</WarningsAsErrors>
 
     <PackageId>Devinno.Vision.UI</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Authors>Devinno</Authors>
     <Company>Devinno</Company>
     <Description>Result view for Devinno.Vision on Devinno.UI — image, overlays, judgment, disabled-step warning and ROI drag editing.</Description>

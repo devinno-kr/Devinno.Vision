@@ -9,7 +9,7 @@
     <WarningsAsErrors>$(WarningsAsErrors);CS1591;CS1573</WarningsAsErrors>
 
     <PackageId>Devinno.Vision</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Authors>Devinno</Authors>
     <Company>Devinno</Company>
     <Description>Thin vision inspection framework over OpenCvSharp4 — images with automatic disposal and coordinate tracking, inspection jobs with steps, ROI, timeouts and uniform results, a camera interface, a small toolkit and recipes made in a teaching tool. The result view for Devinno.UI is Devinno.Vision.UI; USB cameras are Devinno.Vision.FlashCap.</Description>

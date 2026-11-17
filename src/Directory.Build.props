@@ -5,11 +5,13 @@
   <!-- README(저장소 루트) · 저장소 주소: 세 패키지 공통 -->
   <PropertyGroup>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <RepositoryUrl>https://github.com/devinno-kr/Devinno.Vision</RepositoryUrl>
     <PackageProjectUrl>https://github.com/devinno-kr/Devinno.Vision</PackageProjectUrl>
   </PropertyGroup>
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)..\README.md" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)..\icon.png" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
 
   <!-- Korean IntelliSense: the compiler XML (English, from the source comments) is the package default; i18n/ko/{Assembly}.xml

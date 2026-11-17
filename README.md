@@ -31,7 +31,7 @@ Devinno.Vision.Studio is an app, not a package. It is in this repository (see [S
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="Devinno.Vision" Version="0.1.0" />
+  <PackageReference Include="Devinno.Vision" Version="0.1.1" />
   <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.13.0.20261107" />
 </ItemGroup>
 ```
@@ -96,9 +96,9 @@ using var r = await job.RunAsync(img);
 
 Devinno.Vision.Studio is the teaching tool: a Windows app (built with Devinno.UI) for making an inspection without writing code, checking it against labelled images and packing it for the line.
 
-![Studio, test page: 40 labelled images, all judged correctly](assets/studio-test.png)
+![Studio, test page: 40 labelled images, all judged correctly](https://raw.githubusercontent.com/devinno-kr/Devinno.Vision/main/assets/studio-test.png)
 
-![Studio, edit page: checks, ROIs on the base image and measured values](assets/studio-edit.png)
+![Studio, edit page: checks, ROIs on the base image and measured values](https://raw.githubusercontent.com/devinno-kr/Devinno.Vision/main/assets/studio-edit.png)
 
 The part in the screenshots is a synthetic sample (a generated stamped plate), not a real product.
 
