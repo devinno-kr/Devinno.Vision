@@ -10,12 +10,17 @@
   "emu.stopped": "가상 카메라를 멈췄습니다",
   "emu.noFiles": "내보낼 이미지가 없습니다.",
   "emu.cannotReadImage": "이미지를 읽을 수 없습니다: {0}",
-  "emu.noMediaMtx": "RTSP 서버(MediaMTX)가 없습니다: {0} — tools/mediamtx 에 mediamtx.exe 를 두세요",
+  "emu.noMediaMtx": "RTSP 서버(MediaMTX)가 없습니다: {0} — 테스트 화면의 [MediaMTX 설치] (setup_mediamtx) 로 설치하거나, 그 자리에 mediamtx.exe 를 두세요",
   "emu.noFfmpeg": "ffmpeg 를 찾을 수 없습니다 — 설치하거나(winget install ffmpeg) 환경 변수 DEVINNO_STUDIO_FFMPEG 에 경로를 지정하세요",
   "emu.rtspPortInUse": "RTSP 포트 {0} 를 다른 프로그램이 쓰고 있습니다",
   "emu.serverExited": "RTSP 서버(MediaMTX)가 바로 끝났습니다 (코드 {0})",
   "emu.serverTimeout": "RTSP 서버(MediaMTX)가 10 초 안에 열리지 않았습니다",
   "emu.ffmpegExited": "ffmpeg 가 끝났습니다",
   "emu.exitCode": " (코드 {0})",
-  "emu.cannotLaunch": "실행할 수 없습니다: {0}"
+  "emu.cannotLaunch": "실행할 수 없습니다: {0}",
+  "emu.mediaMtxAlready": "MediaMTX 가 이미 설치되어 있습니다: {0}",
+  "emu.mediaMtxDownloading": "MediaMTX {0} 내려받는 중 (29 MB)…",
+  "emu.mediaMtxBadHash": "내려받은 MediaMTX 파일이 예상한 파일이 아닙니다 (SHA-256 {0}, 예상 {1}) — 설치하지 않았습니다",
+  "emu.mediaMtxFailed": "MediaMTX 를 설치할 수 없습니다: {0}",
+  "emu.mediaMtxReady": "MediaMTX {0} 설치됨: {1}"
 }

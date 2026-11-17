@@ -10,12 +10,17 @@
   "emu.stopped": "Stopped the virtual camera",
   "emu.noFiles": "There are no images to send.",
   "emu.cannotReadImage": "Cannot read the image: {0}",
-  "emu.noMediaMtx": "RTSP server (MediaMTX) not found: {0} — put mediamtx.exe in tools/mediamtx",
+  "emu.noMediaMtx": "RTSP server (MediaMTX) not found: {0} — install it with [Install MediaMTX] on the test page (setup_mediamtx), or put mediamtx.exe there",
   "emu.noFfmpeg": "ffmpeg not found — install it (winget install ffmpeg) or set its path in the environment variable DEVINNO_STUDIO_FFMPEG",
   "emu.rtspPortInUse": "RTSP port {0} is used by another program",
   "emu.serverExited": "The RTSP server (MediaMTX) exited right away (code {0})",
   "emu.serverTimeout": "The RTSP server (MediaMTX) did not open within 10 seconds",
   "emu.ffmpegExited": "ffmpeg exited",
   "emu.exitCode": " (code {0})",
-  "emu.cannotLaunch": "Cannot run: {0}"
+  "emu.cannotLaunch": "Cannot run: {0}",
+  "emu.mediaMtxAlready": "MediaMTX is already installed: {0}",
+  "emu.mediaMtxDownloading": "Downloading MediaMTX {0} (29 MB)…",
+  "emu.mediaMtxBadHash": "The downloaded MediaMTX file is not the expected one (SHA-256 {0}, expected {1}) — nothing was installed",
+  "emu.mediaMtxFailed": "Cannot install MediaMTX: {0}",
+  "emu.mediaMtxReady": "MediaMTX {0} installed: {1}"
 }

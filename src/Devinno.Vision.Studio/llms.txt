@@ -24,7 +24,7 @@ Rules:
 - Coordinates are pixels of the base image.
 - Look at the result images (`run_image`, `view_test_item`) instead of guessing from numbers.
 - `open_project` and `new_project` refuse while the open project has unsaved changes. Save first; pass `discard_changes=true` only when the user agreed.
-- `start_emulator` turns Studio into a camera (RTSP stream of a test folder, Modbus TCP trigger). It needs `ffmpeg.exe` on the PATH and MediaMTX in `tools/mediamtx/` next to the exe; neither is in the download.
+- `start_emulator` turns Studio into a camera (RTSP stream of a test folder, Modbus TCP trigger). It needs MediaMTX and `ffmpeg.exe` on the PATH; neither is in the download. `setup_mediamtx` downloads and installs MediaMTX (29 MB; ask the user first). ffmpeg the user installs (`winget install ffmpeg`).
 - The good-part model needs a feature model at `models/features.onnx` next to the exe. When it is missing, `train_good_model` says how to make it.
 
 ## Running the result

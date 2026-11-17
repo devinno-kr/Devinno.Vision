@@ -42,7 +42,7 @@
   "list.badge.reason": "사유 · {0}",
   "list.badge.count": "{0}~{1}개",
   "list.empty.noProject": "로직이 없습니다.\n위 [새 로직] 또는 [열기] 로 시작하세요.",
-  "list.empty.noChecks": "검사가 없습니다.\n[추가] 로 검사를 더하세요.\n부품 위치는 '블롭 정렬' 을 먼저.",
+  "list.empty.noChecks": "검사가 없습니다.\n[추가] 로 더하세요.",
   "list.add.canceled": "검사 추가: 취소함",
   "list.remove.confirm": "정말 삭제할까요?\n\n{0} ({1})",
   "list.remove.title": "검사 삭제",

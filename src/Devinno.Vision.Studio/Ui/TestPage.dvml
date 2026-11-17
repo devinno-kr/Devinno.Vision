@@ -55,6 +55,8 @@
         <DvCheckBox text="@testpage.emulatorLocalOnly" value="{Bind EmulatorLocalOnly}" disabled="{EmulatorNotIdle}"/>
         <DvLabel class="meta" text="{EmulatorUrl}" style="white-space:nowrap" visible="{EmulatorRunning}"/>
         <DvLabel class="sub" text="{EmulatorText}"/>
+        <DvButton id="btnMediaMtx" variant="secondary" icon="fa-download" text="@testpage.mediaMtxInstall" onclick="SetupMediaMtx" visible="{NoMediaMtx}" disabled="{SettingUpMediaMtx}"/>
+        <DvLabel class="sub" text="@testpage.mediaMtxHelp" visible="{NoMediaMtx}"/>
       </DvCard>
 
       <DvCard title="@testpage.imagesTitle" grow="1" style="height:0">

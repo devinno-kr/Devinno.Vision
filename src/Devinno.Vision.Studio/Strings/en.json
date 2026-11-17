@@ -42,7 +42,7 @@
   "list.badge.reason": "Reason · {0}",
   "list.badge.count": "{0}–{1}",
   "list.empty.noProject": "No project.\nStart with [New] or [Open] above.",
-  "list.empty.noChecks": "No checks.\nAdd one with [Add].\nFor the part position, add 'Blob alignment' first.",
+  "list.empty.noChecks": "No checks.\nAdd one with [Add].",
   "list.add.canceled": "Add check: canceled",
   "list.remove.confirm": "Delete this check?\n\n{0} ({1})",
   "list.remove.title": "Delete check",

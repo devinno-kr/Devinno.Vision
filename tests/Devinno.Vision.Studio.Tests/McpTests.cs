@@ -14,7 +14,7 @@ public class McpTests
         "add_test_set", "run_test", "get_failures", "view_test_item",
         "set_good_folder", "set_good_roi", "train_good_model", "cancel_training", "remove_good_model", "add_good_image",
         "set_defect_folder", "train_defect_model", "import_onnx", "setup_python", "pack_project",
-        "start_emulator", "stop_emulator", "emulator_status",
+        "start_emulator", "setup_mediamtx", "stop_emulator", "emulator_status",
     ];
 
     private sealed class Server : IAsyncDisposable

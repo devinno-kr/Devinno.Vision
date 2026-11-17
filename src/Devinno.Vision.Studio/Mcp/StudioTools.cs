@@ -63,6 +63,7 @@ internal sealed class StudioTools(StudioSession session)
         McpServerTool.Create(t.ImportOnnx, Opt("import_onnx", "Import an ONNX model", "Attach an existing .onnx to an Onnx check. A description file (same name .json, or model.json in the same folder) must give Labels, GoodLabel, InputWidth, InputHeight and Normalize (ImageNet, Unit or Gray). Output: one score per label [1, N].", readOnly: false)),
         McpServerTool.Create(t.PackProject, Opt("pack_project", "Pack the logic", "Write the saved logic as one recipe package (.dvpkg: manifest with SHA-256 of every file, studio.json without test folders, base image, model folders). A field app opens it with VisionRecipe.Load(path). Save first.", readOnly: false, idempotent: true)),
         McpServerTool.Create(t.StartEmulator, Opt("start_emulator", "Start the virtual camera", "Studio becomes a camera: the images of a test folder are streamed over RTSP (rtsp://PC:8554/studio) and a Modbus TCP slave runs on port 502. Write 1 to holding register 100 (D100) for the next image: Studio sets D100 back to 0 and D0 to 1 before answering, slides the next image in, and sets D0 to 0 when the new image is on the stream. The client inspects when D0 is 0. Needs ffmpeg and MediaMTX.", readOnly: false)),
+        McpServerTool.Create(t.SetupMediaMtx, Opt("setup_mediamtx", "Install the RTSP server", "Download MediaMTX (the RTSP server start_emulator needs; MIT, 29 MB from github.com/bluenviron/mediamtx) and install it next to Studio after checking its SHA-256. Does nothing when it is already there. ffmpeg is not installed by this. Downloads a program; ask the user first.", readOnly: false, idempotent: true)),
         McpServerTool.Create(t.StopEmulator, Opt("stop_emulator", "Stop the virtual camera", "Stop the RTSP stream and the Modbus slave.", readOnly: false)),
         McpServerTool.Create(t.EmulatorStatus, Opt("emulator_status", "Virtual camera status", "Whether the virtual camera runs, its RTSP address, the current image, whether it is sliding (D0) and the Modbus client count.", readOnly: true)),
         McpServerTool.Create(t.SetupPython, Opt("setup_python", "Set up Python for training", "Create Studio's Python environment and install PyTorch (CPU), onnx, numpy and pillow. Downloads several hundred MB; ask the user first.", readOnly: false)),
@@ -155,6 +156,8 @@ internal sealed class StudioTools(StudioSession session)
         [Description("Milliseconds between sending the new image and setting D0 to 0 — margin for the client's RTSP delay (default 500).")] int settle_ms = 500,
         [Description("Listen on 127.0.0.1 only: no Windows firewall prompt, but other PCs cannot connect (default false).")] bool local_only = false) =>
         Of(session.StartEmulator(set_index, new EmulatorOptions(modbus_port, rtsp_port, Fps: fps, SettleMs: settle_ms, LocalOnly: local_only)));
+
+    public async Task<CallToolResult> SetupMediaMtx() => Of(await session.SetupMediaMtxAsync());
 
     public CallToolResult StopEmulator() => Of(session.StopEmulator());
 

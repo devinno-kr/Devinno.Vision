@@ -1,4 +1,5 @@
-# 태그(studio-v1.2.3)를 올리면 테스트 → Studio 를 그 버전으로 publish(win-x64, .NET 포함) → zip 을 GitHub Release 에 올린다.
+# 태그(studio-v1.2.3)를 올리면 테스트 → Studio 를 그 버전으로 publish(win-x64) → zip 을 GitHub Release 에 올린다.
+# .NET 런타임은 넣지 않는다 (zip 크기) — 쓰는 PC 에 .NET 9 SDK, 또는 .NET 9 Desktop Runtime + ASP.NET Core Runtime 이 있어야 한다.
 # NuGet 패키지는 다른 태그(v1.2.3)로 따로 나간다 — publish-nuget.yml. 두 버전은 서로 묶이지 않는다: 둘 사이의 약속은 레시피 FormatVersion 이다.
 # zip 에 들어가지 않는 것(저장소에 없다): 양품 모델의 특징 모델(models/features.onnx), MediaMTX(tools/mediamtx/), ffmpeg. 없어도 Studio 는 뜨고, 그 기능을 쓸 때 받는 방법을 알려 준다.
 name: Release Studio
@@ -35,7 +36,7 @@ jobs:
 
       # StudioVersion 은 Studio 의 버전만 바꾼다 (같이 들어가는 Devinno.Vision.dll 은 저장소의 라이브러리 버전 그대로)
       - name: Publish
-        run: dotnet publish src/Devinno.Vision.Studio -c Release -r win-x64 --self-contained true -p:StudioVersion=${{ env.VERSION }} -o stage/DevinnoVisionStudio
+        run: dotnet publish src/Devinno.Vision.Studio -c Release -r win-x64 --self-contained false -p:StudioVersion=${{ env.VERSION }} -o stage/DevinnoVisionStudio
 
       - name: Add documents
         shell: pwsh
@@ -44,6 +45,7 @@ jobs:
           (Get-Content src/Devinno.Vision.Studio/llms.txt -Raw).Replace('{{VERSION}}', $env:VERSION) | Set-Content "$dir/llms.txt" -Encoding utf8
           Copy-Item LICENSE, README.md, README.ko.md $dir
           Copy-Item assets $dir -Recurse   # README 의 스크린샷
+          Get-ChildItem $dir -Recurse -Filter *.pdb | Remove-Item   # 디버그 기호는 배포하지 않는다 (libSkiaSharp.pdb 만 80 MB)
           if (-not (Test-Path "$dir/Devinno.Vision.Studio.exe")) { throw 'Devinno.Vision.Studio.exe 가 없습니다.' }
 
       - name: Zip
@@ -56,6 +58,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $lib = ([xml](Get-Content src/Devinno.Vision/Devinno.Vision.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
-          $notes = "Devinno Vision Studio $env:VERSION (Windows x64, .NET included).`n`nBuilt with the Devinno.Vision library $lib. Unzip and run Devinno.Vision.Studio.exe. For AI tools: llms.txt in the zip."
+          $notes = "Devinno Vision Studio $env:VERSION (Windows x64).`n`nNeeds the .NET 9 SDK, or the .NET 9 Desktop Runtime and the ASP.NET Core Runtime 9. Built with the Devinno.Vision library $lib. Unzip and run Devinno.Vision.Studio.exe. For AI tools: llms.txt in the zip."
           gh release create "${{ github.ref_name }}" "DevinnoVisionStudio-$env:VERSION-win-x64.zip" --title "Devinno Vision Studio $env:VERSION" --notes $notes
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

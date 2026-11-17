@@ -395,6 +395,28 @@ public sealed partial class TestPage : DvPage
 
     public bool EmulatorNotIdle => !EmulatorIdle;
 
+    /// <summary>MediaMTX 가 없다 — [MediaMTX 설치] 를 보인다 (가상 카메라가 꺼져 있을 때).</summary>
+    public bool NoMediaMtx => EmulatorIdle && !_session.HasMediaMtx;
+
+    public bool SettingUpMediaMtx { get; private set; }
+
+    public async void SetupMediaMtx()
+    {
+        if (SettingUpMediaMtx)
+            return;
+        SettingUpMediaMtx = true;
+        try
+        {
+            _status.Report(await _session.SetupMediaMtxAsync(new Progress<string>(line => _status.Ok(line))));
+        }
+        catch (Exception ex) { _status.Fail(ex.Message); }
+        finally
+        {
+            SettingUpMediaMtx = false;
+            try { App.Invalidate(); } catch (InvalidOperationException) { }
+        }
+    }
+
     public void ToggleEmulator()
     {
         if (_session.EmulatorStatus is null)

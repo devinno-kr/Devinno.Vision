@@ -217,4 +217,79 @@ public class EmulatorTests
             s.StopEmulator();
         }
     }
+
+    // MediaMTX 설치 — 내려받기는 테스트가 만든 zip 으로 바꾼다. 설치 자리는 DEVINNO_STUDIO_MEDIAMTX 가 가리키는 파일
+    private static async Task<(CommandResult Result, string Exe, int Downloads)> SetupMediaMtx(TempDir dir, bool rightHash = true, bool withExe = true, bool already = false)
+    {
+        var zip = Path.Combine(dir.Path, "source.zip");
+        using (var z = System.IO.Compression.ZipFile.Open(zip, System.IO.Compression.ZipArchiveMode.Create))
+        {
+            if (withExe)
+                using (var w = new StreamWriter(z.CreateEntry("mediamtx.exe").Open())) w.Write("exe");
+            using (var w = new StreamWriter(z.CreateEntry("LICENSE").Open())) w.Write("MIT");
+            using (var w = new StreamWriter(z.CreateEntry("mediamtx.yml").Open())) w.Write("cfg");
+        }
+        var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(zip)));
+        var exe = Path.Combine(dir.Path, "install", "mediamtx.exe");
+        if (already)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(exe)!);
+            File.WriteAllText(exe, "old");
+        }
+        var downloads = 0;
+        var s = new StudioSession
+        {
+            MediaMtxSha256 = rightHash ? hash : new string('0', 64),
+            DownloadMediaMtx = (file, _) => { downloads++; File.Copy(zip, file, overwrite: true); return Task.CompletedTask; },
+        };
+        var saved = Environment.GetEnvironmentVariable("DEVINNO_STUDIO_MEDIAMTX");
+        try
+        {
+            Environment.SetEnvironmentVariable("DEVINNO_STUDIO_MEDIAMTX", exe);
+            return (await s.SetupMediaMtxAsync(), exe, downloads);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("DEVINNO_STUDIO_MEDIAMTX", saved);
+        }
+    }
+
+    [Fact]
+    public async Task Setup_installs_MediaMTX_and_its_license_after_checking_the_hash()
+    {
+        using var dir = new TempDir();
+        var (r, exe, downloads) = await SetupMediaMtx(dir);
+
+        Assert.True(r.Ok, r.Message);
+        Assert.Equal(1, downloads);
+        Assert.Equal("exe", File.ReadAllText(exe));
+        Assert.Equal("MIT", File.ReadAllText(Path.Combine(Path.GetDirectoryName(exe)!, "LICENSE")));
+        Assert.Equal(["LICENSE", "mediamtx.exe"], Directory.GetFiles(Path.GetDirectoryName(exe)!).Select(Path.GetFileName).Order());
+    }
+
+    [Fact]
+    public async Task Setup_refuses_a_download_with_another_hash_and_installs_nothing()
+    {
+        using var dir = new TempDir();
+        var (r, exe, _) = await SetupMediaMtx(dir, rightHash: false);
+
+        Assert.False(r.Ok);
+        Assert.Contains("SHA-256", r.Message);
+        Assert.False(File.Exists(exe));
+    }
+
+    [Fact]
+    public async Task Setup_refuses_a_zip_without_the_exe_and_does_nothing_when_already_installed()
+    {
+        using var dir = new TempDir();
+        var (r, exe, _) = await SetupMediaMtx(dir, withExe: false);
+        Assert.False(r.Ok);
+        Assert.False(File.Exists(exe));
+
+        using var dir2 = new TempDir();
+        var (r2, exe2, downloads) = await SetupMediaMtx(dir2, already: true);
+        Assert.True(r2.Ok, r2.Message);
+        Assert.Equal(0, downloads);
+        Assert.Equal("old", File.ReadAllText(exe2));
+    }
 }
