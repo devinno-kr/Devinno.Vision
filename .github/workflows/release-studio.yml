@@ -43,7 +43,17 @@ jobs:
         run: |
           $dir = 'stage/DevinnoVisionStudio'
           (Get-Content src/Devinno.Vision.Studio/llms.txt -Raw).Replace('{{VERSION}}', $env:VERSION) | Set-Content "$dir/llms.txt" -Encoding utf8
-          Copy-Item LICENSE, README.md, README.ko.md $dir
+          Copy-Item LICENSE, README.md, README.ko.md, src/Devinno.Vision.Studio/THIRD-PARTY-NOTICES.md $dir
+          # 제3자 라이선스: NuGet 패키지 안의 라이선스 · 고지 파일을 그대로 licenses/<패키지>/ 로 (THIRD-PARTY-NOTICES.md 가 가리킨다)
+          $packages = ((dotnet nuget locals global-packages -l) -replace '^[^:]*:\s*', '').Trim()
+          foreach ($id in 'microsoft.ml.onnxruntime', 'skiasharp', 'skiasharp.nativeassets.win32', 'mqttnet', 'opentk.redist.glfw', 'ffmpeg.autogen', 'system.io.ports', 'devinno.ui') {
+            $pkg = Get-ChildItem (Join-Path $packages $id) -Directory | Sort-Object Name | Select-Object -Last 1
+            if (-not $pkg) { throw "NuGet 캐시에 $id 가 없습니다." }
+            $files = Get-ChildItem $pkg.FullName -File | Where-Object { $_.Name -match '^(LICENSE|COPYING|ThirdPartyNotices|THIRD-PARTY-NOTICES)' }
+            if (-not $files) { throw "$id 에 라이선스 파일이 없습니다." }
+            $to = New-Item -ItemType Directory -Force (Join-Path $dir "licenses/$id")
+            $files | Copy-Item -Destination $to
+          }
           Copy-Item assets $dir -Recurse   # README 의 스크린샷
           Get-ChildItem $dir -Recurse -Filter *.pdb | Remove-Item   # 디버그 기호는 배포하지 않는다 (libSkiaSharp.pdb 만 80 MB)
           if (-not (Test-Path "$dir/Devinno.Vision.Studio.exe")) { throw 'Devinno.Vision.Studio.exe 가 없습니다.' }
