@@ -121,7 +121,7 @@ public sealed class AnomalyModel : IDisposable
         return new AnomalyModel
         {
             _features = features, _bank = bank, GridWidth = gw, GridHeight = gh, Dimension = dim,
-            Representatives = bank[0].Length, Neighborhood = neighborhood, Count = embeds.Count,
+            Representatives = bank.Max(b => b.Length), Neighborhood = neighborhood, Count = embeds.Count,
         };
     }
 
@@ -175,14 +175,18 @@ public sealed class AnomalyModel : IDisposable
         File.WriteAllText(System.IO.Path.Combine(dir, "model.json"), JsonSerializer.Serialize(info, new JsonSerializerOptions { WriteIndented = true }));
         using (var w = new BinaryWriter(File.Create(System.IO.Path.Combine(dir, "bank.bin"))))
         {
-            w.Write("DVAB"u8); w.Write(1); w.Write(GridWidth); w.Write(GridHeight); w.Write(Dimension); w.Write(Representatives);
+            // 형식 2: 칸마다 대표 수를 먼저 쓴다 (양품이 적으면 모서리 · 가장자리 칸은 대표가 더 적다)
+            w.Write("DVAB"u8); w.Write(2); w.Write(GridWidth); w.Write(GridHeight); w.Write(Dimension); w.Write(Representatives);
             var buf = new byte[Dimension * 4];
             foreach (var pos in _bank)
+            {
+                w.Write(pos.Length);
                 foreach (var v in pos)
                 {
                     Buffer.BlockCopy(v, 0, buf, 0, buf.Length);
                     w.Write(buf);
                 }
+            }
         }
         Path = path;
     }
@@ -201,22 +205,37 @@ public sealed class AnomalyModel : IDisposable
         var info = JsonSerializer.Deserialize<Info>(File.ReadAllText(System.IO.Path.Combine(dir, "model.json")))
             ?? throw new InvalidDataException($"Not an AnomalyModel folder: {dir}");
         using var r = new BinaryReader(File.OpenRead(System.IO.Path.Combine(dir, "bank.bin")));
-        if (!r.ReadBytes(4).AsSpan().SequenceEqual("DVAB"u8) || r.ReadInt32() != 1)
+        // 형식 1: 모든 칸의 대표 수가 헤더의 k. 형식 2: 칸마다 대표 수가 앞에 있다
+        var version = r.ReadBytes(4).AsSpan().SequenceEqual("DVAB"u8) ? r.ReadInt32() : 0;
+        if (version is not (1 or 2))
             throw new InvalidDataException($"bank.bin has an unknown format: {dir}");
         int gw = r.ReadInt32(), gh = r.ReadInt32(), dim = r.ReadInt32(), k = r.ReadInt32();
         var bank = new float[gw * gh][][];
         var buf = new byte[dim * 4];
-        for (var p = 0; p < bank.Length; p++)
+        try
         {
-            bank[p] = new float[k][];
-            for (var i = 0; i < k; i++)
+            for (var p = 0; p < bank.Length; p++)
             {
-                r.BaseStream.ReadExactly(buf);
-                var v = new float[dim];
-                Buffer.BlockCopy(buf, 0, v, 0, buf.Length);
-                bank[p][i] = v;
+                var n = version == 1 ? k : r.ReadInt32();
+                if (n < 1 || n > k)
+                    throw new InvalidDataException($"bank.bin is damaged: {dir}");
+                bank[p] = new float[n][];
+                for (var i = 0; i < n; i++)
+                {
+                    r.BaseStream.ReadExactly(buf);
+                    var v = new float[dim];
+                    Buffer.BlockCopy(buf, 0, v, 0, buf.Length);
+                    bank[p][i] = v;
+                }
             }
         }
+        catch (EndOfStreamException)
+        {
+            throw new InvalidDataException($"bank.bin is damaged: {dir}");
+        }
+        // 형식 1 로 저장된, 칸마다 대표 수가 다른 모델은 읽는 위치가 어긋난다 (남는 데이터로 드러난다)
+        if (r.BaseStream.Position != r.BaseStream.Length)
+            throw new InvalidDataException($"bank.bin is damaged (train the model again): {dir}");
         var features = OnnxModel.Load(System.IO.Path.Combine(dir, "features.onnx"), info.InputWidth, info.InputHeight, info.Format);
         _features?.Dispose();
         (_features, _bank) = (features, bank);

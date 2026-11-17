@@ -79,6 +79,25 @@ public class OnnxTests
         Assert.Equal("front/anomaly", copy.Anomaly.Path);
     }
 
+    // 양품이 적으면 모서리 · 가장자리 · 안쪽 칸의 대표 수가 다르다 (모서리 4×장수 < representatives). 저장 → 열기 뒤에도 점수 지도가 같아야 한다
+    [Fact]
+    public void AnomalyModel_with_few_goods_scores_the_same_after_save_and_load()
+    {
+        using var dir = new TempDir();
+        var features = OnnxModel.Load(Tiny, 64, 64);
+        var goods = Enumerable.Range(0, 3).Select(i => Plate(i)).ToList();
+        using var model = AnomalyModel.Train(features, goods);   // 기본값: representatives 48, neighborhood 1
+        goods.ForEach(g => g.Dispose());
+        Assert.Equal(27, model.Representatives);   // 안쪽 칸: 9칸 × 3장
+        model.Save(dir.Path, "m");
+
+        using var loaded = new AnomalyModel { Path = "m" };
+        loaded.Load(dir.Path);
+        Assert.Equal(27, loaded.Representatives);
+        using var img = Plate(50, m => Cv2.Rectangle(m, new Rect(40, 8, 10, 10), Scalar.All(20), -1));
+        Assert.Equal(model.Score(img).Map, loaded.Score(img).Map);
+    }
+
     [Fact]
     public async Task Works_inside_a_job_and_draws()
     {
