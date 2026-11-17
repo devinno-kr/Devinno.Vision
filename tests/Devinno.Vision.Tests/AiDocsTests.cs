@@ -22,7 +22,7 @@ public class AiDocsTests
 
     private static string[] AllDocs()
         => [.. CoreDocs(), .. Directory.EnumerateFiles(Path.Combine(Root(), "src"), "llms.txt", SearchOption.AllDirectories)
-            .Where(f => !Regex.IsMatch(f, @"[\\/](obj|bin)[\\/]"))
+            .Where(f => !Regex.IsMatch(f, @"[\\/](obj|bin|\.devinno)[\\/]"))   // .devinno = 참조한 Devinno 패키지의 문서 사본
             .Select(f => Path.GetRelativePath(Root(), f).Replace('\\', '/')).Order(StringComparer.Ordinal)];
 
     private static string Text(string doc) => File.ReadAllText(Path.Combine(Root(), doc)).Replace("\r\n", "\n");

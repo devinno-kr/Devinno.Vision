@@ -9,8 +9,4 @@
     <Project Path="tests/Devinno.Vision.Studio.Tests/Devinno.Vision.Studio.Tests.csproj" />
     <Project Path="tests/Devinno.Vision.Tests/Devinno.Vision.Tests.csproj" />
   </Folder>
-  <Project Path="../Devinno.Communication/src/Devinno.Communication/Devinno.Communication.csproj" />
-  <Project Path="../Devinno.UI/src/Devinno.UI.Generators/Devinno.UI.Generators.csproj" />
-  <Project Path="../Devinno.UI/src/Devinno.UI/Devinno.UI.csproj" />
-  <Project Path="../Devinno.UI/src/Devinno.UI.WinForms/Devinno.UI.WinForms.csproj" />
 </Solution>

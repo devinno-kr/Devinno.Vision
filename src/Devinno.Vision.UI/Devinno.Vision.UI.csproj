@@ -20,8 +20,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Devinno.Vision\Devinno.Vision.csproj" />
-    <!-- 개발 중에는 Devinno.UI 를 로컬 프로젝트로 참조한다. 게시할 때 패키지 참조로 바꾼다. 코어(Devinno.Vision)는 Devinno.UI 를 모른다. -->
-    <ProjectReference Include="..\..\..\Devinno.UI\src\Devinno.UI\Devinno.UI.csproj" />
+    <!-- 코어(Devinno.Vision)는 Devinno.UI 를 모른다. Studio 의 Devinno.UI.WinForms 와 같은 버전으로 둔다 -->
+    <PackageReference Include="Devinno.UI" Version="0.7.1" />
   </ItemGroup>
 
 </Project>

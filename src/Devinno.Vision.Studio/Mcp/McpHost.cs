@@ -36,7 +36,7 @@ public sealed class McpHost : IAsyncDisposable
         builder.Services
             .AddMcpServer(o =>
             {
-                o.ServerInfo = new Implementation { Name = "Devinno Vision Studio", Title = "Devinno Vision Studio", Version = "0.1.0" };
+                o.ServerInfo = new Implementation { Name = "Devinno Vision Studio", Title = "Devinno Vision Studio", Version = typeof(McpHost).Assembly.GetName().Version?.ToString(3) ?? "0.0.0" };
                 o.ServerInstructions = StudioTools.Instructions;
             })
             .WithHttpTransport(o => o.SessionMode = HttpServerSessionMode.StatefulForInitializeClients);

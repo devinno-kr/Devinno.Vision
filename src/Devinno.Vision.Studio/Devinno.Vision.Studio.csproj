@@ -8,21 +8,21 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Devinno.Vision.Studio</RootNamespace>
     <IsPackable>false</IsPackable>
+    <!-- Studio 의 버전은 라이브러리(NuGet)와 따로 간다. 릴리스 워크플로(release-studio.yml)가 태그 studio-v1.2.3 에서 StudioVersion 을 넘긴다 -->
+    <Version>0.1.0</Version>
+    <Version Condition="'$(StudioVersion)' != ''">$(StudioVersion)</Version>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Devinno.Vision\Devinno.Vision.csproj" />
     <ProjectReference Include="..\Devinno.Vision.UI\Devinno.Vision.UI.csproj" />
-    <!-- 카메라 에뮬레이터의 Modbus TCP 슬레이브 -->
-    <ProjectReference Include="../../../Devinno.Communication/src/Devinno.Communication/Devinno.Communication.csproj" />
-    <!-- 개발 중에는 Devinno.UI 를 로컬 프로젝트로 참조한다 -->
-    <ProjectReference Include="..\..\..\Devinno.UI\src\Devinno.UI.WinForms\Devinno.UI.WinForms.csproj" />
-    <ProjectReference Include="..\..\..\Devinno.UI\src\Devinno.UI.Generators\Devinno.UI.Generators.csproj"
-                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <AdditionalFiles Include="**/*.dvml" Exclude="$(DefaultItemExcludes)" />
   </ItemGroup>
 
   <ItemGroup>
+    <!-- 카메라 에뮬레이터의 Modbus TCP 슬레이브 -->
+    <PackageReference Include="Devinno.Communication" Version="0.2.0" />
+    <!-- 화면. Devinno.UI 패키지가 dvml 소스 생성기를 가져오고 *.dvml 을 넘긴다. Devinno.Vision.UI 의 Devinno.UI 와 같은 버전으로 둔다 -->
+    <PackageReference Include="Devinno.UI.WinForms" Version="0.7.1" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
     <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.13.0.20261107" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
