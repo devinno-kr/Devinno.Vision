@@ -238,13 +238,12 @@ public sealed class DiffModel : IDisposable
     {
         using var u = new Mat();
         m.ConvertTo(u, MatType.CV_16U, 100);
-        if (!Cv2.ImWrite(file, u))
-            throw new IOException($"Cannot write {file}");
+        ImageFile.Write(file, u);
     }
 
     private static Mat Read(string file)
     {
-        using var u = Cv2.ImRead(file, ImreadModes.Unchanged);
+        using var u = ImageFile.Read(file, ImreadModes.Unchanged);
         if (u.Empty())
             throw new FileNotFoundException($"Cannot read {file}", file);
         var f = new Mat();

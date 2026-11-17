@@ -118,14 +118,14 @@ static void SaveResultPicture(VisionResult r, string file)
                 Cv2.Circle(canvas, pts[0], 4, color, thickness: -1);
                 break;
         }
-        if (o.Label is { } label)
+        if (o.Label is { } label && label.All(char.IsAscii))   // PutText takes ASCII only
             Cv2.PutText(canvas, label, pts[0], HersheyFonts.HersheySimplex, 0.5, color);
     }
     Cv2.ImWrite(file, canvas);
 }
 ```
 
-`Cv2.PutText` draws ASCII only; a label with other characters (for example a Korean check name on a ROI) comes out as question marks. The shapes are still right.
+`Cv2.PutText` takes ASCII only: with other characters (for example a Korean check name on a ROI) it draws question marks, or throws `ArgumentException` on a PC whose code page does not have them. So the example skips those labels; the shapes are still drawn. In the same way, read and write image files with `VisionImage.Load` and `Save` (any path works) rather than `Cv2.ImRead` / `Cv2.ImWrite` when a folder name may not be ASCII.
 
 ---
 

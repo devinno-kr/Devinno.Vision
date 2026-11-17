@@ -225,7 +225,11 @@ internal sealed class CameraEmulator : IDisposable
     // BGR 3채널, 짝수 크기 (H.264), 첫 장과 같은 크기로
     private static Mat LoadFrame(string file, (int W, int H)? size)
     {
-        using var raw = Cv2.ImRead(file, ImreadModes.Color);
+        // imread 는 경로를 ANSI 코드 페이지로 넘긴다 (다른 언어의 폴더 이름에서 실패) → 파일은 .NET 으로 읽는다
+        byte[] bytes;
+        try { bytes = File.ReadAllBytes(file); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { throw new IOException(Texts.T("emu.cannotReadImage", file), ex); }
+        using var raw = bytes.Length == 0 ? new Mat() : Cv2.ImDecode(bytes, ImreadModes.Color);
         if (raw.Empty())
             throw new IOException(Texts.T("emu.cannotReadImage", file));
         var (w, h) = size ?? (raw.Width & ~1, raw.Height & ~1);

@@ -93,7 +93,7 @@ public sealed class VisionImage : IDisposable
     public static VisionImage Load(string path)
     {
         ArgumentNullException.ThrowIfNull(path);
-        var raw = Cv2.ImRead(path, ImreadModes.Unchanged);
+        var raw = ImageFile.Read(path, ImreadModes.Unchanged);
         if (raw.Empty())
         {
             raw.Dispose();
@@ -329,8 +329,7 @@ public sealed class VisionImage : IDisposable
     public void Save(string path)
     {
         ArgumentNullException.ThrowIfNull(path);
-        if (!Cv2.ImWrite(path, Mat))
-            throw new IOException($"Cannot write the image file: {path}");
+        ImageFile.Write(path, Mat);
     }
 
     /// <summary>Releases the pixels. Safe to call more than once.</summary>

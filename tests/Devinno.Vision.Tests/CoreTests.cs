@@ -350,3 +350,52 @@ public class ContractTests
             Assert.True(r.Ok, r.Error);
     }
 }
+
+// 파일 경로는 PC 의 코드 페이지와 무관해야 한다 — 한글 경로가 영어 Windows 에서도, 그 반대도 열려야 한다
+public class PathTests
+{
+    // 한 코드 페이지로는 다 담을 수 없는 이름 (한글 · 태국어 · 간체)
+    private const string Odd = "검사 ทดสอบ 测试";
+
+    [Fact]
+    public void Images_load_and_save_in_a_folder_with_any_characters()
+    {
+        using var dir = new TempDir();
+        var folder = Directory.CreateDirectory(Path.Combine(dir.Path, Odd)).FullName;
+        using var m = new Mat(40, 60, MatType.CV_8UC1, Scalar.All(77));
+        using var img = VisionImage.From(m);
+
+        var file = Path.Combine(folder, Odd + ".png");
+        img.Save(file);
+        Assert.True(File.Exists(file));
+        using var back = VisionImage.Load(file);
+        Assert.Equal((60, 40), (back.Width, back.Height));
+        Assert.Equal(77, back.Mat.At<byte>(10, 10));
+
+        var ex = Assert.Throws<FileNotFoundException>(() => VisionImage.Load(Path.Combine(folder, "none.png")));
+        Assert.Contains("none.png", ex.Message);
+        Assert.ThrowsAny<IOException>(() => img.Save(Path.Combine(folder, "no-such-folder", "a.png")));   // 폴더 없음도 IOException 의 한 종류
+        Assert.Throws<IOException>(() => img.Save(Path.Combine(folder, "a.unknownformat")));
+    }
+
+    [Fact]
+    public void DiffModel_saves_and_loads_in_a_folder_with_any_characters()
+    {
+        using var dir = new TempDir();
+        static VisionImage Flat(byte v)
+        {
+            using var m = new Mat(20, 20, MatType.CV_8UC1, Scalar.All(v));
+            return VisionImage.From(m);
+        }
+        using var a = Flat(100);
+        using var b = Flat(104);
+        using var model = DiffModel.Train([a, b]);
+
+        model.Save(dir.Path, Odd);
+        using var loaded = new DiffModel { Path = Odd };
+        loaded.Load(dir.Path);
+
+        Assert.True(loaded.IsReady);
+        Assert.Equal(model.Compare(a).TotalArea, loaded.Compare(a).TotalArea);
+    }
+}

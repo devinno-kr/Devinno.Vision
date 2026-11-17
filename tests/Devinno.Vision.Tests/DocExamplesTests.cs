@@ -191,7 +191,7 @@ public class DocExamplesTests
                     Cv2.Circle(canvas, pts[0], 4, color, thickness: -1);
                     break;
             }
-            if (o.Label is { } label)
+            if (o.Label is { } label && label.All(char.IsAscii))   // PutText takes ASCII only
                 Cv2.PutText(canvas, label, pts[0], HersheyFonts.HersheySimplex, 0.5, color);
         }
         Cv2.ImWrite(file, canvas);
