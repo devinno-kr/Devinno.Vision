@@ -13,6 +13,7 @@
     <Authors>Devinno</Authors>
     <Company>Devinno</Company>
     <Description>UVC camera driver for Devinno.Vision, based on FlashCap.</Description>
+    <PackageTags>vision;inspection;machine-vision;camera;uvc;usb;flashcap</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Copyright>Copyright (c) 2026 Devinno</Copyright>
   </PropertyGroup>

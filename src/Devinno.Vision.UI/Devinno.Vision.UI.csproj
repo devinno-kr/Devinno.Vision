@@ -13,6 +13,7 @@
     <Authors>Devinno</Authors>
     <Company>Devinno</Company>
     <Description>Result view for Devinno.Vision on Devinno.UI — image, overlays, judgment, disabled-step warning and ROI drag editing.</Description>
+    <PackageTags>vision;inspection;machine-vision;ui;hmi;devinno-ui;industrial</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Copyright>Copyright (c) 2026 Devinno</Copyright>
   </PropertyGroup>

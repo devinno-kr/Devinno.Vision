@@ -2,6 +2,16 @@
   <!-- 패키지 공통 (Devinno.UI 의 src/Directory.Build.props 와 같은 방식). 버전 · 설명 등은 각 csproj 에 둔다.
        IsPackable=false 인 프로젝트(Studio)와 llms.txt 가 없는 프로젝트에서는 아무 일도 하지 않는다. -->
 
+  <!-- README(저장소 루트) · 저장소 주소: 세 패키지 공통 -->
+  <PropertyGroup>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/devinno-kr/Devinno.Vision</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/devinno-kr/Devinno.Vision</PackageProjectUrl>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)..\README.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+
   <!-- Korean IntelliSense: the compiler XML (English, from the source comments) is the package default; i18n/ko/{Assembly}.xml
        goes to lib/{tfm}/ko/ (Visual Studio in Korean shows it). Kept in sync by XmlDocI18nTests / tools/XmlDocI18n. -->
   <PropertyGroup>

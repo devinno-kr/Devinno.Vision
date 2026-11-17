@@ -12,7 +12,8 @@
     <Version>0.1.0</Version>
     <Authors>Devinno</Authors>
     <Company>Devinno</Company>
-    <Description>Thin vision inspection framework over OpenCvSharp4 — images with automatic disposal and coordinate tracking, inspection jobs with steps, ROI, timeouts and uniform results, a camera interface, a small toolkit, and a result view for Devinno.UI.</Description>
+    <Description>Thin vision inspection framework over OpenCvSharp4 — images with automatic disposal and coordinate tracking, inspection jobs with steps, ROI, timeouts and uniform results, a camera interface, a small toolkit and recipes made in a teaching tool. The result view for Devinno.UI is Devinno.Vision.UI; USB cameras are Devinno.Vision.FlashCap.</Description>
+    <PackageTags>vision;inspection;machine-vision;opencv;opencvsharp;onnx;anomaly-detection;industrial;llm;ai</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Copyright>Copyright (c) 2026 Devinno</Copyright>
     <!-- docs/llms.txt 원본은 저장소 루트의 llms.txt (../Directory.Build.props 의 _DvVersionedLlms) -->
