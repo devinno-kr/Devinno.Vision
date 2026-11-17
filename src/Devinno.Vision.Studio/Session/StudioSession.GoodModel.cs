@@ -200,7 +200,7 @@ public sealed partial class StudioSession
                 _dirty = true;
             }
             var skipped = r.Skipped.Count > 0 ? Texts.T("good.skipped", r.Skipped.Count, string.Join(", ", r.Skipped.Take(3).Select(s => Path.GetFileName(s.File)))) : "";
-            // Bracket: 전체 이미지(640×480 → 256)로는 구멍 · 변색 6장을 놓쳤고, 부품만 감싸면 18/18 (2026-11-11)
+            // 이전 샘플(18장)로 잰 결과: 전체 이미지(640×480 → 256)로는 결함 6장을 놓쳤고, 부품만 감싸면 18/18 (2026-11-11)
             var whole = roi.IsEmpty ? Texts.T("good.wholeImage") : "";
             return CommandResult.Done(Texts.T("good.trained", r.Learned, r.CalibrationScores.Count, r.Model.Max, r.MsPerImage) + skipped + FewWarning(images.Count) + whole);
         }

@@ -27,7 +27,7 @@ public enum VisionRoiShape
 /// </remarks>
 /// <example>
 /// <code>
-/// var hole = VisionRoi.Rect(194, 251, 60, 60);                 // x, y = top-left corner
+/// var hole = VisionRoi.Rect(138, 130, 60, 60);                 // x, y = top-left corner
 /// var slanted = VisionRoi.Rotated(330, 320, 470, 30, 15);      // cx, cy = center; 15° clockwise on screen
 ///
 /// job.Add("left hole", roi: () =&gt; hole, ctx =&gt; { /* ctx.Image is the 60×60 region */ });

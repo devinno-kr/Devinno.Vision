@@ -3,12 +3,12 @@ using Devinno.Vision.Recipes;
 using OpenCvSharp;
 
 // AI 문서(llm-rules.md · vision-*.md)의 예제 코드가 컴파일되고 문서가 말한 대로 도는지.
-// 문서의 예제를 고치면 여기도 같이 고친다 (같은 코드를 Bracket 샘플 · 테스트용 작은 모델로 돌린다).
+// 문서의 예제를 고치면 여기도 같이 고친다 (같은 코드를 Plate 샘플 · 테스트용 작은 모델로 돌린다).
 public class DocExamplesTests
 {
-    private static string Recipe => Path.Combine(AppContext.BaseDirectory, "Recipes", "Bracket");
-    private static string Good => BracketInspection.Sample("01_good.bmp");
-    private static string MissingHole => BracketInspection.Sample("02_missinghole.bmp");
+    private static string Recipe => Path.Combine(AppContext.BaseDirectory, "Recipes", "Plate");
+    private static string Good => PlateInspection.Sample("01_good.bmp");
+    private static string MissingHole => PlateInspection.Sample("02_missinghole.bmp");
     private static string TinyFeatures => Path.Combine(AppContext.BaseDirectory, "Models", "tiny_features.onnx");
 
     // ── llm-rules.md §3: 레시피 실행 ──
@@ -40,24 +40,24 @@ public class DocExamplesTests
     [Fact]
     public async Task Rules_code_first_job()
     {
-        var job = new VisionJob("bracket")
+        var job = new VisionJob("plate")
             .Add("align", pose: "body", ctx =>
             {
                 var part = Blob.Find(ctx.Image, minArea: 20000).FirstOrDefault();
                 if (part is null) { ctx.Fail("part not found"); return; }
-                ctx.SetPose(VisionPose.FromBlob(part), reference: new VisionPose(330.4, 256.0, 0));
+                ctx.SetPose(VisionPose.FromBlob(part), reference: new VisionPose(319.1, 240.7, -2.3));
             })
-            .Add("left hole", roi: () => VisionRoi.Rect(194, 251, 60, 60), ctx =>
+            .Add("left hole", roi: () => VisionRoi.Rect(138, 130, 60, 60), ctx =>
             {
                 var holes = Blob.Find(ctx.Image, ThresholdMode.Fixed, threshold: 80, invert: true, minArea: 300);
                 ctx.Draw(holes);
                 ctx.Value("left holes", holes.Length, min: 1, max: 1, code: "HOLE");
             })
-            .Add("length", roi: () => VisionRoi.Rect(100, 305, 470, 30), ctx =>
+            .Add("length", roi: () => VisionRoi.Rect(100, 180, 440, 12), ctx =>
             {
                 var e = Edge.Caliper(ctx.Image, EdgePolarity.BrightObject, minContrast: 8);
                 ctx.Draw(e);
-                ctx.Value("length", e.Distance, nominal: 410, plus: 5, minus: 5, code: "LENGTH", unit: "px");
+                ctx.Value("length", e.Distance, nominal: 400, plus: 5, minus: 5, code: "LENGTH", unit: "px");
             });
 
         using (var img = VisionImage.Load(Good))
@@ -72,7 +72,7 @@ public class DocExamplesTests
         using var none = VisionImage.From(blank);
         using var rn = await job.RunAsync(none);
         Assert.Equal(VisionState.Error, rn.State);
-        Assert.Equal("bracket/align: part not found", rn.Error);
+        Assert.Equal("plate/align: part not found", rn.Error);
         Assert.Equal(StepState.Skipped, rn.Steps["left hole"].State);
         Assert.StartsWith("Pose 'body' missing", rn.Steps["left hole"].Reason);
     }
@@ -84,7 +84,7 @@ public class DocExamplesTests
         using var recipe = VisionRecipe.Load(Recipe);
         var job = recipe.CreateJob();
         var lines = new List<string>();
-        await using var camera = new FileCamera(BracketInspection.SampleDir, loop: false);
+        await using var camera = new FileCamera(PlateInspection.SampleDir, loop: false);
         foreach (var _ in camera.Files)
         {
             using var img = await camera.Grab(default);
@@ -135,14 +135,14 @@ public class DocExamplesTests
         using var dir = new TempDir();
         using var recipe = VisionRecipe.Load(Recipe);
         var job = recipe.CreateJob();
-        Assert.Equal("브래킷", job.Name);
+        Assert.Equal("플레이트", job.Name);
         using var img = VisionImage.Load(MissingHole);
         using var r = await job.RunAsync(img);
 
         var failed = r.Values.Where(v => !v.Ok).Select(v => $"{v.Step}: {v.Name} = {v.Value:0.##} (limits {v.Min}–{v.Max}) → {v.Code}").ToList();
         Assert.NotEmpty(failed);
         Assert.Contains(r.Values, v => v.Name == "왼쪽 구멍 개수" && v.Step == "왼쪽 구멍");
-        Assert.Contains(r.Values, v => v.Name == "상단 변색 픽셀");
+        Assert.Contains(r.Values, v => v.Name == "노치 픽셀");
         Assert.Contains(r.Values, v => v.Name == "길이" && v.Unit == "mm");
         Assert.True(r.Poses.ContainsKey(VisionRecipe.PoseName));
         Assert.Equal(StepState.Ok, r.Steps["길이"].State);
@@ -157,7 +157,7 @@ public class DocExamplesTests
         using var blank = new Mat(480, 640, MatType.CV_8UC3, Scalar.All(0));
         using var none = VisionImage.From(blank);
         using var rn = await job.RunAsync(none);
-        Assert.Equal("브래킷/정렬: 부품 없음", rn.Error);
+        Assert.Equal("플레이트/정렬: 부품 없음", rn.Error);
     }
 
     private static void SaveResultPicture(VisionResult r, string file)
@@ -206,13 +206,13 @@ public class DocExamplesTests
         var lines = recipe.Checks.Select(c => $"{c.Name} ({c.Kind}, {c.Role}) roi {c.Roi.Shape} {c.Roi.Width}×{c.Roi.Height}").ToList();
         Assert.Equal(5, lines.Count);
         var len = recipe.Checks.OfType<LengthCheck>().First();
-        Assert.Equal("길이: 90 +1 / -1", $"{len.Name}: {len.Nominal} +{len.Plus} / -{len.Minus}");
+        Assert.Equal("길이: 84 +1 / -1", $"{len.Name}: {len.Nominal} +{len.Plus} / -{len.Minus}");
         using (var baseImage = recipe.LoadBaseImage())
             Assert.True(baseImage.Width > 0);
 
         // CreateJob 이 준 Job 에 코드 단계를 덧붙이면 레시피 검사 뒤에 돌고, ROI 는 레시피의 Pose 를 따라간다
         var job = recipe.CreateJob();
-        job.Add("extra", roi: () => VisionRoi.Rect(194, 251, 60, 60), ctx => ctx.Value("extra mean", Brightness.Mean(ctx.Image), max: 255));
+        job.Add("extra", roi: () => VisionRoi.Rect(138, 130, 60, 60), ctx => ctx.Value("extra mean", Brightness.Mean(ctx.Image), max: 255));
         using (var img = VisionImage.Load(Good))
         using (var r = await job.RunAsync(img))
         {
@@ -221,7 +221,7 @@ public class DocExamplesTests
             Assert.Equal(VisionRecipe.PoseName, r.Steps["extra"].Followed);
         }
 
-        var file = Path.Combine(dir.Path, "bracket.dvpkg");
+        var file = Path.Combine(dir.Path, "plate.dvpkg");
         int files = recipe.Pack(file);
         Assert.Equal(2, files);
         using var onSite = VisionRecipe.Load(file);
@@ -230,7 +230,7 @@ public class DocExamplesTests
         using var img2 = VisionImage.Load(Good);
         using var r2 = await packed.RunAsync(img2);
         Assert.True(r2.Ok);
-        Assert.Throws<ArgumentException>(() => recipe.Pack(Path.Combine(dir.Path, "bracket.zip")));
+        Assert.Throws<ArgumentException>(() => recipe.Pack(Path.Combine(dir.Path, "plate.zip")));
     }
 
     // ── vision-recipe.md: 양품 모델 학습 · 사유 검사 ──
@@ -246,7 +246,7 @@ public class DocExamplesTests
         var stages = new HashSet<string>();
         var result = await recipe.TrainGoodModelAsync(new GoodModelTraining
         {
-            Images = Directory.GetFiles(BracketInspection.SampleDir, "*_good.bmp"),
+            Images = Directory.GetFiles(PlateInspection.SampleDir, "*_good.bmp"),
             Features = TinyFeatures,
             Roi = VisionRoi.Rect(100, 150, 470, 250),
             InputSize = 64,          // 테스트용 작은 특징 모델의 입력 크기
@@ -273,20 +273,20 @@ public class DocExamplesTests
     }
 
     // ── vision-jobs.md: 설정 클래스 · mm · 티칭 · 설정 바꾸기 ──
-    public sealed class BracketDocSetup
+    public sealed class PlateDocSetup
     {
         public BlobParams Body { get; set; } = new() { MinArea = 20000 };
         public VisionPose? BodyRef { get; set; }
-        public VisionRoi HoleL { get; set; } = VisionRoi.Rect(194, 251, 60, 60);
+        public VisionRoi HoleL { get; set; } = VisionRoi.Rect(138, 130, 60, 60);
         public BlobParams Hole { get; set; } = new() { Mode = ThresholdMode.Fixed, Threshold = 80, Invert = true, MinArea = 300 };
-        public VisionRoi Width { get; set; } = VisionRoi.Rect(100, 305, 470, 30);
-        public double WidthNominal { get; set; } = 90;
+        public VisionRoi Width { get; set; } = VisionRoi.Rect(100, 180, 440, 12);
+        public double WidthNominal { get; set; } = 100;
     }
 
     [Fact]
     public async Task Jobs_setup_class_teaching_and_copy()
     {
-        var job = new VisionJob<BracketDocSetup>("bracket") { Setup = new BracketDocSetup() }
+        var job = new VisionJob<PlateDocSetup>("plate") { Setup = new PlateDocSetup() }
             .Add("align", pose: "body", (ctx, s) =>
             {
                 var part = Blob.Find(ctx.Image, s.Body).FirstOrDefault();
@@ -306,7 +306,7 @@ public class DocExamplesTests
                 ctx.Draw(e);
                 ctx.Value("width", ctx.Mm(e), nominal: s.WidthNominal, plus: 1, minus: 1, code: "WIDTH", unit: "mm");
             });
-        job.Calibration = VisionCalibration.Scale(0.219);
+        job.Calibration = VisionCalibration.Scale(0.25);
 
         // 티칭: 이 이미지가 기준
         var s = job.Setup!;
@@ -321,12 +321,12 @@ public class DocExamplesTests
         Assert.NotNull(s.BodyRef);
 
         // 돌아간(회전된) 양품도 ROI 가 따라가서 OK
-        using (var img = VisionImage.Load(BracketInspection.Sample("18_good.bmp")))
+        using (var img = VisionImage.Load(PlateInspection.Sample("18_good.bmp")))
         using (var r = await job.RunAsync(img))
         {
             Assert.True(r.Ok, r.ToJson(indented: true));
             Assert.Equal("body", r.Steps["width"].Followed);
-            Assert.Equal(90, r.Values.Single(v => v.Name == "width").Nominal);
+            Assert.Equal(100, r.Values.Single(v => v.Name == "width").Nominal);
         }
 
         // 설정 바꾸기: 사본을 고쳐 통째로 바꾼다
@@ -341,10 +341,10 @@ public class DocExamplesTests
         using var img2 = VisionImage.Load(Good);
         using var r2 = await job.RunAsync(img2);
         Assert.Equal(VisionState.Error, r2.State);
-        Assert.StartsWith("bracket/width: The job has no calibration", r2.Error);
+        Assert.StartsWith("plate/width: The job has no calibration", r2.Error);
     }
 
-    public sealed class FaceSetup { public VisionRoi Width { get; set; } = VisionRoi.Rect(100, 305, 470, 30); }
+    public sealed class FaceSetup { public VisionRoi Width { get; set; } = VisionRoi.Rect(100, 180, 440, 12); }
     public sealed class PartData { public double? TopWidth; public double? SideWidth; }
     public sealed class LabelSetup { public VisionModel Logo { get; set; } = new(); public VisionRoi LogoRoi { get; set; } }
 
@@ -364,7 +364,7 @@ public class DocExamplesTests
         await Assert.ThrowsAsync<ArgumentNullException>(() => top.RunAsync(image, null!));
 
         // OpenCV 로 내려갔다 올라오기
-        var roi = VisionRoi.Rect(194, 251, 60, 60);
+        var roi = VisionRoi.Rect(138, 130, 60, 60);
         var job = new VisionJob("cv").Add("edges", roi: () => roi, ctx =>
         {
             using var edges = new Mat();
@@ -377,12 +377,12 @@ public class DocExamplesTests
         {
             Assert.True(r.Ok, r.ToJson(indented: true));
             var box = r.Overlays.Single(o => o.Kind == VisionOverlayKind.Box);
-            Assert.Equal(new Point2d(204, 261), box.Points[0]);   // ROI 왼위 (194, 251) + (10, 10)
+            Assert.Equal(new Point2d(148, 140), box.Points[0]);   // ROI 왼위 (138, 130) + (10, 10)
         }
 
         // 기준 이미지 (VisionModel)
         using var dir = new TempDir();
-        var labels = new VisionJob<LabelSetup>("label") { Setup = new LabelSetup { LogoRoi = VisionRoi.Rect(268, 192, 134, 36) } };
+        var labels = new VisionJob<LabelSetup>("label") { Setup = new LabelSetup { LogoRoi = VisionRoi.Rect(238, 116, 36, 20) } };
         var edit = VisionSetup.Copy(labels.Setup!);
         edit.Logo = VisionModel.Teach(image, edit.LogoRoi, dir.Path, "models/logo.png");
         labels.Setup = edit;
@@ -390,7 +390,7 @@ public class DocExamplesTests
         Assert.Equal("models/logo.png", setup.Logo.Path);
         Assert.Null(setup.Logo.Image);
         setup.Logo.Load(dir.Path);
-        Assert.Equal(134, setup.Logo.Image!.Width);
+        Assert.Equal(36, setup.Logo.Image!.Width);
         setup.Logo.Image.Dispose();   // 테스트 뒷정리 (앱은 해제하지 않는다)
         edit.Logo.Image!.Dispose();
     }
@@ -456,7 +456,7 @@ public class DocExamplesTests
     public async Task Toolkit_tools()
     {
         using var image = VisionImage.Load(Good);
-        using var hole = image.Crop(VisionRoi.Rect(194, 251, 60, 60));
+        using var hole = image.Crop(VisionRoi.Rect(138, 130, 60, 60));
         Blob[] blobs = Blob.Find(hole, ThresholdMode.Fixed, threshold: 80, invert: true, minArea: 300);
         Blob[] same = Blob.Find(hole, new BlobParams { Mode = ThresholdMode.Fixed, Threshold = 80, Invert = true, MinArea = 300 });
         Assert.Single(blobs);
@@ -466,7 +466,7 @@ public class DocExamplesTests
         Assert.True(Brightness.StdDev(hole) > 0);
         Assert.True(Brightness.Count(hole, 0, 100) > 0);
 
-        using var band = image.Crop(VisionRoi.Rect(100, 305, 470, 30));
+        using var band = image.Crop(VisionRoi.Rect(100, 180, 440, 12));
         var e = Edge.Caliper(band, EdgePolarity.BrightObject, minContrast: 8);
         Assert.True(e.Found);
         Assert.Equal(e.P2.X - e.P1.X, e.Distance);
@@ -496,10 +496,10 @@ public class DocExamplesTests
         Assert.Throws<ArgumentException>(() => RoundModel.Train(image, new Point2d(330, 256), 50, 50));
 
         // DiffModel
-        var goodCrops = Directory.GetFiles(BracketInspection.SampleDir, "*_good.bmp").Take(4).Select(f =>
+        var goodCrops = Directory.GetFiles(PlateInspection.SampleDir, "*_good.bmp").Take(4).Select(f =>
         {
             using var g = VisionImage.Load(f);
-            return g.Crop(VisionRoi.Rect(268, 192, 134, 36));
+            return g.Crop(VisionRoi.Rect(238, 116, 36, 20));
         }).ToList();
         try
         {
@@ -540,7 +540,7 @@ public class DocExamplesTests
         }
         Assert.Throws<FileNotFoundException>(() => OnnxModel.Load(Path.Combine(dir.Path, "none.onnx"), 64, 64));
 
-        var goodCrops = Directory.GetFiles(BracketInspection.SampleDir, "*_good.bmp").Take(4).Select(VisionImage.Load).ToList();
+        var goodCrops = Directory.GetFiles(PlateInspection.SampleDir, "*_good.bmp").Take(4).Select(VisionImage.Load).ToList();
         try
         {
             var features = OnnxModel.Load(TinyFeatures, 64, 64);
@@ -571,7 +571,7 @@ public class DocExamplesTests
         Assert.Throws<FileNotFoundException>(() => DefectModel.Load(Path.Combine(dir.Path, "none")));
 
         // 카메라: 이 드라이버들은 하드웨어 트리거 · 노출 · 게인이 없다
-        await using var camera = new FileCamera(BracketInspection.SampleDir);
+        await using var camera = new FileCamera(PlateInspection.SampleDir);
         Assert.True(double.IsNaN(camera.ExposureUs));
         Assert.Throws<NotSupportedException>(() => camera.Gain = 1);
         Assert.Throws<DirectoryNotFoundException>(() => new FileCamera(Path.Combine(dir.Path, "none")));
@@ -599,16 +599,16 @@ public class XmlExamplesTests
     public async Task Step_object_keep_overlays_and_images()
     {
         using var dir = new TempDir();
-        var roi = VisionRoi.Rect(194, 251, 60, 60);
+        var roi = VisionRoi.Rect(138, 130, 60, 60);
         VisionImage? binary = null;
         var job = new VisionJob("x");
-        job.Add(new HoleCount("left hole", 1), roi: () => VisionRoi.Rect(194, 251, 60, 60));
+        job.Add(new HoleCount("left hole", 1), roi: () => VisionRoi.Rect(138, 130, 60, 60));
         job.Add("holes", roi: () => roi, ctx =>
         {
             binary = ctx.Image.Threshold(ThresholdMode.Fixed, 80, invert: true).Keep();
         });
 
-        using var img = VisionImage.Load(BracketInspection.Sample("01_good.bmp"));
+        using var img = VisionImage.Load(PlateInspection.Sample("01_good.bmp"));
         using (var r = await job.RunAsync(img))
         {
             Assert.True(r.Ok, r.ToJson(indented: true));
@@ -639,7 +639,7 @@ public class XmlExamplesTests
         Assert.InRange(inOriginal.X, 10, img.Width);
 
         // VisionImage.From 예제
-        using var mat = Cv2.ImRead(BracketInspection.Sample("01_good.bmp"), ImreadModes.Grayscale);
+        using var mat = Cv2.ImRead(PlateInspection.Sample("01_good.bmp"), ImreadModes.Grayscale);
         using var wrapped = VisionImage.From(mat, new VisionImageInfo { Camera = "cam1", FrameNo = 42 });
         Assert.Equal(42, wrapped.Info.FrameNo);
         using var bad = new Mat(4, 4, MatType.CV_16UC1);

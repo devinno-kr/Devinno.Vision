@@ -119,7 +119,7 @@ public class TestRunnerTests
         Assert.False(noBase.Ok);
         Assert.Contains("기준 이미지", noBase.Message);
 
-        s.SetBaseImage(Samples.Bracket("01_good.bmp"));
+        s.SetBaseImage(Samples.Plate("01_good.bmp"));
         var noSet = await s.RunTestAsync(0);
         Assert.False(noSet.Ok);
         Assert.Contains("테스트 폴더", noSet.Message);
@@ -131,13 +131,13 @@ public class TestRunnerTests
         using var dir = new TempDir();
         var s = new StudioSession();
         s.NewProject(dir.Path, "p");
-        s.SetBaseImage(Samples.Bracket("01_good.bmp"));
+        s.SetBaseImage(Samples.Plate("01_good.bmp"));
         var align = s.AddCheck("BlobAlign", "정렬").Id!;
         s.UpdateCheck(align, JsonNode.Parse("""{"Blob":{"MinArea":20000}}""")!.AsObject());
         Assert.True(s.TeachBase().Ok);
         var corner = s.AddCheck("PixelCount", "모서리").Id!;
         s.SetRoi(corner, VisionRoi.Rect(600, 450, 100, 100));
-        s.AddTestSet(Samples.BracketDir, LabelRule.FileName);
+        s.AddTestSet(Samples.PlateDir, LabelRule.FileName);
 
         var r = await s.RunTestAsync(0);
 

@@ -24,7 +24,7 @@ namespace Devinno.Vision;
 ///     {
 ///         var e = Edge.Caliper(ctx.Image);
 ///         ctx.Draw(e);
-///         if (ctx.Value("width", e.Distance, min: 405, max: 417, code: "WIDTH"))
+///         if (ctx.Value("width", e.Distance, min: 395, max: 405, code: "WIDTH"))
 ///             d.TopWidth = e.Distance;
 ///     });
 ///
@@ -169,15 +169,15 @@ public sealed class VisionJob<TSetup, TData> where TSetup : class
 /// </remarks>
 /// <example>
 /// <code>
-/// public sealed class BracketSetup
+/// public sealed class PlateSetup
 /// {
 ///     public BlobParams Body { get; set; } = new() { MinArea = 20000 };
 ///     public VisionPose? BodyRef { get; set; }                               // taught on the base image
-///     public VisionRoi HoleL { get; set; } = VisionRoi.Rect(194, 251, 60, 60);
+///     public VisionRoi HoleL { get; set; } = VisionRoi.Rect(138, 130, 60, 60);
 ///     public BlobParams Hole { get; set; } = new() { Mode = ThresholdMode.Fixed, Threshold = 80, Invert = true, MinArea = 300 };
 /// }
 ///
-/// var job = new VisionJob&lt;BracketSetup&gt;("bracket") { Setup = new BracketSetup() }
+/// var job = new VisionJob&lt;PlateSetup&gt;("plate") { Setup = new PlateSetup() }
 ///     .Add("align", pose: "body", (ctx, s) =&gt;
 ///     {
 ///         var part = Blob.Find(ctx.Image, s.Body).FirstOrDefault();
@@ -317,14 +317,14 @@ public sealed class VisionJob<TSetup> where TSetup : class
 /// </remarks>
 /// <example>
 /// <code>
-/// var job = new VisionJob("bracket")
+/// var job = new VisionJob("plate")
 ///     .Add("align", pose: "body", ctx =&gt;
 ///     {
 ///         var part = Blob.Find(ctx.Image, minArea: 20000).FirstOrDefault();
 ///         if (part is null) { ctx.Fail("part not found"); return; }
-///         ctx.SetPose(VisionPose.FromBlob(part), reference: new VisionPose(330.4, 256.0, 0));
+///         ctx.SetPose(VisionPose.FromBlob(part), reference: new VisionPose(319.1, 240.7, -2.3));
 ///     })
-///     .Add("left hole", roi: () =&gt; VisionRoi.Rect(194, 251, 60, 60), ctx =&gt;
+///     .Add("left hole", roi: () =&gt; VisionRoi.Rect(138, 130, 60, 60), ctx =&gt;
 ///     {
 ///         var holes = Blob.Find(ctx.Image, ThresholdMode.Fixed, threshold: 80, invert: true, minArea: 300);
 ///         ctx.Draw(holes);

@@ -146,7 +146,7 @@ public sealed class Blob
 /// job.Add("tab", roi: () =&gt; roi, ctx =&gt;
 /// {
 ///     ctx.Value("mean", Brightness.Mean(ctx.Image), min: 120, max: 220, code: "BRIGHT");
-///     ctx.Value("dark pixels", Brightness.Count(ctx.Image, 0, 100), max: 200, code: "DISCOLOR");
+///     ctx.Value("dark pixels", Brightness.Count(ctx.Image, 0, 100), max: 200, code: "NOTCH");
 /// });
 /// </code>
 /// </example>

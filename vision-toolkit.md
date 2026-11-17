@@ -45,7 +45,7 @@ For the part position use `VisionPose.FromBlob(blob, reference)` ([vision-jobs.m
 | `Brightness.Count(image, min, max)` | Number of pixels with brightness in [min, max] | Dark or bright spots: discoloration, missing coating |
 
 ```csharp
-ctx.Value("dark pixels", Brightness.Count(ctx.Image, 0, 100), max: 200, code: "DISCOLOR");
+ctx.Value("dark pixels", Brightness.Count(ctx.Image, 0, 100), max: 200, code: "NOTCH");
 ```
 
 <a id="caliper"></a>
@@ -54,7 +54,7 @@ ctx.Value("dark pixels", Brightness.Count(ctx.Image, 0, 100), max: 200, code: "D
 ```csharp
 var e = Edge.Caliper(ctx.Image, EdgePolarity.BrightObject, minContrast: 8);
 ctx.Draw(e);
-ctx.Value("width", e.Distance, min: 405, max: 417, code: "WIDTH", unit: "px");
+ctx.Value("width", e.Distance, min: 395, max: 405, code: "WIDTH", unit: "px");
 ```
 
 - Finds the outermost pair of edges **along the image's x axis** and measures the distance between them to sub-pixel. The brightness is averaged over all rows first.

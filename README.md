@@ -45,7 +45,7 @@ A recipe is what Studio saves: a folder with `studio.json`, or one `.dvpkg` pack
 ```csharp
 using Devinno.Vision;
 
-using var recipe = VisionRecipe.Load(@"C:\recipes\bracket");   // a folder with studio.json, or a .dvpkg file
+using var recipe = VisionRecipe.Load(@"C:\recipes\plate");   // a folder with studio.json, or a .dvpkg file
 var job = recipe.CreateJob();                                    // make it once, run it many times
 
 using var img = VisionImage.Load(@"C:\images\part01.bmp");
@@ -68,24 +68,24 @@ The same kind of inspection without Studio: a job is a list of steps, and each s
 ```csharp
 using Devinno.Vision;
 
-var job = new VisionJob("bracket")
+var job = new VisionJob("plate")
     .Add("align", pose: "body", ctx =>
     {
         var part = Blob.Find(ctx.Image, minArea: 20000).FirstOrDefault();
         if (part is null) { ctx.Fail("part not found"); return; }
-        ctx.SetPose(VisionPose.FromBlob(part), reference: new VisionPose(330.4, 256.0, 0));   // reference = the pose on the base image
+        ctx.SetPose(VisionPose.FromBlob(part), reference: new VisionPose(319.1, 240.7, -2.3));   // reference = the pose on the base image
     })
-    .Add("left hole", roi: () => VisionRoi.Rect(194, 251, 60, 60), ctx =>
+    .Add("left hole", roi: () => VisionRoi.Rect(138, 130, 60, 60), ctx =>
     {
         var holes = Blob.Find(ctx.Image, ThresholdMode.Fixed, threshold: 80, invert: true, minArea: 300);
         ctx.Draw(holes);
         ctx.Value("left holes", holes.Length, min: 1, max: 1, code: "HOLE");
     })
-    .Add("length", roi: () => VisionRoi.Rect(100, 305, 470, 30), ctx =>
+    .Add("length", roi: () => VisionRoi.Rect(100, 180, 440, 12), ctx =>
     {
         var e = Edge.Caliper(ctx.Image, EdgePolarity.BrightObject, minContrast: 8);
         ctx.Draw(e);
-        ctx.Value("length", e.Distance, nominal: 410, plus: 5, minus: 5, code: "LENGTH", unit: "px");
+        ctx.Value("length", e.Distance, nominal: 400, plus: 5, minus: 5, code: "LENGTH", unit: "px");
     });
 
 using var img = VisionImage.Load(path);
@@ -111,7 +111,7 @@ The part in the screenshots is a synthetic sample (a generated stamped plate), n
 - **MCP**: every command is also an MCP tool, at `http://127.0.0.1:5199/mcp` (this PC only) while Studio runs. An AI tool can build and test an inspection and look at the result images.
 - The screen is in Korean or English.
 
-Download the zip from the [releases](https://github.com/devinno-kr/Devinno.Vision/releases) (tags `studio-v…`; Windows x64, .NET included), unzip it and run `Devinno.Vision.Studio.exe`. The zip has an `llms.txt` for AI tools (how to connect over MCP). Or run it from the repository:
+Download the zip from the [releases](https://github.com/devinno-kr/Devinno.Vision/releases) (tags `studio-v…`; Windows x64), unzip it and run `Devinno.Vision.Studio.exe`. It needs the .NET 9 SDK, or the .NET 9 Desktop Runtime and the ASP.NET Core Runtime 9. The zip has an `llms.txt` for AI tools (how to connect over MCP). Or run it from the repository:
 
 ```
 dotnet run --project src/Devinno.Vision.Studio

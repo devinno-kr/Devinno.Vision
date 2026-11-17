@@ -23,7 +23,7 @@ namespace Devinno.Vision;
 /// <example>
 /// Load a recipe folder (or a .dvpkg package) and run it:
 /// <code>
-/// using var recipe = VisionRecipe.Load(@"C:\recipes\bracket");
+/// using var recipe = VisionRecipe.Load(@"C:\recipes\plate");
 /// var job = recipe.CreateJob();
 ///
 /// using var img = VisionImage.Load(path);
@@ -127,7 +127,7 @@ public sealed partial class VisionRecipe : IDisposable
     /// <code>
     /// try
     /// {
-    ///     using var recipe = VisionRecipe.Load(@"C:\deploy\bracket.dvpkg");
+    ///     using var recipe = VisionRecipe.Load(@"C:\deploy\plate.dvpkg");
     ///     var job = recipe.CreateJob();
     ///     // ... run the job for every image while the recipe is alive
     /// }

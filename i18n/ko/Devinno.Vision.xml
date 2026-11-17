@@ -3,7 +3,7 @@
     <assembly>
         <name>Devinno.Vision</name>
     </assembly>
-    <members><member name="T:Devinno.Vision.FileCamera" en-hash="9b9ba3271394d307">
+    <members><member name="T:Devinno.Vision.FileCamera" en-hash="007172b853d0ec09">
             <summary>
             폴더의 이미지 파일을 이름순으로 반환하는 카메라입니다. 저장된 이미지를 다시 재생하거나 테스트할 때 사용합니다. 실제 카메라를 사용하는 코드가 그대로 동작합니다.
             </summary>
@@ -11,7 +11,7 @@
             <example>
             저장된 모든 이미지에 대해 Job을 실행하고 판정을 출력합니다.
             <code>
-            await using var camera = new FileCamera(@"C:\images\bracket", loop: false);
+            await using var camera = new FileCamera(@"C:\images\plate", loop: false);
             foreach (var _ in camera.Files)
             {
                 using var img = await camera.Grab(default);
@@ -337,7 +337,7 @@
             <summary>그레이 1채널을 0…1로 스케일링합니다.</summary>
         </member><member name="P:Devinno.Vision.VisionTensorFormat.Channels" en-hash="f4d098bb268f4617">
             <summary>채널 수(1 또는 3)입니다.</summary>
-        </member><member name="T:Devinno.Vision.IVisionStep" en-hash="feff220f96b9619b">
+        </member><member name="T:Devinno.Vision.IVisionStep" en-hash="2d832428d995e3c2">
              <summary>
              객체로 만든 단계입니다. 람다가 아닌 단계(재사용 가능한 클래스)에 사용하며, 레시피의 검사가 이런 종류의 단계입니다.
              람다 단계와 똑같이 실행됩니다. 컨텍스트도 결과 형식도 같습니다.
@@ -360,7 +360,7 @@
                  }
              }
             
-             job.Add(new HoleCount("left hole", 1), roi: () =&gt; VisionRoi.Rect(194, 251, 60, 60));
+             job.Add(new HoleCount("left hole", 1), roi: () =&gt; VisionRoi.Rect(138, 130, 60, 60));
              </code>
              </example>
         </member><member name="P:Devinno.Vision.IVisionStep.Name" en-hash="569f616b33c947e6">
@@ -391,7 +391,7 @@
             <summary>판정하는 단계들이 결과를 NG로 만들었을 때만 실행합니다(기본값). 양품에는 이 단계들의 시간이 들지 않습니다.</summary>
         </member><member name="F:Devinno.Vision.ReasonRun.Always" en-hash="1cf450fb8c34a8c5">
             <summary>값을 보여 주기 위해 항상 실행합니다(예: 튜닝 화면). 이 경우에도 판정은 바꾸지 않으며, 코드는 NG 결과에만 추가됩니다.</summary>
-        </member><member name="T:Devinno.Vision.VisionCalibration" en-hash="0b89ce3bfe2372dc">
+        </member><member name="T:Devinno.Vision.VisionCalibration" en-hash="e6b78f90999d88df">
              <summary>
              카메라 설치 상태의 픽셀 → 밀리미터 변환입니다(장비 값이며 제품 설정과 따로 보관합니다. 제품을 다시 티칭해도 이 값이 바뀌어서는 안 되고,
              카메라를 다시 장착했다고 모든 제품을 다시 티칭해야 해서도 안 됩니다). Job에 <c>job.Calibration = …</c>으로 설정하고, 단계에서는 <c>ctx.Mm</c>으로 사용합니다.
@@ -400,14 +400,14 @@
              <remarks>단일 배율은 카메라가 평평한 부품을 정면으로 바라보고 렌즈 왜곡이 거의 없다고 가정합니다. 렌즈 왜곡과 원근은 보정하지 않습니다.</remarks>
              <example>
              <code>
-             job.Calibration = VisionCalibration.FromLength(px: 410.9, mm: 90.0);   // a gauge of 90 mm measured as 410.9 px
+             job.Calibration = VisionCalibration.FromLength(px: 400.0, mm: 100.0);   // a gauge of 100 mm measured as 400.0 px
             
              // in a step
              var e = Edge.Caliper(ctx.Image);
-             ctx.Value("width", ctx.Mm(e), nominal: 90, plus: 1, minus: 1, code: "WIDTH", unit: "mm");
+             ctx.Value("width", ctx.Mm(e), nominal: 100, plus: 1, minus: 1, code: "WIDTH", unit: "mm");
              </code>
              </example>
-        </member><member name="M:Devinno.Vision.VisionCalibration.#ctor(System.Double)" en-hash="0b89ce3bfe2372dc">
+        </member><member name="M:Devinno.Vision.VisionCalibration.#ctor(System.Double)" en-hash="e6b78f90999d88df">
              <summary>
              카메라 설정의 픽셀 → 밀리미터 변환입니다(장비 값이며 제품 설정과 분리해 둡니다. 제품을 다시 티칭해도 이 값이 바뀌어서는 안 되고,
              카메라를 다시 장착해도 모든 제품을 다시 티칭할 필요가 없어야 합니다). Job에 설정합니다: <c>job.Calibration = …</c>. 단계에서는 <c>ctx.Mm</c>으로 사용합니다.
@@ -416,11 +416,11 @@
              <remarks>단일 배율은 카메라가 평평한 부품을 정면으로 바라보고 렌즈 왜곡이 적다고 가정합니다. 렌즈 왜곡과 원근은 보정하지 않습니다.</remarks>
              <example>
              <code>
-             job.Calibration = VisionCalibration.FromLength(px: 410.9, mm: 90.0);   // a gauge of 90 mm measured as 410.9 px
+             job.Calibration = VisionCalibration.FromLength(px: 400.0, mm: 100.0);   // a gauge of 100 mm measured as 400.0 px
             
              // in a step
              var e = Edge.Caliper(ctx.Image);
-             ctx.Value("width", ctx.Mm(e), nominal: 90, plus: 1, minus: 1, code: "WIDTH", unit: "mm");
+             ctx.Value("width", ctx.Mm(e), nominal: 100, plus: 1, minus: 1, code: "WIDTH", unit: "mm");
              </code>
              </example>
         </member><member name="P:Devinno.Vision.VisionCalibration.MmPerPx" en-hash="0ccf2ef1d8f610a3">
@@ -440,7 +440,7 @@
             <summary>원본 이미지의 픽셀 단위 길이를 밀리미터로 변환합니다.</summary>
             <param name="px">픽셀 단위 길이입니다.</param>
             <returns>밀리미터 단위 길이입니다.</returns>
-        </member><member name="T:Devinno.Vision.VisionContext" en-hash="e558d8628a109a32">
+        </member><member name="T:Devinno.Vision.VisionContext" en-hash="de8f4b7540c4728f">
             <summary>
             단계가 받는 것(<c>ctx</c>)입니다. 단계의 이미지, 취소, 그리고 값·판정·Pose·그리기를 기록하는 호출을 제공합니다.
             </summary>
@@ -453,7 +453,7 @@
             </remarks>
             <example>
             <code>
-            job.Add("left hole", roi: () =&gt; VisionRoi.Rect(194, 251, 60, 60), ctx =&gt;
+            job.Add("left hole", roi: () =&gt; VisionRoi.Rect(138, 130, 60, 60), ctx =&gt;
             {
                 var holes = Blob.Find(ctx.Image, ThresholdMode.Fixed, threshold: 80, invert: true, minArea: 300);
                 ctx.Draw(holes);                                                       // drawn at the right place on the original image
@@ -467,7 +467,7 @@
             <summary>단계의 이미지입니다. 단계의 ROI를 잘라낸 것(부품의 Pose를 따라가며 똑바로 세운 상태)이며, 단계에 ROI가 없으면 전체 이미지입니다.</summary>
         </member><member name="P:Devinno.Vision.VisionContext.Cancel" en-hash="f4831f3d97ac19f9">
             <summary>단계의 시간 제한이 지나거나 실행이 취소되면 신호를 받습니다. OpenCV 호출은 중단할 수 없으므로 오래 걸리는 작업 사이에 확인하고, await하는 호출에 전달하십시오.</summary>
-        </member><member name="M:Devinno.Vision.VisionContext.Value(System.String,System.Double,System.Nullable{System.Double},System.Nullable{System.Double},System.String,System.String)" en-hash="a9b05ec41ded1995">
+        </member><member name="M:Devinno.Vision.VisionContext.Value(System.String,System.Double,System.Nullable{System.Double},System.Nullable{System.Double},System.String,System.String)" en-hash="0484d72b4738668d">
             <summary>측정값을 기록하고 한계에 대해 판정합니다. 범위를 벗어나면(또는 NaN이면) 단계가 <paramref name="code" />로 NG가 됩니다.</summary>
             <param name="name">값 이름입니다.</param>
             <param name="value">값입니다.</param>
@@ -483,11 +483,11 @@
             <example>
             <code>
             ctx.Value("holes", blobs.Length, min: 4, max: 4, code: "HOLE");
-            ctx.Value("dark pixels", Brightness.Count(ctx.Image, 0, 100), max: 200, code: "DISCOLOR");
+            ctx.Value("dark pixels", Brightness.Count(ctx.Image, 0, 100), max: 200, code: "NOTCH");
             ctx.Value("mean", Brightness.Mean(ctx.Image));                          // recorded, not judged
             </code>
             </example>
-        </member><member name="M:Devinno.Vision.VisionContext.Value(System.String,System.Double,System.Double,System.Double,System.Double,System.String,System.String)" en-hash="dc460dfaaf519a9f">
+        </member><member name="M:Devinno.Vision.VisionContext.Value(System.String,System.Double,System.Double,System.Double,System.Double,System.String,System.String)" en-hash="02bd7e0f2ccdc0bd">
             <summary>측정값을 공차가 있는 공칭값에 대해 기록합니다(도면 방식: 4.15 +0.05 / −0.05). 결과에 공칭값이 보관되므로 편차를 표시하고 로그로 남길 수 있습니다.</summary>
             <param name="name">값 이름입니다.</param>
             <param name="value">값입니다.</param>
@@ -500,7 +500,7 @@
             <example>
             <code>
             var e = Edge.Caliper(ctx.Image);
-            ctx.Value("width", ctx.Mm(e), nominal: 90, plus: 1, minus: 1, code: "WIDTH", unit: "mm");   // OK from 89 to 91
+            ctx.Value("width", ctx.Mm(e), nominal: 100, plus: 1, minus: 1, code: "WIDTH", unit: "mm");   // OK from 99 to 101
             </code>
             </example>
             <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="plus" /> 또는 <paramref name="minus" />가 음수입니다.</exception>
@@ -614,7 +614,7 @@
             <param name="points">윤곽선의 점입니다.</param>
             <param name="label">텍스트 또는 <see langword="null" />.</param>
             <param name="from">좌표가 속한 이미지입니다. <see langword="null" /> = <see cref="P:Devinno.Vision.VisionContext.Image" />.</param>
-        </member><member name="T:Devinno.Vision.VisionJob`2" en-hash="c22d264a97bf755d">
+        </member><member name="T:Devinno.Vision.VisionJob`2" en-hash="5d9dcfa72f13ad62">
              <summary>
              이미지 한 장에 대한 검사 하나입니다. 순서대로 실행되는 단계의 목록이며, 설정 클래스와 공정 데이터 클래스는 앱의 것입니다.
              </summary>
@@ -639,7 +639,7 @@
                  {
                      var e = Edge.Caliper(ctx.Image);
                      ctx.Draw(e);
-                     if (ctx.Value("width", e.Distance, min: 405, max: 417, code: "WIDTH"))
+                     if (ctx.Value("width", e.Distance, min: 395, max: 405, code: "WIDTH"))
                          d.TopWidth = e.Distance;
                  });
             
@@ -721,7 +721,7 @@
             <returns>결과입니다. 시간 초과 후에도 모든 단계가 실제로 끝난 뒤에만 반환됩니다.</returns>
             <remarks><inheritdoc cref="M:Devinno.Vision.VisionJob.RunAsync(Devinno.Vision.VisionImage,System.Threading.CancellationToken)" path="/remarks" /></remarks>
             <exception cref="T:System.ArgumentNullException"><paramref name="image" /> 또는 <paramref name="data" />가 <see langword="null" />입니다.</exception>
-        </member><member name="T:Devinno.Vision.VisionJob`1" en-hash="a5a6b374fd96edea">
+        </member><member name="T:Devinno.Vision.VisionJob`1" en-hash="ed76782c13bcab89">
              <summary>설정 클래스가 있고 부품별 데이터가 없는 Job입니다. <see cref="T:Devinno.Vision.VisionJob`2" />를 참조하십시오.</summary>
              <typeparam name="TSetup">앱의 설정 클래스입니다.</typeparam>
              <remarks>
@@ -731,15 +731,15 @@
              </remarks>
              <example>
              <code>
-             public sealed class BracketSetup
+             public sealed class PlateSetup
              {
                  public BlobParams Body { get; set; } = new() { MinArea = 20000 };
                  public VisionPose? BodyRef { get; set; }                               // taught on the base image
-                 public VisionRoi HoleL { get; set; } = VisionRoi.Rect(194, 251, 60, 60);
+                 public VisionRoi HoleL { get; set; } = VisionRoi.Rect(138, 130, 60, 60);
                  public BlobParams Hole { get; set; } = new() { Mode = ThresholdMode.Fixed, Threshold = 80, Invert = true, MinArea = 300 };
              }
             
-             var job = new VisionJob&lt;BracketSetup&gt;("bracket") { Setup = new BracketSetup() }
+             var job = new VisionJob&lt;PlateSetup&gt;("plate") { Setup = new PlateSetup() }
                  .Add("align", pose: "body", (ctx, s) =&gt;
                  {
                      var part = Blob.Find(ctx.Image, s.Body).FirstOrDefault();
@@ -821,7 +821,7 @@
             <returns>모든 단계가 실제로 끝난 뒤의 결과입니다.</returns>
             <remarks><inheritdoc cref="M:Devinno.Vision.VisionJob.RunAsync(Devinno.Vision.VisionImage,System.Threading.CancellationToken)" path="/remarks" /></remarks>
             <exception cref="T:System.ArgumentNullException"><paramref name="image" />가 <see langword="null" />인 경우입니다.</exception>
-        </member><member name="T:Devinno.Vision.VisionJob" en-hash="fc708e0f1f9000f1">
+        </member><member name="T:Devinno.Vision.VisionJob" en-hash="cffe59f0c417179b">
              <summary>설정이나 부품별 데이터가 없는 Job입니다. 간단한 검사와 테스트에 쓰며, 레시피가 만드는 Job이기도 합니다(<see cref="M:Devinno.Vision.VisionRecipe.CreateJob" />).
              <see cref="T:Devinno.Vision.VisionJob`2" />를 참조하십시오.</summary>
              <remarks>
@@ -830,14 +830,14 @@
              </remarks>
              <example>
              <code>
-             var job = new VisionJob("bracket")
+             var job = new VisionJob("plate")
                  .Add("align", pose: "body", ctx =&gt;
                  {
                      var part = Blob.Find(ctx.Image, minArea: 20000).FirstOrDefault();
                      if (part is null) { ctx.Fail("part not found"); return; }
-                     ctx.SetPose(VisionPose.FromBlob(part), reference: new VisionPose(330.4, 256.0, 0));
+                     ctx.SetPose(VisionPose.FromBlob(part), reference: new VisionPose(319.1, 240.7, -2.3));
                  })
-                 .Add("left hole", roi: () =&gt; VisionRoi.Rect(194, 251, 60, 60), ctx =&gt;
+                 .Add("left hole", roi: () =&gt; VisionRoi.Rect(138, 130, 60, 60), ctx =&gt;
                  {
                      var holes = Blob.Find(ctx.Image, ThresholdMode.Fixed, threshold: 80, invert: true, minArea: 300);
                      ctx.Draw(holes);
@@ -1073,7 +1073,7 @@
             <summary>축에 정렬된 사각형입니다. <see cref="P:Devinno.Vision.VisionRoi.X" />, <see cref="P:Devinno.Vision.VisionRoi.Y" /> = 왼쪽 위 모서리.</summary>
         </member><member name="F:Devinno.Vision.VisionRoiShape.Rotated" en-hash="6ffcb18d77911419">
             <summary>회전된 사각형입니다. <see cref="P:Devinno.Vision.VisionRoi.X" />, <see cref="P:Devinno.Vision.VisionRoi.Y" /> = 중심, <see cref="P:Devinno.Vision.VisionRoi.Angle" />은 도 단위입니다(화면에서 시계방향이 +).</summary>
-        </member><member name="T:Devinno.Vision.VisionRoi" en-hash="33e043f48eb1b051">
+        </member><member name="T:Devinno.Vision.VisionRoi" en-hash="ae0fbdb2d9df81c7">
              <summary>
              검사 단계의 관심 영역(ROI)이며, 기준(티칭) 이미지의 좌표로 나타냅니다. <c>System.Text.Json</c>으로 일반 JSON으로 저장됩니다.
              </summary>
@@ -1084,7 +1084,7 @@
              </remarks>
              <example>
              <code>
-             var hole = VisionRoi.Rect(194, 251, 60, 60);                 // x, y = top-left corner
+             var hole = VisionRoi.Rect(138, 130, 60, 60);                 // x, y = top-left corner
              var slanted = VisionRoi.Rotated(330, 320, 470, 30, 15);      // cx, cy = center; 15° clockwise on screen
             
              job.Add("left hole", roi: () =&gt; hole, ctx =&gt; { /* ctx.Image is the 60×60 region */ });
@@ -1361,7 +1361,7 @@
             <summary>레이블을 읽는 방법입니다.</summary>
         </member><member name="P:Devinno.Vision.Recipes.TestSet.GoodLabel" en-hash="849f17b1515b1e8d">
             <summary>이 레이블의 이미지는 OK로 예상하고, 나머지는 모두 NG로 예상합니다.</summary>
-        </member><member name="T:Devinno.Vision.VisionRecipe" en-hash="14a68620582e757d">
+        </member><member name="T:Devinno.Vision.VisionRecipe" en-hash="1e97fae446354193">
              <summary>
              Studio에서 만든 검사입니다. <c>studio.json</c>(검사, 캘리브레이션, 티칭한 기준 Pose, 양품 모델), 기준 이미지와 모델 파일이 들어 있는 폴더입니다.
              앱은 이 폴더를 불러와 Studio 없이 같은 검사를 실행합니다.
@@ -1378,7 +1378,7 @@
              <example>
              레시피 폴더(또는 .dvpkg 패키지)를 불러와 실행합니다.
              <code>
-             using var recipe = VisionRecipe.Load(@"C:\recipes\bracket");
+             using var recipe = VisionRecipe.Load(@"C:\recipes\plate");
              var job = recipe.CreateJob();
             
              using var img = VisionImage.Load(path);
@@ -1425,7 +1425,7 @@
             <param name="folder">레시피 폴더입니다.</param>
             <param name="name">레시피 이름입니다.</param>
             <returns>새 레시피입니다.</returns>
-        </member><member name="M:Devinno.Vision.VisionRecipe.Load(System.String,System.Boolean)" en-hash="e93d5272ddb941e5">
+        </member><member name="M:Devinno.Vision.VisionRecipe.Load(System.String,System.Boolean)" en-hash="ec427027794592c2">
             <summary>레시피 폴더의 <c>studio.json</c> 또는 레시피 패키지(.dvpkg, 사용자의 캐시 폴더에 풀고 매니페스트와 대조해 확인합니다)를 엽니다.</summary>
             <param name="folder">레시피 폴더(Studio 프로젝트 폴더, 즉 studio.json이 들어 있는 폴더) 또는 .dvpkg 파일입니다.</param>
             <param name="loadModels">모델 파일을 지금 읽습니다(기본값). <see langword="false" />이면 모델이 없거나 아직 학습되지 않은 레시피를 엽니다(Studio).
@@ -1439,7 +1439,7 @@
             <code>
             try
             {
-                using var recipe = VisionRecipe.Load(@"C:\deploy\bracket.dvpkg");
+                using var recipe = VisionRecipe.Load(@"C:\deploy\plate.dvpkg");
                 var job = recipe.CreateJob();
                 // ... run the job for every image while the recipe is alive
             }
@@ -1548,7 +1548,7 @@
         </member><member name="P:Devinno.Vision.VisionRecipe.PackagePath" en-hash="261e10c53d0f588d">
             <summary>이 레시피를 불러온 패키지입니다. 폴더에서 불러왔으면 <see langword="null" />입니다.
             패키지에서 불러온 경우 <see cref="P:Devinno.Vision.VisionRecipe.Folder" />는 패키지를 푼 폴더이므로 그 안에 쓰지 마십시오.</summary>
-        </member><member name="M:Devinno.Vision.VisionRecipe.Pack(System.String)" en-hash="7fd35d0b65d2177f">
+        </member><member name="M:Devinno.Vision.VisionRecipe.Pack(System.String)" en-hash="9902df2e19835eb7">
              <summary>
              레시피를 패키지 파일 하나(zip)로 씁니다. <c>manifest.json</c>(라이브러리 버전, 시간, 모든 파일의 SHA-256), 테스트 폴더를 뺀 <c>studio.json</c>,
              기준 이미지와 레시피가 사용하는 모델 폴더가 들어갑니다. Studio 전용 파일(테스트 폴더, 학습 폴더와 요약)은 제외됩니다.
@@ -1561,11 +1561,11 @@
              </remarks>
              <example>
              <code>
-             using var recipe = VisionRecipe.Load(@"C:\recipes\bracket");
-             int files = recipe.Pack(@"C:\deploy\bracket.dvpkg");
+             using var recipe = VisionRecipe.Load(@"C:\recipes\plate");
+             int files = recipe.Pack(@"C:\deploy\plate.dvpkg");
             
              // On the line PC
-             using var onSite = VisionRecipe.Load(@"C:\deploy\bracket.dvpkg");
+             using var onSite = VisionRecipe.Load(@"C:\deploy\plate.dvpkg");
              var job = onSite.CreateJob();
              </code>
              </example>
@@ -1964,14 +1964,14 @@
             <param name="image">이미지입니다.</param>
             <param name="p">매개 변수입니다.</param>
             <returns>큰 것부터 정렬된 블롭입니다.</returns>
-        </member><member name="T:Devinno.Vision.Brightness" en-hash="a27b8d09891d3904">
+        </member><member name="T:Devinno.Vision.Brightness" en-hash="c4553c33a711e5c1">
             <summary>밝기 측정입니다(유무 검사, 표면 검사). 컬러 이미지는 회색조로 변환됩니다.</summary>
             <example>
             <code>
             job.Add("tab", roi: () =&gt; roi, ctx =&gt;
             {
                 ctx.Value("mean", Brightness.Mean(ctx.Image), min: 120, max: 220, code: "BRIGHT");
-                ctx.Value("dark pixels", Brightness.Count(ctx.Image, 0, 100), max: 200, code: "DISCOLOR");
+                ctx.Value("dark pixels", Brightness.Count(ctx.Image, 0, 100), max: 200, code: "NOTCH");
             });
             </code>
             </example>
@@ -2165,7 +2165,7 @@
             <summary>P2에서의 에지 강도입니다.</summary>
         </member><member name="T:Devinno.Vision.Edge" en-hash="ab6e575e245df5a6">
             <summary>에지 측정입니다.</summary>
-        </member><member name="M:Devinno.Vision.Edge.Caliper(Devinno.Vision.VisionImage,Devinno.Vision.EdgePolarity,System.Double)" en-hash="abb927768fbd0b4d">
+        </member><member name="M:Devinno.Vision.Edge.Caliper(Devinno.Vision.VisionImage,Devinno.Vision.EdgePolarity,System.Double)" en-hash="4c97c4f29fccc327">
             <summary>
             이미지의 x축을 따라 가장 바깥쪽 에지 한 쌍을 찾고 그 사이의 거리(폭, 간격, 길이)를 서브픽셀 정밀도로 측정합니다.
             밝기는 모든 행에 대해 평균하므로 ROI를 측정 대상을 가로지르도록 놓습니다. 너비는 측정 방향으로, 높이는 에지 방향으로 둡니다.
@@ -2181,11 +2181,11 @@
             </remarks>
             <example>
             <code>
-            job.Add("width", roi: () =&gt; VisionRoi.Rect(100, 305, 470, 30), ctx =&gt;
+            job.Add("width", roi: () =&gt; VisionRoi.Rect(100, 180, 440, 12), ctx =&gt;
             {
                 var e = Edge.Caliper(ctx.Image, EdgePolarity.BrightObject, minContrast: 8);
                 ctx.Draw(e);
-                ctx.Value("width", e.Distance, min: 405, max: 417, code: "WIDTH", unit: "px");
+                ctx.Value("width", e.Distance, min: 395, max: 405, code: "WIDTH", unit: "px");
             });
             </code>
             </example>

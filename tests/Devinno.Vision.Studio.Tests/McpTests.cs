@@ -69,30 +69,30 @@ public class McpTests
     }
 
     [Fact]
-    public async Task Bracket_over_mcp_passes_all_18()
+    public async Task Plate_over_mcp_passes_all_18()
     {
         using var dir = new TempDir();
         await using var s = await Server.StartAsync();
         const string hole = """{"Blob":{"Mode":"Fixed","Threshold":80,"Invert":true,"MinArea":300},"Min":1,"Max":1,"Code":"HOLE"}""";
 
-        await s.Ok("new_project", new() { ["folder"] = dir.Path, ["name"] = "브래킷" });
-        await s.Ok("set_base_image", new() { ["path"] = Samples.Bracket("01_good.bmp") });
+        await s.Ok("new_project", new() { ["folder"] = dir.Path, ["name"] = "플레이트" });
+        await s.Ok("set_base_image", new() { ["path"] = Samples.Plate("01_good.bmp") });
         var align = IdOf(await s.Ok("add_check", new() { ["kind"] = "BlobAlign", ["name"] = "정렬" }));
         await s.Ok("update_check", new() { ["id"] = align, ["properties_json"] = """{"Blob":{"MinArea":20000}}""" });
         await s.Ok("teach_base");
-        foreach (var (name, x) in new[] { ("왼쪽 구멍", 194), ("오른쪽 구멍", 417) })
+        foreach (var (name, x) in new[] { ("왼쪽 구멍", 138), ("오른쪽 구멍", 442) })
         {
             var id = IdOf(await s.Ok("add_check", new() { ["kind"] = "BlobCount", ["name"] = name }));
-            await s.Ok("set_roi", new() { ["id"] = id, ["x"] = x, ["y"] = 251, ["width"] = 60, ["height"] = 60 });
+            await s.Ok("set_roi", new() { ["id"] = id, ["x"] = x, ["y"] = 130, ["width"] = 60, ["height"] = 60 });
             await s.Ok("update_check", new() { ["id"] = id, ["properties_json"] = hole });
         }
-        var tab = IdOf(await s.Ok("add_check", new() { ["kind"] = "PixelCount", ["name"] = "상단 변색" }));
-        await s.Ok("set_roi", new() { ["id"] = tab, ["x"] = 268, ["y"] = 192, ["width"] = 134, ["height"] = 36 });
-        await s.Ok("update_check", new() { ["id"] = tab, ["properties_json"] = """{"Low":0,"High":100,"Max":200,"Code":"DISCOLOR"}""" });
+        var tab = IdOf(await s.Ok("add_check", new() { ["kind"] = "PixelCount", ["name"] = "노치" }));
+        await s.Ok("set_roi", new() { ["id"] = tab, ["x"] = 238, ["y"] = 116, ["width"] = 36, ["height"] = 20 });
+        await s.Ok("update_check", new() { ["id"] = tab, ["properties_json"] = """{"Low":100,"High":255,"Max":200,"Code":"NOTCH"}""" });
         var len = IdOf(await s.Ok("add_check", new() { ["kind"] = "Length", ["name"] = "길이" }));
-        await s.Ok("set_roi", new() { ["id"] = len, ["x"] = 100, ["y"] = 305, ["width"] = 470, ["height"] = 30 });
-        await s.Ok("update_check", new() { ["id"] = len, ["properties_json"] = """{"Polarity":"BrightObject","MinContrast":8,"Nominal":411,"Plus":6,"Minus":6,"Code":"LENGTH"}""" });
-        await s.Ok("add_test_set", new() { ["folder"] = Samples.BracketDir, ["rule"] = "FileName" });
+        await s.Ok("set_roi", new() { ["id"] = len, ["x"] = 135, ["y"] = 312, ["width"] = 370, ["height"] = 16 });
+        await s.Ok("update_check", new() { ["id"] = len, ["properties_json"] = """{"Polarity":"DarkObject","MinContrast":8,"Nominal":336,"Plus":4,"Minus":4,"Code":"LENGTH"}""" });
+        await s.Ok("add_test_set", new() { ["folder"] = Samples.PlateDir, ["rule"] = "FileName" });
 
         var report = await s.Ok("run_test", new() { ["set_index"] = 0 });
 
@@ -108,10 +108,10 @@ public class McpTests
     {
         using var dir = new TempDir();
         var session = new StudioSession();
-        BracketStudioTests.BuildBracket(session, dir.Path);
+        PlateStudioTests.BuildPlate(session, dir.Path);
         await using var s = await Server.StartAsync(session);
 
-        var run = await s.Call("run_image", new() { ["path"] = Samples.Bracket("02_missinghole.bmp") });
+        var run = await s.Call("run_image", new() { ["path"] = Samples.Plate("02_missinghole.bmp") });
         await s.Ok("run_test", new() { ["set_index"] = 0 });
         var view = await s.Call("view_test_item", new() { ["index"] = 1 });
 

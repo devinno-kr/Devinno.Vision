@@ -67,11 +67,11 @@ public static class Edge
     /// </remarks>
     /// <example>
     /// <code>
-    /// job.Add("width", roi: () =&gt; VisionRoi.Rect(100, 305, 470, 30), ctx =&gt;
+    /// job.Add("width", roi: () =&gt; VisionRoi.Rect(100, 180, 440, 12), ctx =&gt;
     /// {
     ///     var e = Edge.Caliper(ctx.Image, EdgePolarity.BrightObject, minContrast: 8);
     ///     ctx.Draw(e);
-    ///     ctx.Value("width", e.Distance, min: 405, max: 417, code: "WIDTH", unit: "px");
+    ///     ctx.Value("width", e.Distance, min: 395, max: 405, code: "WIDTH", unit: "px");
     /// });
     /// </code>
     /// </example>

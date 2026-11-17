@@ -7,12 +7,12 @@ public class GoodModelTests
 {
     private static string Tiny => Path.Combine(AppContext.BaseDirectory, "Models", "tiny_features.onnx");
 
-    private static string[] Goods => Directory.GetFiles(BracketInspection.SampleDir, "*_good.bmp").Order().ToArray();
+    private static string[] Goods => Directory.GetFiles(PlateInspection.SampleDir, "*_good.bmp").Order().ToArray();
 
-    // Bracket 레시피 폴더를 임시 폴더로 복사
-    private static VisionRecipe CopyBracket(TempDir dir)
+    // Plate 레시피 폴더를 임시 폴더로 복사
+    private static VisionRecipe CopyPlate(TempDir dir)
     {
-        var src = Path.Combine(AppContext.BaseDirectory, "Recipes", "Bracket");
+        var src = Path.Combine(AppContext.BaseDirectory, "Recipes", "Plate");
         File.Copy(Path.Combine(src, VisionRecipe.FileName), Path.Combine(dir.Path, VisionRecipe.FileName));
         Directory.CreateDirectory(Path.Combine(dir.Path, "images"));
         File.Copy(Path.Combine(src, "images", "base.bmp"), Path.Combine(dir.Path, "images", "base.bmp"));
@@ -32,7 +32,7 @@ public class GoodModelTests
     public async Task Training_sets_the_model_and_the_job_runs_it_after_alignment()
     {
         using var dir = new TempDir();
-        using var recipe = CopyBracket(dir);
+        using var recipe = CopyPlate(dir);
         var stages = new List<string>();
 
         var t = await recipe.TrainGoodModelAsync(Training(), new SyncProgress<GoodModelProgress>(p => stages.Add(p.Stage)));
@@ -54,7 +54,7 @@ public class GoodModelTests
         using var img = recipe.LoadBaseImage();
         using var r = await job.RunAsync(img);
 
-        Assert.Equal(["정렬", VisionRecipe.GoodModelStepName, "왼쪽 구멍", "오른쪽 구멍", "상단 변색", "길이"], r.Steps.Select(s => s.Name));
+        Assert.Equal(["정렬", VisionRecipe.GoodModelStepName, "왼쪽 구멍", "오른쪽 구멍", "노치", "길이"], r.Steps.Select(s => s.Name));
         var step = r.Steps[VisionRecipe.GoodModelStepName];
         Assert.Equal(VisionRecipe.PoseName, step.Followed);
         Assert.NotEqual(StepState.Error, step.State);
@@ -68,7 +68,7 @@ public class GoodModelTests
     {
         using var dir = new TempDir();
         string path;
-        using (var recipe = CopyBracket(dir))
+        using (var recipe = CopyPlate(dir))
         {
             path = (await recipe.TrainGoodModelAsync(Training())).Model.Path;
             recipe.Save();
@@ -90,7 +90,7 @@ public class GoodModelTests
     public async Task Changing_the_alignment_after_training_asks_to_train_again()
     {
         using var dir = new TempDir();
-        using var recipe = CopyBracket(dir);
+        using var recipe = CopyPlate(dir);
         await recipe.TrainGoodModelAsync(Training());
 
         var align = (BlobAlignCheck)recipe.Checks[0];
@@ -106,7 +106,7 @@ public class GoodModelTests
     {
         using var dir = new TempDir();
         string path;
-        using (var recipe = CopyBracket(dir))
+        using (var recipe = CopyPlate(dir))
         {
             path = (await recipe.TrainGoodModelAsync(Training())).Model.Path;
             recipe.Save();
@@ -125,7 +125,7 @@ public class GoodModelTests
     public async Task Jobs_stop_working_after_the_recipe_is_disposed()
     {
         using var dir = new TempDir();
-        var recipe = CopyBracket(dir);
+        var recipe = CopyPlate(dir);
         await recipe.TrainGoodModelAsync(Training());
         var job = recipe.CreateJob();
         using var img = recipe.LoadBaseImage();
@@ -142,7 +142,7 @@ public class GoodModelTests
     public async Task Save_removes_model_folders_the_recipe_no_longer_uses()
     {
         using var dir = new TempDir();
-        using var recipe = CopyBracket(dir);
+        using var recipe = CopyPlate(dir);
         var first = (await recipe.TrainGoodModelAsync(Training())).Model.Path;
         var second = (await recipe.TrainGoodModelAsync(Training())).Model.Path;
 
@@ -158,7 +158,7 @@ public class GoodModelTests
     public async Task Images_where_the_part_is_not_found_are_left_out_with_the_reason()
     {
         using var dir = new TempDir();
-        using var recipe = CopyBracket(dir);
+        using var recipe = CopyPlate(dir);
         var black = Path.Combine(dir.Path, "black.bmp");
         using (var m = new Mat(480, 640, MatType.CV_8UC3, Scalar.Black))
             m.SaveImage(black);
@@ -174,7 +174,7 @@ public class GoodModelTests
     public async Task Bad_training_input_fails_clearly_and_leaves_the_recipe_unchanged()
     {
         using var dir = new TempDir();
-        using var recipe = CopyBracket(dir);
+        using var recipe = CopyPlate(dir);
 
         var few = await Assert.ThrowsAsync<ArgumentException>(() => recipe.TrainGoodModelAsync(Training(Goods.Take(2).ToArray())));
         Assert.Contains("최소 3장", few.Message);

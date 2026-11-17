@@ -50,7 +50,7 @@ internal sealed class TempDir : IDisposable
 
 internal static class Samples
 {
-    public static string BracketDir => Path.Combine(AppContext.BaseDirectory, "Samples", "Bracket");
+    public static string PlateDir => Path.Combine(AppContext.BaseDirectory, "Samples", "Plate");
 
-    public static string Bracket(string name) => Path.Combine(BracketDir, name);
+    public static string Plate(string name) => Path.Combine(PlateDir, name);
 }

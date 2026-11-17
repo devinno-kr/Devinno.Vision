@@ -14,7 +14,7 @@ namespace Devinno.Vision;
 /// </remarks>
 /// <example>
 /// <code>
-/// job.Add("left hole", roi: () =&gt; VisionRoi.Rect(194, 251, 60, 60), ctx =&gt;
+/// job.Add("left hole", roi: () =&gt; VisionRoi.Rect(138, 130, 60, 60), ctx =&gt;
 /// {
 ///     var holes = Blob.Find(ctx.Image, ThresholdMode.Fixed, threshold: 80, invert: true, minArea: 300);
 ///     ctx.Draw(holes);                                                       // drawn at the right place on the original image
@@ -73,7 +73,7 @@ public sealed class VisionContext
     /// <example>
     /// <code>
     /// ctx.Value("holes", blobs.Length, min: 4, max: 4, code: "HOLE");
-    /// ctx.Value("dark pixels", Brightness.Count(ctx.Image, 0, 100), max: 200, code: "DISCOLOR");
+    /// ctx.Value("dark pixels", Brightness.Count(ctx.Image, 0, 100), max: 200, code: "NOTCH");
     /// ctx.Value("mean", Brightness.Mean(ctx.Image));                          // recorded, not judged
     /// </code>
     /// </example>
@@ -106,7 +106,7 @@ public sealed class VisionContext
     /// <example>
     /// <code>
     /// var e = Edge.Caliper(ctx.Image);
-    /// ctx.Value("width", ctx.Mm(e), nominal: 90, plus: 1, minus: 1, code: "WIDTH", unit: "mm");   // OK from 89 to 91
+    /// ctx.Value("width", ctx.Mm(e), nominal: 100, plus: 1, minus: 1, code: "WIDTH", unit: "mm");   // OK from 99 to 101
     /// </code>
     /// </example>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="plus"/> or <paramref name="minus"/> is negative.</exception>

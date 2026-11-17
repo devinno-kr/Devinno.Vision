@@ -136,9 +136,9 @@ public class UiTests
     {
         using var dir = new TempDir();
         var s = new Studio();
-        s.Dialogs.Folders.Enqueue(dir.Sub("브래킷"));
-        s.Dialogs.Images.Enqueue(Samples.Bracket("01_good.bmp"));
-        s.Dialogs.Images.Enqueue(Samples.Bracket("02_missinghole.bmp"));
+        s.Dialogs.Folders.Enqueue(dir.Sub("플레이트"));
+        s.Dialogs.Images.Enqueue(Samples.Plate("01_good.bmp"));
+        s.Dialogs.Images.Enqueue(Samples.Plate("02_missinghole.bmp"));
 
         s.Tap(() => s.Top.NewBounds);                  // [새 로직] → 폴더 → 이름 입력 창
         s.PressDialog("ok");                       // 이름은 폴더 이름 그대로 (실제 창처럼 확인 버튼)
@@ -167,7 +167,7 @@ public class UiTests
         Assert.Contains("기준 위치", s.Status.Notice);
 
         var hole = s.Session.AddCheck("BlobCount", "왼쪽 구멍").Id!;     // (ROI 끌기는 헤드리스로 재현하지 않고 명령으로)
-        s.Session.SetRoi(hole, VisionRoi.Rect(194, 251, 60, 60));
+        s.Session.SetRoi(hole, VisionRoi.Rect(138, 130, 60, 60));
         s.List.SelectedId = hole;
         s.Edit.BlobMode = ThresholdMode.Fixed;
         s.Edit.BlobThreshold = 80;
@@ -199,14 +199,14 @@ public class UiTests
     {
         using var dir = new TempDir();
         var session = new StudioSession();
-        BracketStudioTests.BuildBracket(session, dir.Path);
+        PlateStudioTests.BuildPlate(session, dir.Path);
         session.RemoveTestSet(0);
         var s = new Studio(session);
         s.App.Show(s.Test);
         s.Frame();
         s.Png("2-0-no-folder.png");
 
-        s.Dialogs.Folders.Enqueue(Samples.BracketDir);
+        s.Dialogs.Folders.Enqueue(Samples.PlateDir);
         s.Tap(() => s.Test.AddSetBounds);              // [폴더 추가] → 라벨 읽는 법 고르기
         s.PressDialog("ok");                       // 첫 항목 = 파일 이름
         s.Until(() => s.Test.Rows.Count == 18);
@@ -254,7 +254,7 @@ public class UiTests
     {
         using var dir = new TempDir();
         var session = new StudioSession();
-        BracketStudioTests.BuildBracket(session, dir.Path);
+        PlateStudioTests.BuildPlate(session, dir.Path);
         var len = session.Checks.Single(c => c.Name == "길이").Id;
         session.UpdateCheck(len, System.Text.Json.Nodes.JsonNode.Parse("""{"Nominal":380}""")!.AsObject());
         var s = new Studio(session);
@@ -277,7 +277,7 @@ public class UiTests
         Assert.Same(s.Edit, s.App.CurrentPage);
         Assert.Equal(len, s.List.SelectedId);
         Assert.True(s.Edit.IsLength);
-        s.Edit.LengthNominal = 411;                // 고친다
+        s.Edit.LengthNominal = 336;                // 고친다
         s.Frame();
         s.Png("3-2-fix-in-edit.png");
         Assert.True(s.Errors.Count == 0, s.Errs);
@@ -289,7 +289,7 @@ public class UiTests
     {
         using var dir = new TempDir();
         var session = new StudioSession();
-        BracketStudioTests.BuildBracket(session, dir.Path);
+        PlateStudioTests.BuildPlate(session, dir.Path);
         var s = new Studio(session);
         var hole = session.Checks.Single(c => c.Name == "오른쪽 구멍").Id;
         s.List.SelectedId = hole;
@@ -319,8 +319,8 @@ public class UiTests
 
         // 라벨 없는 파일 ('_' 없음) 이 섞인 폴더
         var mixed = dir.Sub("../mixed-" + Guid.NewGuid().ToString("N")[..6]);
-        File.Copy(Samples.Bracket("01_good.bmp"), Path.Combine(mixed, "01_good.bmp"));
-        File.Copy(Samples.Bracket("02_missinghole.bmp"), Path.Combine(mixed, "scan0002.bmp"));
+        File.Copy(Samples.Plate("01_good.bmp"), Path.Combine(mixed, "01_good.bmp"));
+        File.Copy(Samples.Plate("02_missinghole.bmp"), Path.Combine(mixed, "scan0002.bmp"));
         s.Dialogs.Folders.Enqueue(mixed);
         s.Tap(() => s.Test.AddSetBounds);
         s.PressDialog("ok");
@@ -360,7 +360,7 @@ public class UiTests
     {
         using var dir = new TempDir();
         var session = new StudioSession();
-        BracketStudioTests.BuildBracket(session, dir.Path);
+        PlateStudioTests.BuildPlate(session, dir.Path);
         var s = new Studio(session);
         s.Tap(() => s.Edit.RunBounds);
         s.Until(() => s.Edit.ShowingResult && s.Edit.HasValues);
@@ -388,7 +388,7 @@ public class UiTests
     private static Studio RunReady(TempDir dir, double nominal)
     {
         var session = new StudioSession();
-        BracketStudioTests.BuildBracket(session, dir.Path);
+        PlateStudioTests.BuildPlate(session, dir.Path);
         var len = session.Checks.Single(c => c.Name == "길이").Id;
         session.UpdateCheck(len, System.Text.Json.Nodes.JsonNode.Parse($$"""{"Nominal":{{nominal}}}""")!.AsObject());
         var s = new Studio(session);
@@ -412,7 +412,7 @@ public class UiTests
     public void Run_with_no_wrong_images_keeps_the_all_filter_and_the_selection()
     {
         using var dir = new TempDir();
-        var s = RunReady(dir, 411);
+        var s = RunReady(dir, 336);
         var picked = s.Test.Rows[3].File;
 
         PickAndRun(s, 3);
@@ -429,7 +429,7 @@ public class UiTests
     public void Run_with_no_wrong_images_returns_from_another_filter_to_all()
     {
         using var dir = new TempDir();
-        var s = RunReady(dir, 411);
+        var s = RunReady(dir, 336);
         s.Tap(() => s.Test.RunBounds);                     // 한 번 돌려 필터를 고를 수 있게
         s.Until(() => s.Test.HasReport && !s.Test.Running);
 
@@ -479,7 +479,7 @@ public class UiTests
     {
         using var dir = new TempDir();
         var session = new StudioSession();
-        BracketStudioTests.BuildBracket(session, dir.Path);
+        PlateStudioTests.BuildPlate(session, dir.Path);
         var s = new Studio(session);
         var len = session.Checks.Single(c => c.Name == "길이").Id;
         s.List.SelectedId = len;
@@ -488,26 +488,26 @@ public class UiTests
         async Task<string?> LineLabel()
         {
             string? label = null;
-            await session.RunImageAsync(Samples.Bracket("01_good.bmp"), r => label = r.Overlays.Single(o => o.Kind == VisionOverlayKind.Line).Label);
+            await session.RunImageAsync(Samples.Plate("01_good.bmp"), r => label = r.Overlays.Single(o => o.Kind == VisionOverlayKind.Line).Label);
             return label;
         }
 
-        Assert.Equal("411 px", Badge());
+        Assert.Equal("336 px", Badge());
         Assert.Equal("px", s.Edit.LengthUnit);
         Assert.EndsWith(" px", await LineLabel());
 
-        s.Edit.Calibration = "0.218978";
-        s.Edit.LengthNominal = 90;
+        s.Edit.Calibration = "0.25";
+        s.Edit.LengthNominal = 84;
         s.Frame();
 
-        Assert.Equal("90 mm", Badge());
+        Assert.Equal("84 mm", Badge());
         Assert.Equal("mm", s.Edit.LengthUnit);
         Assert.Equal("mm", s.Edit.CalibrationBadge);
         Assert.Matches(@"^\d+\.\d\d mm$", await LineLabel());
 
         s.Edit.Calibration = "";                 // 빼면 다시 px
         s.Frame();
-        Assert.Equal("90 px", Badge());
+        Assert.Equal("84 px", Badge());
         Assert.Equal("px", s.Edit.LengthUnit);
     }
 
@@ -535,7 +535,7 @@ public class UiTests
     {
         using var dir = new TempDir();
         var session = new StudioSession();
-        BracketStudioTests.BuildBracket(session, dir.Path);
+        PlateStudioTests.BuildPlate(session, dir.Path);
         var s = new Studio(session);
         s.Tap(() => s.Edit.RunBounds);
         s.Until(() => s.Edit.ShowingResult && s.Edit.HasValues);

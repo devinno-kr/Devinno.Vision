@@ -5,14 +5,14 @@ public class RecipeFileTests
 {
     private static VisionRecipe AllKinds(string folder)
     {
-        var p = VisionRecipe.Create(folder, "브래킷");
+        var p = VisionRecipe.Create(folder, "플레이트");
         p.BaseImage = "images/base.png";
         p.Calibration = VisionCalibration.Scale(0.1);
         p.Checks.Add(new BlobAlignCheck { Name = "정렬", Blob = new BlobParams { MinArea = 20000 }, Reference = new VisionPose(330.4, 256, -0.07) });
-        p.Checks.Add(new BlobCountCheck { Name = "왼쪽 구멍", Roi = VisionRoi.Rect(194, 251, 60, 60), Blob = new BlobParams { Mode = ThresholdMode.Fixed, Threshold = 80, Invert = true, MinArea = 300 }, Min = 1, Max = 1, Code = "HOLE" });
-        p.Checks.Add(new PixelCountCheck { Name = "상단 변색", Roi = VisionRoi.Rect(268, 192, 134, 36), Low = 0, High = 100, Max = 200, Code = "DISCOLOR" });
+        p.Checks.Add(new BlobCountCheck { Name = "왼쪽 구멍", Roi = VisionRoi.Rect(138, 130, 60, 60), Blob = new BlobParams { Mode = ThresholdMode.Fixed, Threshold = 80, Invert = true, MinArea = 300 }, Min = 1, Max = 1, Code = "HOLE" });
+        p.Checks.Add(new PixelCountCheck { Name = "노치", Roi = VisionRoi.Rect(238, 116, 36, 20), Low = 0, High = 100, Max = 200, Code = "NOTCH" });
         p.Checks.Add(new BrightnessCheck { Name = "밝기", Roi = VisionRoi.Rotated(100, 100, 40, 20, 15), Min = 50, Max = 200 });
-        p.Checks.Add(new LengthCheck { Name = "길이", Roi = VisionRoi.Rect(100, 305, 470, 30), Polarity = EdgePolarity.DarkObject, MinContrast = 9, Nominal = 41, Plus = 0.7, Minus = 0.5 });
+        p.Checks.Add(new LengthCheck { Name = "길이", Roi = VisionRoi.Rect(100, 180, 440, 12), Polarity = EdgePolarity.DarkObject, MinContrast = 9, Nominal = 41, Plus = 0.7, Minus = 0.5 });
         p.TestSets.Add(new TestSet { Folder = "C:/samples", Rule = LabelRule.FileName });
         return p;
     }
@@ -27,7 +27,7 @@ public class RecipeFileTests
         var p = VisionRecipe.Load(dir.Path);
 
         Assert.Equal(dir.Path, p.Folder);
-        Assert.Equal("브래킷", p.Name);
+        Assert.Equal("플레이트", p.Name);
         Assert.Equal(1, p.FormatVersion);
         Assert.Equal("images/base.png", p.BaseImage);
         Assert.Equal(0.1, p.Calibration!.MmPerPx);
@@ -47,7 +47,7 @@ public class RecipeFileTests
         Assert.Equal((ThresholdMode.Fixed, 80, true, 300), (count.Blob.Mode, count.Blob.Threshold, count.Blob.Invert, count.Blob.MinArea));
         Assert.Equal((1, 1, "HOLE"), (count.Min, count.Max, count.Code));
         var pixel = Assert.IsType<PixelCountCheck>(p.Checks[2]);
-        Assert.Equal((0, 100, 200, "DISCOLOR"), (pixel.Low, pixel.High, pixel.Max, pixel.Code));
+        Assert.Equal((0, 100, 200, "NOTCH"), (pixel.Low, pixel.High, pixel.Max, pixel.Code));
         var bright = Assert.IsType<BrightnessCheck>(p.Checks[3]);
         Assert.Equal((50.0, 200.0, "BRIGHT"), (bright.Min, bright.Max, bright.Code));
         var len = Assert.IsType<LengthCheck>(p.Checks[4]);

@@ -33,11 +33,11 @@ public sealed partial class VisionRecipe
     /// </remarks>
     /// <example>
     /// <code>
-    /// using var recipe = VisionRecipe.Load(@"C:\recipes\bracket");
-    /// int files = recipe.Pack(@"C:\deploy\bracket.dvpkg");
+    /// using var recipe = VisionRecipe.Load(@"C:\recipes\plate");
+    /// int files = recipe.Pack(@"C:\deploy\plate.dvpkg");
     ///
     /// // On the line PC
-    /// using var onSite = VisionRecipe.Load(@"C:\deploy\bracket.dvpkg");
+    /// using var onSite = VisionRecipe.Load(@"C:\deploy\plate.dvpkg");
     /// var job = onSite.CreateJob();
     /// </code>
     /// </example>

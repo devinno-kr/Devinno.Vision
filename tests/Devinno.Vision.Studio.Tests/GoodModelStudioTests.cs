@@ -19,7 +19,7 @@ public class GoodModelStudioTests
     private static string Goods(TempDir dir)
     {
         var goods = dir.Sub("goods");
-        foreach (var f in Directory.GetFiles(Samples.BracketDir, "*_good.bmp"))
+        foreach (var f in Directory.GetFiles(Samples.PlateDir, "*_good.bmp"))
             File.Copy(f, Path.Combine(goods, Path.GetFileName(f)));
         return goods;
     }
@@ -30,11 +30,11 @@ public class GoodModelStudioTests
         return r.Message;
     }
 
-    // Bracket 로직 + 양품 폴더
+    // Plate 로직 + 양품 폴더
     private static StudioSession Prepared(TempDir dir)
     {
         var s = NewSession();
-        BracketStudioTests.BuildBracket(s, dir.Sub("project"));
+        PlateStudioTests.BuildPlate(s, dir.Sub("project"));
         Ok(s.SetGoodFolder(Goods(dir)));
         return s;
     }
@@ -57,7 +57,7 @@ public class GoodModelStudioTests
         Assert.Equal((9, 8, 1), (summary.Images, summary.Learned, summary.Calibration));
         Assert.Equal(s.Project!.GoodModel!.Max, summary.Max);
 
-        var run = await s.RunImageAsync(Samples.Bracket("01_good.bmp"));
+        var run = await s.RunImageAsync(Samples.Plate("01_good.bmp"));
         Assert.True(run.Ok, run.Message);
         Assert.Contains(run.Values, v => v.Check == VisionRecipe.GoodModelStepName && v.Name == "양품 모델 점수");
         Assert.True(run.Ms > 0);
@@ -79,7 +79,7 @@ public class GoodModelStudioTests
             if (during is not null)
                 return;
             during = s.AddCheck("Brightness", "밝기");
-            runDuring = s.RunImageAsync(Samples.Bracket("01_good.bmp")).GetAwaiter().GetResult();
+            runDuring = s.RunImageAsync(Samples.Plate("01_good.bmp")).GetAwaiter().GetResult();
             Assert.True(s.IsTraining);
             Assert.True(s.CancelTraining().Ok);
         });
@@ -127,7 +127,7 @@ public class GoodModelStudioTests
         var align = s.Checks[0];
         Ok(s.UpdateCheck(align.Id, JsonNode.Parse("""{"Blob":{"MinArea":15000}}""")!.AsObject()));
 
-        var run = await s.RunImageAsync(Samples.Bracket("01_good.bmp"));
+        var run = await s.RunImageAsync(Samples.Plate("01_good.bmp"));
         var test = await s.RunTestAsync(0);
 
         Assert.False(run.Ok);
@@ -137,7 +137,7 @@ public class GoodModelStudioTests
         Assert.False(s.Project!.GoodModelIsCurrent);
 
         Ok(await s.TrainGoodModelAsync());
-        Assert.True((await s.RunImageAsync(Samples.Bracket("01_good.bmp"))).Ok);
+        Assert.True((await s.RunImageAsync(Samples.Plate("01_good.bmp"))).Ok);
     }
 
     [Fact]
@@ -152,13 +152,13 @@ public class GoodModelStudioTests
 
         var again = NewSession();
         Ok(again.OpenProject(folder));
-        var run = await again.RunImageAsync(Samples.Bracket("01_good.bmp"));
+        var run = await again.RunImageAsync(Samples.Plate("01_good.bmp"));
 
         Assert.False(run.Ok);
         Assert.Contains("양품 모델이 없습니다", run.Message);
         Assert.NotNull(again.GoodFolder);   // 양품 폴더는 goodset.json 에서 돌아온다 — 다시 학습할 수 있다
         Ok(await again.TrainGoodModelAsync());
-        Assert.True((await again.RunImageAsync(Samples.Bracket("01_good.bmp"))).Ok);
+        Assert.True((await again.RunImageAsync(Samples.Plate("01_good.bmp"))).Ok);
     }
 
     [Fact]
@@ -166,14 +166,14 @@ public class GoodModelStudioTests
     {
         using var dir = new TempDir();
         var s = NewSession();
-        BracketStudioTests.BuildBracket(s, dir.Sub("project"));   // 테스트 폴더 = Samples/Bracket
+        PlateStudioTests.BuildPlate(s, dir.Sub("project"));   // 테스트 폴더 = Samples/Plate
 
-        var overlap = Ok(s.SetGoodFolder(Samples.BracketDir));
+        var overlap = Ok(s.SetGoodFolder(Samples.PlateDir));
         Assert.Contains("주의: 테스트 폴더", overlap);
 
         Ok(s.SetGoodFolder(Goods(dir)));
-        Ok(s.AddGoodImage(Samples.Bracket("02_missinghole.bmp")));
-        Assert.False(s.AddGoodImage(Samples.Bracket("02_missinghole.bmp")).Ok);   // 두 번은 안 된다
+        Ok(s.AddGoodImage(Samples.Plate("02_missinghole.bmp")));
+        Assert.False(s.AddGoodImage(Samples.Plate("02_missinghole.bmp")).Ok);   // 두 번은 안 된다
         Assert.Equal(10, s.GoodImages().Count);
 
         Ok(s.SaveProject());
@@ -190,7 +190,7 @@ public class GoodModelStudioTests
     {
         using var dir = new TempDir();
         var s = NewSession();
-        BracketStudioTests.BuildBracket(s, dir.Sub("project"));
+        PlateStudioTests.BuildPlate(s, dir.Sub("project"));
 
         var noGoods = await s.TrainGoodModelAsync();
         Assert.Contains("양품 폴더를 먼저", noGoods.Message);
@@ -275,7 +275,7 @@ public class RoiDrawingTests
         using var dir = new TempDir();
         var s = new StudioSession();
         Assert.True(s.NewProject(dir.Sub("p"), "t").Ok);
-        Assert.True(s.SetBaseImage(Samples.Bracket("01_good.bmp")).Ok);
+        Assert.True(s.SetBaseImage(Samples.Plate("01_good.bmp")).Ok);
         var id = s.AddCheck("BlobCount", "좌상 구멍").Id!;
         var app = StudioApp.Create(s, new NullDialogs());
         var edit = app.Pages.OfType<EditPage>().Single();
@@ -297,7 +297,7 @@ public class RoiDrawingTests
         using var dir = new TempDir();
         var s = new StudioSession();
         Assert.True(s.NewProject(dir.Sub("p"), "t").Ok);
-        Assert.True(s.SetBaseImage(Samples.Bracket("01_good.bmp")).Ok);
+        Assert.True(s.SetBaseImage(Samples.Plate("01_good.bmp")).Ok);
         var id = s.AddCheck("BlobCount", "구멍").Id!;
         var set = VisionRoi.Rect(300, 220, 60, 40);   // 이미지 가운데 근처
         Assert.True(s.SetRoi(id, set).Ok);
@@ -328,7 +328,7 @@ public class RoiDrawingTests
         using var dir = new TempDir();
         var s = new StudioSession();
         Assert.True(s.NewProject(dir.Sub("p"), "t").Ok);
-        Assert.True(s.SetBaseImage(Samples.Bracket("01_good.bmp")).Ok);
+        Assert.True(s.SetBaseImage(Samples.Plate("01_good.bmp")).Ok);
         var id = s.AddCheck("BlobCount", "구멍").Id!;
         var app = StudioApp.Create(s, new NullDialogs());
         var edit = app.Pages.OfType<EditPage>().Single();
@@ -347,7 +347,7 @@ public class RoiDrawingTests
         using var dir = new TempDir();
         var s = new StudioSession();
         Assert.True(s.NewProject(dir.Sub("p"), "t").Ok);
-        Assert.True(s.SetBaseImage(Samples.Bracket("01_good.bmp")).Ok);
+        Assert.True(s.SetBaseImage(Samples.Plate("01_good.bmp")).Ok);
         var app = StudioApp.Create(s, new NullDialogs());
         var edit = app.Pages.OfType<EditPage>().Single();
         edit.Tab = RefTab.Model;

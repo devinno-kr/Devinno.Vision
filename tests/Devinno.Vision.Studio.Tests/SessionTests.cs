@@ -18,7 +18,7 @@ public class SessionTests
     {
         using var dir = new TempDir();
         var s = new StudioSession();
-        Assert.True(s.NewProject(dir.Path, "브래킷").Ok);
+        Assert.True(s.NewProject(dir.Path, "플레이트").Ok);
         var changed = 0;
         s.ProjectChanged += () => changed++;
 
@@ -131,7 +131,7 @@ public class SessionTests
         using var dir = new TempDir();
         var s = new StudioSession();
         s.NewProject(dir.Path, "p");
-        Assert.True(s.SetBaseImage(Samples.Bracket("01_good.bmp")).Ok);
+        Assert.True(s.SetBaseImage(Samples.Plate("01_good.bmp")).Ok);
         var a = Add(s, "BlobAlign", "정렬");
         s.UpdateCheck(a, JsonNode.Parse("""{"Blob":{"MinArea":20000}}""")!.AsObject());
 
@@ -140,9 +140,9 @@ public class SessionTests
         Assert.True(r.Ok, r.Message);
         Assert.True(File.Exists(Path.Combine(dir.Path, s.Project!.BaseImage!)));
         var pose = Assert.IsType<BlobAlignCheck>(s.GetCheck(a)).Reference!.Value;
-        Assert.Equal(330.4, pose.X, 0.5);
-        Assert.Equal(256.0, pose.Y, 0.5);
-        Assert.Equal(-0.07, pose.Angle, 0.5);
+        Assert.Equal(319.1, pose.X, 0.5);
+        Assert.Equal(240.7, pose.Y, 0.5);
+        Assert.Equal(-2.3, pose.Angle, 0.5);
     }
 
     [Fact]
@@ -184,11 +184,11 @@ public class SessionTests
         var s = new StudioSession();
         s.NewProject(dir.Path, "p");
         var a = Add(s, "BlobCount", "왼쪽 구멍");
-        s.SetRoi(a, VisionRoi.Rect(194, 251, 60, 60));
+        s.SetRoi(a, VisionRoi.Rect(138, 130, 60, 60));
         s.UpdateCheck(a, JsonNode.Parse("""{"Blob":{"Mode":"Fixed","Threshold":80,"Invert":true,"MinArea":300},"Min":1,"Max":1,"Code":"HOLE"}""")!.AsObject());
 
-        var ok = await s.RunImageAsync(Samples.Bracket("01_good.bmp"));
-        var ng = await s.RunImageAsync(Samples.Bracket("02_missinghole.bmp"));
+        var ok = await s.RunImageAsync(Samples.Plate("01_good.bmp"));
+        var ng = await s.RunImageAsync(Samples.Plate("02_missinghole.bmp"));
         var missing = await s.RunImageAsync(Path.Combine(dir.Path, "nope.png"));
 
         Assert.True(ok.Ok, ok.Message);
@@ -205,9 +205,9 @@ public class SessionTests
     {
         using var dir = new TempDir();
         var s = new StudioSession();
-        BracketStudioTests.BuildBracket(s, dir.Path);
+        PlateStudioTests.BuildPlate(s, dir.Path);
 
-        var r = await s.RunImageAsync(Samples.Bracket("02_missinghole.bmp"));
+        var r = await s.RunImageAsync(Samples.Plate("02_missinghole.bmp"));
 
         Assert.True(r.Ok, r.Message);
         Assert.Equal("Ng", r.State);
@@ -223,7 +223,7 @@ public class SessionTests
     {
         using var dir = new TempDir();
         var s = new StudioSession();
-        BracketStudioTests.BuildBracket(s, dir.Path);
+        PlateStudioTests.BuildPlate(s, dir.Path);
         Assert.Null(await s.RenderTestItemAsync(0));   // 보고서 전
 
         var report = await s.RunTestAsync(0);
@@ -288,7 +288,7 @@ public class SessionTests
         Assert.False(newInFile.Ok);
 
         s.NewProject(dir.Sub("p"), "p");
-        Assert.True(s.SetBaseImage(Samples.Bracket("01_good.bmp")).Ok);
+        Assert.True(s.SetBaseImage(Samples.Plate("01_good.bmp")).Ok);
         s.AddCheck("BlobAlign", "정렬");
         File.WriteAllBytes(s.BaseImageFile!, [1, 2, 3]);                  // 기준 이미지가 나중에 깨짐
         var teach = s.TeachBase();
@@ -347,10 +347,10 @@ public class SessionTests
     {
         using var dir = new TempDir();
         var s = new StudioSession();
-        BracketStudioTests.BuildBracket(s, dir.Path);
+        PlateStudioTests.BuildPlate(s, dir.Path);
         s.SaveProject();
 
-        await s.RunImageAsync(Samples.Bracket("01_good.bmp"));
+        await s.RunImageAsync(Samples.Plate("01_good.bmp"));
         await s.RunTestAsync(0);
 
         Assert.False(s.IsDirty);

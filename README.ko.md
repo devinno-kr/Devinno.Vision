@@ -45,7 +45,7 @@ Devinno.Vision.Studio 는 패키지가 아니라 앱입니다. 이 저장소에 
 ```csharp
 using Devinno.Vision;
 
-using var recipe = VisionRecipe.Load(@"C:\recipes\bracket");   // studio.json 이 든 폴더, 또는 .dvpkg 파일
+using var recipe = VisionRecipe.Load(@"C:\recipes\plate");   // studio.json 이 든 폴더, 또는 .dvpkg 파일
 var job = recipe.CreateJob();                                    // 한 번 만들어 여러 번 실행
 
 using var img = VisionImage.Load(@"C:\images\part01.bmp");
@@ -68,24 +68,24 @@ Studio 없이 같은 종류의 검사를 씁니다. 작업은 단계 목록이�
 ```csharp
 using Devinno.Vision;
 
-var job = new VisionJob("bracket")
+var job = new VisionJob("plate")
     .Add("align", pose: "body", ctx =>
     {
         var part = Blob.Find(ctx.Image, minArea: 20000).FirstOrDefault();
         if (part is null) { ctx.Fail("part not found"); return; }
-        ctx.SetPose(VisionPose.FromBlob(part), reference: new VisionPose(330.4, 256.0, 0));   // reference = 기준 이미지에서의 pose
+        ctx.SetPose(VisionPose.FromBlob(part), reference: new VisionPose(319.1, 240.7, -2.3));   // reference = 기준 이미지에서의 pose
     })
-    .Add("left hole", roi: () => VisionRoi.Rect(194, 251, 60, 60), ctx =>
+    .Add("left hole", roi: () => VisionRoi.Rect(138, 130, 60, 60), ctx =>
     {
         var holes = Blob.Find(ctx.Image, ThresholdMode.Fixed, threshold: 80, invert: true, minArea: 300);
         ctx.Draw(holes);
         ctx.Value("left holes", holes.Length, min: 1, max: 1, code: "HOLE");
     })
-    .Add("length", roi: () => VisionRoi.Rect(100, 305, 470, 30), ctx =>
+    .Add("length", roi: () => VisionRoi.Rect(100, 180, 440, 12), ctx =>
     {
         var e = Edge.Caliper(ctx.Image, EdgePolarity.BrightObject, minContrast: 8);
         ctx.Draw(e);
-        ctx.Value("length", e.Distance, nominal: 410, plus: 5, minus: 5, code: "LENGTH", unit: "px");
+        ctx.Value("length", e.Distance, nominal: 400, plus: 5, minus: 5, code: "LENGTH", unit: "px");
     });
 
 using var img = VisionImage.Load(path);
@@ -111,7 +111,7 @@ Devinno.Vision.Studio 는 티칭 도구입니다. 코드를 쓰지 않고 검사
 - **MCP**: 모든 명령이 MCP 도구이기도 합니다. Studio 가 떠 있는 동안 `http://127.0.0.1:5199/mcp` (이 PC 에서만) 로 열리므로, AI 도구가 검사를 만들고 테스트하고 결과 이미지를 볼 수 있습니다.
 - 화면은 한국어 또는 영어입니다.
 
-[릴리스](https://github.com/devinno-kr/Devinno.Vision/releases)(태그 `studio-v…`, Windows x64, .NET 포함)에서 zip 을 받아 풀고 `Devinno.Vision.Studio.exe` 를 실행합니다. zip 에는 AI 도구용 `llms.txt`(MCP 로 연결하는 방법)가 들어 있습니다. 저장소에서 바로 실행할 수도 있습니다:
+[릴리스](https://github.com/devinno-kr/Devinno.Vision/releases)(태그 `studio-v…`, Windows x64)에서 zip 을 받아 풀고 `Devinno.Vision.Studio.exe` 를 실행합니다. .NET 9 SDK, 또는 .NET 9 Desktop Runtime 과 ASP.NET Core Runtime 9 가 있어야 합니다. zip 에는 AI 도구용 `llms.txt`(MCP 로 연결하는 방법)가 들어 있습니다. 저장소에서 바로 실행할 수도 있습니다:
 
 ```
 dotnet run --project src/Devinno.Vision.Studio

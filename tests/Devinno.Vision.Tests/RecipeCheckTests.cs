@@ -6,7 +6,7 @@ public class RecipeCheckTests
 {
     private static async Task<VisionResult> Run(VisionRecipe p, string sample)
     {
-        using var img = VisionImage.Load(BracketInspection.Sample(sample));
+        using var img = VisionImage.Load(PlateInspection.Sample(sample));
         return await p.CreateJob().RunAsync(img);
     }
 
@@ -17,7 +17,7 @@ public class RecipeCheckTests
         p.Checks.Add(new BlobCountCheck
         {
             Name = "왼쪽 구멍",
-            Roi = VisionRoi.Rect(194, 251, 60, 60),
+            Roi = VisionRoi.Rect(138, 130, 60, 60),
             Blob = new BlobParams { Mode = ThresholdMode.Fixed, Threshold = 80, Invert = true, MinArea = 300 },
             Min = 1,
             Max = 1,
@@ -37,7 +37,7 @@ public class RecipeCheckTests
     public async Task Length_uses_px_without_calibration_and_mm_with_it()
     {
         var p = VisionRecipe.Create(Path.GetTempPath(), "t");
-        var len = new LengthCheck { Name = "길이", Roi = VisionRoi.Rect(100, 305, 470, 30), MinContrast = 8, Nominal = 410, Plus = 7, Minus = 5 };
+        var len = new LengthCheck { Name = "길이", Roi = VisionRoi.Rect(100, 180, 440, 12), MinContrast = 8, Nominal = 400, Plus = 7, Minus = 5 };
         p.Checks.Add(len);
 
         using (var px = await Run(p, "01_good.bmp"))
@@ -47,7 +47,7 @@ public class RecipeCheckTests
         }
 
         p.Calibration = VisionCalibration.Scale(0.1);
-        len.Nominal = 41;
+        len.Nominal = 40;
         len.Plus = 0.7;
         len.Minus = 0.5;
         using var mm = await Run(p, "01_good.bmp");
@@ -55,8 +55,8 @@ public class RecipeCheckTests
         Assert.Equal(VisionState.Ok, mm.State);
         var v = Assert.Single(mm.Values);
         Assert.Equal("mm", v.Unit);
-        Assert.Equal(41.08, v.Value, 0.1);
-        Assert.Equal(41, v.Nominal);
+        Assert.Equal(40.0, v.Value, 0.2);
+        Assert.Equal(40, v.Nominal);
     }
 
     [Fact]

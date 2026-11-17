@@ -1,9 +1,9 @@
 {
-  "Name": "브래킷",
+  "Name": "플레이트",
   "FormatVersion": 1,
   "BaseImage": "images/base.bmp",
   "Calibration": {
-    "MmPerPx": 0.218978
+    "MmPerPx": 0.25
   },
   "Checks": [
     {
@@ -16,9 +16,9 @@
         "MaxArea": 2147483647
       },
       "Reference": {
-        "X": 330.4164563051792,
-        "Y": 256.03058368114955,
-        "Angle": -0.07183547849026792
+        "X": 319.07280897888955,
+        "Y": 240.66009913824425,
+        "Angle": -2.3001318951356358
       },
       "Id": "bdba9c42",
       "Name": "정렬",
@@ -47,8 +47,8 @@
       "Name": "왼쪽 구멍",
       "Roi": {
         "Shape": "Rect",
-        "X": 194,
-        "Y": 251,
+        "X": 138,
+        "Y": 130,
         "Width": 60,
         "Height": 60,
         "Angle": 0
@@ -70,8 +70,8 @@
       "Name": "오른쪽 구멍",
       "Roi": {
         "Shape": "Rect",
-        "X": 417,
-        "Y": 251,
+        "X": 442,
+        "Y": 130,
         "Width": 60,
         "Height": 60,
         "Angle": 0
@@ -79,26 +79,26 @@
     },
     {
       "Kind": "PixelCount",
-      "Low": 0,
-      "High": 100,
+      "Low": 100,
+      "High": 255,
       "Max": 200,
-      "Code": "DISCOLOR",
+      "Code": "NOTCH",
       "Id": "573ab5b2",
-      "Name": "상단 변색",
+      "Name": "노치",
       "Roi": {
         "Shape": "Rect",
-        "X": 268,
-        "Y": 192,
-        "Width": 134,
-        "Height": 36,
+        "X": 238,
+        "Y": 116,
+        "Width": 36,
+        "Height": 20,
         "Angle": 0
       }
     },
     {
       "Kind": "Length",
-      "Polarity": "BrightObject",
+      "Polarity": "DarkObject",
       "MinContrast": 8,
-      "Nominal": 90,
+      "Nominal": 84,
       "Plus": 1,
       "Minus": 1,
       "Code": "LENGTH",
@@ -106,17 +106,17 @@
       "Name": "길이",
       "Roi": {
         "Shape": "Rect",
-        "X": 100,
-        "Y": 305,
-        "Width": 470,
-        "Height": 30,
+        "X": 135,
+        "Y": 312,
+        "Width": 370,
+        "Height": 16,
         "Angle": 0
       }
     }
   ],
   "TestSets": [
     {
-      "Folder": "Samples/Bracket",
+      "Folder": "Samples/Plate",
       "Rule": "FileName",
       "GoodLabel": "good"
     }

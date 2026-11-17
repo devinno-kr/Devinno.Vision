@@ -144,7 +144,7 @@ public class LanguageSwitchTests
             var refused = session.SaveProject();
             Assert.False(refused.Ok);
             Assert.DoesNotMatch("[가-힣]", refused.Message);
-            Assert.True(session.NewProject(dir.Sub("p"), "bracket").Ok);
+            Assert.True(session.NewProject(dir.Sub("p"), "plate").Ok);
             var added = session.AddCheck("BlobCount", "holes");
             Assert.True(added.Ok);
             Assert.Contains("Blob count", added.Message);
@@ -157,10 +157,10 @@ public class LanguageSwitchTests
             Assert.Equal("en", Texts.Language);
 
             // 검사가 든 프로젝트로 두 화면을 두 언어로 그린다. DV_STUDIO_SHOTS 폴더를 주면 PNG 를 남긴다 (눈으로 확인용)
-            var bracket = new StudioSession();
-            BracketStudioTests.BuildBracket(bracket, dir.Sub("bracket"));
-            var app2 = StudioApp.Create(bracket, new NullDialogs());
-            ((CheckListBar)app2.Left!).SelectedId = bracket.Checks[1].Id;
+            var plate = new StudioSession();
+            PlateStudioTests.BuildPlate(plate, dir.Sub("plate"));
+            var app2 = StudioApp.Create(plate, new NullDialogs());
+            ((CheckListBar)app2.Left!).SelectedId = plate.Checks[1].Id;
             var shots = Environment.GetEnvironmentVariable("DV_STUDIO_SHOTS");
             foreach (var lang in new[] { "en", "ko" })
             {

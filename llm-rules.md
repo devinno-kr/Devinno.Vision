@@ -98,7 +98,7 @@ Run a recipe made in Studio:
 ```csharp
 using Devinno.Vision;
 
-using var recipe = VisionRecipe.Load(@"C:\recipes\bracket");   // a folder with studio.json, or a .dvpkg file
+using var recipe = VisionRecipe.Load(@"C:\recipes\plate");   // a folder with studio.json, or a .dvpkg file
 var job = recipe.CreateJob();                                    // make it once, run it many times
 
 using var img = VisionImage.Load(@"C:\images\part01.bmp");
@@ -119,24 +119,24 @@ Write the same kind of inspection in code:
 ```csharp
 using Devinno.Vision;
 
-var job = new VisionJob("bracket")
+var job = new VisionJob("plate")
     .Add("align", pose: "body", ctx =>
     {
         var part = Blob.Find(ctx.Image, minArea: 20000).FirstOrDefault();
         if (part is null) { ctx.Fail("part not found"); return; }
-        ctx.SetPose(VisionPose.FromBlob(part), reference: new VisionPose(330.4, 256.0, 0));   // reference = the pose on the base image
+        ctx.SetPose(VisionPose.FromBlob(part), reference: new VisionPose(319.1, 240.7, -2.3));   // reference = the pose on the base image
     })
-    .Add("left hole", roi: () => VisionRoi.Rect(194, 251, 60, 60), ctx =>
+    .Add("left hole", roi: () => VisionRoi.Rect(138, 130, 60, 60), ctx =>
     {
         var holes = Blob.Find(ctx.Image, ThresholdMode.Fixed, threshold: 80, invert: true, minArea: 300);
         ctx.Draw(holes);
         ctx.Value("left holes", holes.Length, min: 1, max: 1, code: "HOLE");
     })
-    .Add("length", roi: () => VisionRoi.Rect(100, 305, 470, 30), ctx =>
+    .Add("length", roi: () => VisionRoi.Rect(100, 180, 440, 12), ctx =>
     {
         var e = Edge.Caliper(ctx.Image, EdgePolarity.BrightObject, minContrast: 8);
         ctx.Draw(e);
-        ctx.Value("length", e.Distance, nominal: 410, plus: 5, minus: 5, code: "LENGTH", unit: "px");
+        ctx.Value("length", e.Distance, nominal: 400, plus: 5, minus: 5, code: "LENGTH", unit: "px");
     });
 
 using var img = VisionImage.Load(path);
@@ -247,7 +247,7 @@ async Task<VisionState> InspectAsync(CancellationToken ct)
 2. **Run on saved images.** Put known good and known defective images in a folder and run the job on each. `FileCamera` gives them through the camera interface, so the production code path is tested unchanged:
 
 ```csharp
-await using var camera = new FileCamera(@"C:\images\bracket", loop: false);
+await using var camera = new FileCamera(@"C:\images\plate", loop: false);
 foreach (var _ in camera.Files)
 {
     using var img = await camera.Grab(default);

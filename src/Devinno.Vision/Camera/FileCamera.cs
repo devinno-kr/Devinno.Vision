@@ -7,7 +7,7 @@ namespace Devinno.Vision;
 /// <example>
 /// Run a job on every saved image and print the judgments:
 /// <code>
-/// await using var camera = new FileCamera(@"C:\images\bracket", loop: false);
+/// await using var camera = new FileCamera(@"C:\images\plate", loop: false);
 /// foreach (var _ in camera.Files)
 /// {
 ///     using var img = await camera.Grab(default);

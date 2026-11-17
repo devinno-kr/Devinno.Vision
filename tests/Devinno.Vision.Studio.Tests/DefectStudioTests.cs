@@ -9,7 +9,7 @@ public class DefectStudioTests
 {
     private static string TinyClassifier => Path.Combine(AppContext.BaseDirectory, "Models", "tiny_classifier.onnx");
 
-    private const string TinyInfo = """{ "Labels": ["good", "missinghole", "tabdefect"], "GoodLabel": "good", "InputWidth": 32, "InputHeight": 32, "Normalize": "ImageNet" }""";
+    private const string TinyInfo = """{ "Labels": ["good", "missinghole", "notchdefect"], "GoodLabel": "good", "InputWidth": 32, "InputHeight": 32, "Normalize": "ImageNet" }""";
 
     // PATH 의 python (가짜 학습 스크립트용 — torch 는 필요 없다)
     private static string SystemPython()
@@ -49,11 +49,11 @@ public class DefectStudioTests
         return path;
     }
 
-    // Samples/Bracket 을 라벨 폴더로 (good · missinghole · tabdefect)
+    // Samples/Plate 을 라벨 폴더로 (good · missinghole · notchdefect)
     private static string Defects(TempDir dir)
     {
         var root = dir.Sub("defects");
-        foreach (var f in Directory.GetFiles(Samples.BracketDir, "*.bmp"))
+        foreach (var f in Directory.GetFiles(Samples.PlateDir, "*.bmp"))
         {
             var label = Path.GetFileNameWithoutExtension(f).Split('_')[1];
             if (label == "distancedefect")
@@ -70,11 +70,11 @@ public class DefectStudioTests
         return r.Message;
     }
 
-    // Bracket 로직 + ONNX 검사 하나 (부품 가운데)
+    // Plate 로직 + ONNX 검사 하나 (부품 가운데)
     private static (StudioSession S, string Id) Prepared(TempDir dir, string? script = null)
     {
         var s = new StudioSession { PythonPath = SystemPython(), TrainScriptPath = script ?? FakeScript(dir) };
-        BracketStudioTests.BuildBracket(s, dir.Sub("project"));
+        PlateStudioTests.BuildPlate(s, dir.Sub("project"));
         var id = s.AddCheck("Onnx", "표면").Id!;
         Ok(s.SetRoi(id, VisionRoi.Rect(100, 150, 470, 250)));
         return (s, id);
@@ -86,13 +86,13 @@ public class DefectStudioTests
         using var dir = new TempDir();
         var (s, id) = Prepared(dir);
         var flat = dir.Sub("flat");
-        File.Copy(Samples.Bracket("01_good.bmp"), Path.Combine(flat, "01_good.bmp"));
+        File.Copy(Samples.Plate("01_good.bmp"), Path.Combine(flat, "01_good.bmp"));
 
         Assert.Contains("하위 폴더 'good'", s.SetDefectFolder(id, flat).Message);
         Assert.Contains("ONNX 검사가 아닙니다", s.SetDefectFolder(s.Checks[1].Id, Defects(dir)).Message);
         var msg = Ok(s.SetDefectFolder(id, Path.Combine(dir.Path, "defects")));
 
-        Assert.Contains("good 9장, missinghole 3장, tabdefect 3장", msg);
+        Assert.Contains("good 9장, missinghole 3장, notchdefect 3장", msg);
         Assert.Contains("주의: 적은 라벨", msg);
         Assert.DoesNotContain("주의: 테스트 폴더", msg);   // 같은 이미지의 복사본 — 경로가 달라 겹침으로 보지 않는다
     }
@@ -112,11 +112,11 @@ public class DefectStudioTests
         Assert.Equal(["crop", "train"], stages.Distinct());
         var check = Assert.IsType<OnnxCheck>(s.GetCheck(id));
         Assert.StartsWith($"models/defect-{id}-", check.Model);
-        Assert.Equal(["good", "missinghole", "tabdefect"], s.DefectLabels(id));
+        Assert.Equal(["good", "missinghole", "notchdefect"], s.DefectLabels(id));
         Assert.Equal(0.9, s.DefectSummary(id)!.Accuracy);
         Assert.True(s.IsDirty);
 
-        var run = await s.RunImageAsync(Samples.Bracket("02_missinghole.bmp"));
+        var run = await s.RunImageAsync(Samples.Plate("02_missinghole.bmp"));
         Assert.True(run.Ok, run.Message);
         Assert.Contains(run.Values, v => v.Check == "표면" && v.Name == "표면 불량 확률");
     }
@@ -188,8 +188,8 @@ public class DefectStudioTests
         Assert.Contains("설명 파일이 없습니다", s.ImportOnnx(id, onnx).Message);
 
         File.WriteAllText(Path.ChangeExtension(onnx, ".json"), TinyInfo);
-        Assert.Contains("라벨 good, missinghole, tabdefect", Ok(s.ImportOnnx(id, onnx)));
-        Assert.True((await s.RunImageAsync(Samples.Bracket("01_good.bmp"))).Ok);
+        Assert.Contains("라벨 good, missinghole, notchdefect", Ok(s.ImportOnnx(id, onnx)));
+        Assert.True((await s.RunImageAsync(Samples.Plate("01_good.bmp"))).Ok);
 
         var broken = Path.Combine(models, "broken.onnx");
         File.WriteAllText(broken, "not a model");
@@ -212,8 +212,8 @@ public class DefectStudioTests
         var msg = Ok(await s.TrainDefectModelAsync(id));
 
         Assert.Contains("불량 모델 학습됨", msg);
-        Assert.Equal(["good", "missinghole", "tabdefect"], s.DefectLabels(id));
-        Assert.True((await s.RunImageAsync(Samples.Bracket("02_missinghole.bmp"))).Ok);
+        Assert.Equal(["good", "missinghole", "notchdefect"], s.DefectLabels(id));
+        Assert.True((await s.RunImageAsync(Samples.Plate("02_missinghole.bmp"))).Ok);
     }
 
     private sealed class Relay<T>(Action<T> report) : IProgress<T>

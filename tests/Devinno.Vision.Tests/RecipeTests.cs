@@ -3,18 +3,18 @@ using Devinno.Vision.Recipes;
 using Xunit.Abstractions;
 
 // Studio 가 만든 레시피 폴더(studio.json + images/)를 라이브러리만으로 불러와 검사한다.
-// Recipes/Bracket 은 Studio 예제(studio-bracket-test)의 studio.json 그대로다 (TestSets 의 폴더 경로만 바꿈).
+// Recipes/Plate 은 Studio 예제(studio-plate-test)의 studio.json 그대로다 (TestSets 의 폴더 경로만 바꿈).
 public class RecipeTests(ITestOutputHelper output)
 {
-    private static string BracketRecipe => Path.Combine(AppContext.BaseDirectory, "Recipes", "Bracket");
+    private static string PlateRecipe => Path.Combine(AppContext.BaseDirectory, "Recipes", "Plate");
 
     [Fact]
-    public async Task Bracket_recipe_judges_all_18_samples_like_studio()
+    public async Task Plate_recipe_judges_all_18_samples_like_studio()
     {
-        var recipe = VisionRecipe.Load(BracketRecipe);
+        var recipe = VisionRecipe.Load(PlateRecipe);
         var job = recipe.CreateJob();
 
-        var files = Directory.GetFiles(BracketInspection.SampleDir, "*.bmp").Order().ToArray();
+        var files = Directory.GetFiles(PlateInspection.SampleDir, "*.bmp").Order().ToArray();
         var failures = new List<string>();
         foreach (var f in files)
         {
@@ -25,7 +25,7 @@ public class RecipeTests(ITestOutputHelper output)
             {
                 "good" => (VisionState.Ok, (string?)null),
                 "missinghole" => (VisionState.Ng, "HOLE"),
-                "tabdefect" => (VisionState.Ng, "DISCOLOR"),
+                "notchdefect" => (VisionState.Ng, "NOTCH"),
                 "distancedefect" => (VisionState.Ng, "LENGTH"),
                 var other => throw new InvalidOperationException(other),
             };
@@ -35,10 +35,10 @@ public class RecipeTests(ITestOutputHelper output)
             if (r.State != state || (code is not null && !(r.Codes.Count == 1 && r.Codes[0] == code)))
                 failures.Add($"{name}: expected {state} {code}, got {r.State} {codes} {r.Error}");
 
-            // 길이는 mm 로 판정한다 (캘리브레이션 0.218978 mm/px, 90 ±1)
+            // 길이는 mm 로 판정한다 (캘리브레이션 0.25 mm/px, 84 ±1)
             Assert.Equal("mm", length.Unit);
-            Assert.Equal(90, length.Nominal);
-            Assert.Equal(length.Value is >= 89 and <= 91, length.Ok);
+            Assert.Equal(84, length.Nominal);
+            Assert.Equal(length.Value is >= 83 and <= 85, length.Ok);
             Assert.Equal(code == "LENGTH", !length.Ok);
         }
 
@@ -49,27 +49,27 @@ public class RecipeTests(ITestOutputHelper output)
     [Fact]
     public void Load_restores_calibration_base_image_and_reference_pose()
     {
-        var recipe = VisionRecipe.Load(BracketRecipe);
+        var recipe = VisionRecipe.Load(PlateRecipe);
 
-        Assert.Equal("브래킷", recipe.Name);
-        Assert.Equal(BracketRecipe, recipe.Folder);
-        Assert.Equal(0.218978, recipe.Calibration!.MmPerPx);
+        Assert.Equal("플레이트", recipe.Name);
+        Assert.Equal(PlateRecipe, recipe.Folder);
+        Assert.Equal(0.25, recipe.Calibration!.MmPerPx);
         Assert.Equal(["BlobAlign", "BlobCount", "BlobCount", "PixelCount", "Length"], recipe.Checks.Select(c => c.Kind));
 
         var align = Assert.IsType<BlobAlignCheck>(recipe.Checks[0]);
-        Assert.Equal(new VisionPose(330.4164563051792, 256.03058368114955, -0.07183547849026792), align.Reference);
+        Assert.Equal(new VisionPose(319.07280897888955, 240.66009913824425, -2.3001318951356358), align.Reference);
 
-        Assert.Equal(Path.Combine(BracketRecipe, "images", "base.bmp"), Path.GetFullPath(recipe.BaseImagePath!));
+        Assert.Equal(Path.Combine(PlateRecipe, "images", "base.bmp"), Path.GetFullPath(recipe.BaseImagePath!));
         using var baseImage = recipe.LoadBaseImage();
         Assert.Equal((640, 480), (baseImage.Width, baseImage.Height));
 
-        Assert.Equal(0.218978, recipe.CreateJob().Calibration!.MmPerPx);
+        Assert.Equal(0.25, recipe.CreateJob().Calibration!.MmPerPx);
     }
 
     [Fact]
     public async Task Base_image_runs_ok_at_the_taught_pose()
     {
-        var recipe = VisionRecipe.Load(BracketRecipe);
+        var recipe = VisionRecipe.Load(PlateRecipe);
         var reference = ((BlobAlignCheck)recipe.Checks[0]).Reference!.Value;
         using var img = recipe.LoadBaseImage();
 
@@ -86,13 +86,13 @@ public class RecipeTests(ITestOutputHelper output)
     [Fact]
     public void Job_keeps_the_values_it_was_made_with()
     {
-        var recipe = VisionRecipe.Load(BracketRecipe);
+        var recipe = VisionRecipe.Load(PlateRecipe);
         var job = recipe.CreateJob();
 
         recipe.Calibration = null;
         recipe.Checks.Clear();
 
-        Assert.Equal(0.218978, job.Calibration!.MmPerPx);
+        Assert.Equal(0.25, job.Calibration!.MmPerPx);
     }
 
     // ── 실패는 알기 쉬운 오류로 ─────────────────────────────
@@ -134,7 +134,7 @@ public class RecipeTests(ITestOutputHelper output)
     public void Reason_role_is_saved_as_version_2_and_judge_only_files_stay_version_1()
     {
         using var dir = new TempDir();
-        File.Copy(Path.Combine(BracketRecipe, VisionRecipe.FileName), Path.Combine(dir.Path, VisionRecipe.FileName));
+        File.Copy(Path.Combine(PlateRecipe, VisionRecipe.FileName), Path.Combine(dir.Path, VisionRecipe.FileName));
         using (var recipe = VisionRecipe.Load(dir.Path))
             recipe.Save();
         var v1 = File.ReadAllText(Path.Combine(dir.Path, VisionRecipe.FileName));
@@ -157,17 +157,17 @@ public class RecipeTests(ITestOutputHelper output)
     [Fact]
     public async Task Reason_checks_name_the_defect_but_do_not_judge()
     {
-        using var recipe = VisionRecipe.Load(BracketRecipe);
+        using var recipe = VisionRecipe.Load(PlateRecipe);
         foreach (var c in recipe.Checks.Where(c => c.Name != "길이" && c is not BlobAlignCheck))
-            c.Role = StepRole.Reason;   // 길이만 판정, 구멍 · 변색은 사유
+            c.Role = StepRole.Reason;   // 길이만 판정, 구멍 · 노치는 사유
         var job = recipe.CreateJob();
 
-        using var missing = VisionImage.Load(BracketInspection.Sample("02_missinghole.bmp"));
+        using var missing = VisionImage.Load(PlateInspection.Sample("02_missinghole.bmp"));
         using var r1 = await job.RunAsync(missing);
         Assert.Equal(VisionState.Ok, r1.State);   // 판정 검사(길이)는 OK — 사유 검사는 OK 를 뒤집지 못한다
         Assert.Equal(StepState.Skipped, r1.Steps["왼쪽 구멍"].State);
 
-        using var shortPart = VisionImage.Load(BracketInspection.Sample("15_distancedefect.bmp"));
+        using var shortPart = VisionImage.Load(PlateInspection.Sample("15_distancedefect.bmp"));
         using var r2 = await job.RunAsync(shortPart);
         Assert.Equal(VisionState.Ng, r2.State);
         Assert.Equal("LENGTH", r2.Codes[0]);
@@ -178,7 +178,7 @@ public class RecipeTests(ITestOutputHelper output)
     public void Missing_base_image_is_reported_with_its_path_but_the_job_still_runs()
     {
         using var dir = new TempDir();
-        File.Copy(Path.Combine(BracketRecipe, VisionRecipe.FileName), Path.Combine(dir.Path, VisionRecipe.FileName));
+        File.Copy(Path.Combine(PlateRecipe, VisionRecipe.FileName), Path.Combine(dir.Path, VisionRecipe.FileName));
 
         var recipe = VisionRecipe.Load(dir.Path);   // 기준 자세는 studio.json 에 있어 실행에는 기준 이미지가 필요 없다
 

@@ -10,8 +10,8 @@ public class PackStudioTests
     {
         using var dir = new TempDir();
         var s = new StudioSession();
-        BracketStudioTests.BuildBracket(s, dir.Sub("project"));
-        var file = Path.Combine(dir.Sub("out"), "bracket.dvpkg");
+        PlateStudioTests.BuildPlate(s, dir.Sub("project"));
+        var file = Path.Combine(dir.Sub("out"), "plate.dvpkg");
 
         var dirty = s.PackProject(file);
         Assert.False(dirty.Ok);
@@ -29,7 +29,7 @@ public class PackStudioTests
         using var recipe = VisionRecipe.Load(file);
         Assert.Empty(recipe.TestSets);
         var job = recipe.CreateJob();
-        using var img = VisionImage.Load(Samples.Bracket("02_missinghole.bmp"));
+        using var img = VisionImage.Load(Samples.Plate("02_missinghole.bmp"));
         using var result = await job.RunAsync(img);
         Assert.Equal(VisionState.Ng, result.State);
         Assert.Equal(["HOLE"], result.Codes);

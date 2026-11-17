@@ -22,7 +22,7 @@ namespace Devinno.Vision;
 ///     }
 /// }
 ///
-/// job.Add(new HoleCount("left hole", 1), roi: () =&gt; VisionRoi.Rect(194, 251, 60, 60));
+/// job.Add(new HoleCount("left hole", 1), roi: () =&gt; VisionRoi.Rect(138, 130, 60, 60));
 /// </code>
 /// </example>
 public interface IVisionStep

@@ -229,7 +229,7 @@ public class JobTests
     public async Task Missing_setup_is_an_error_result()
     {
         using var img = Frame();
-        var job = new VisionJob<BracketSetup>("t").Add("a", (ctx, s) => { });
+        var job = new VisionJob<PlateSetup>("t").Add("a", (ctx, s) => { });
         using var r = await job.RunAsync(img);
         Assert.Equal(VisionState.Error, r.State);
         Assert.Contains("Setup", r.Error);

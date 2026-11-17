@@ -8,11 +8,11 @@ namespace Devinno.Vision;
 /// <remarks>A single scale assumes the camera looks straight at a flat part and the lens has little distortion. Lens distortion and perspective are not corrected.</remarks>
 /// <example>
 /// <code>
-/// job.Calibration = VisionCalibration.FromLength(px: 410.9, mm: 90.0);   // a gauge of 90 mm measured as 410.9 px
+/// job.Calibration = VisionCalibration.FromLength(px: 400.0, mm: 100.0);   // a gauge of 100 mm measured as 400.0 px
 ///
 /// // in a step
 /// var e = Edge.Caliper(ctx.Image);
-/// ctx.Value("width", ctx.Mm(e), nominal: 90, plus: 1, minus: 1, code: "WIDTH", unit: "mm");
+/// ctx.Value("width", ctx.Mm(e), nominal: 100, plus: 1, minus: 1, code: "WIDTH", unit: "mm");
 /// </code>
 /// </example>
 public sealed record VisionCalibration(double MmPerPx)

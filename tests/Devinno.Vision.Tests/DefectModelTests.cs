@@ -19,9 +19,9 @@ public class DefectModelTests
         return dir;
     }
 
-    private static VisionRecipe CopyBracket(TempDir dir)
+    private static VisionRecipe CopyPlate(TempDir dir)
     {
-        var src = Path.Combine(AppContext.BaseDirectory, "Recipes", "Bracket");
+        var src = Path.Combine(AppContext.BaseDirectory, "Recipes", "Plate");
         File.Copy(Path.Combine(src, VisionRecipe.FileName), Path.Combine(dir.Path, VisionRecipe.FileName));
         return VisionRecipe.Load(dir.Path);
     }
@@ -31,7 +31,7 @@ public class DefectModelTests
     {
         using var dir = new TempDir();
         using var model = DefectModel.Load(ModelFolder(dir.Path, "m"));
-        using var img = VisionImage.Load(BracketInspection.Sample("01_good.bmp"));
+        using var img = VisionImage.Load(PlateInspection.Sample("01_good.bmp"));
 
         var r = model.Classify(img);
 
@@ -62,7 +62,7 @@ public class DefectModelTests
     {
         using var dir = new TempDir();
         using var model = DefectModel.Load(ModelFolder(dir.Path, "m", """{ "Labels": ["good", "scratch"], "InputWidth": 32, "InputHeight": 32 }"""));
-        using var img = VisionImage.Load(BracketInspection.Sample("01_good.bmp"));
+        using var img = VisionImage.Load(PlateInspection.Sample("01_good.bmp"));
 
         Assert.Contains("라벨은 2개", Assert.Throws<InvalidDataException>(() => model.Classify(img)).Message);
     }
@@ -71,11 +71,11 @@ public class DefectModelTests
     public async Task Onnx_check_judges_by_the_defect_probability_and_names_the_defect()
     {
         using var dir = new TempDir();
-        using var recipe = CopyBracket(dir);
+        using var recipe = CopyPlate(dir);
         ModelFolder(dir.Path, "models/defect-a");
-        var check = new OnnxCheck { Name = "표면", Roi = VisionRoi.Rect(268, 192, 134, 36), Model = "models/defect-a", Threshold = 0 };
+        var check = new OnnxCheck { Name = "표면", Roi = VisionRoi.Rect(238, 116, 36, 20), Model = "models/defect-a", Threshold = 0 };
         recipe.Checks.Add(check);
-        using var img = VisionImage.Load(BracketInspection.Sample("01_good.bmp"));
+        using var img = VisionImage.Load(PlateInspection.Sample("01_good.bmp"));
 
         using (var ng = await recipe.CreateJob().RunAsync(img))
         {
@@ -96,9 +96,9 @@ public class DefectModelTests
     public void Onnx_check_without_a_model_cannot_run_but_the_recipe_still_opens()
     {
         using var dir = new TempDir();
-        using (var recipe = CopyBracket(dir))
+        using (var recipe = CopyPlate(dir))
         {
-            recipe.Checks.Add(new OnnxCheck { Name = "표면", Roi = VisionRoi.Rect(268, 192, 134, 36) });
+            recipe.Checks.Add(new OnnxCheck { Name = "표면", Roi = VisionRoi.Rect(238, 116, 36, 20) });
             recipe.Save();
         }
 
@@ -112,9 +112,9 @@ public class DefectModelTests
     public void Missing_defect_model_folder_is_reported_when_loading()
     {
         using var dir = new TempDir();
-        using (var recipe = CopyBracket(dir))
+        using (var recipe = CopyPlate(dir))
         {
-            recipe.Checks.Add(new OnnxCheck { Name = "표면", Roi = VisionRoi.Rect(268, 192, 134, 36), Model = "models/defect-gone" });
+            recipe.Checks.Add(new OnnxCheck { Name = "표면", Roi = VisionRoi.Rect(238, 116, 36, 20), Model = "models/defect-gone" });
             recipe.Save();
         }
 
@@ -127,11 +127,11 @@ public class DefectModelTests
     public void Save_removes_defect_model_folders_no_check_uses()
     {
         using var dir = new TempDir();
-        using var recipe = CopyBracket(dir);
+        using var recipe = CopyPlate(dir);
         var used = ModelFolder(dir.Path, "models/defect-used");
         var old = ModelFolder(dir.Path, "models/defect-old");
         var other = Directory.CreateDirectory(Path.Combine(dir.Path, "models", "mine")).FullName;   // 사용자가 둔 폴더는 건드리지 않는다
-        recipe.Checks.Add(new OnnxCheck { Name = "표면", Roi = VisionRoi.Rect(268, 192, 134, 36), Model = "models/defect-used" });
+        recipe.Checks.Add(new OnnxCheck { Name = "표면", Roi = VisionRoi.Rect(238, 116, 36, 20), Model = "models/defect-used" });
 
         recipe.Save();
 
@@ -144,12 +144,12 @@ public class DefectModelTests
     public async Task Crop_cuts_the_region_where_the_part_is()
     {
         using var dir = new TempDir();
-        using var recipe = CopyBracket(dir);
-        using var img = VisionImage.Load(BracketInspection.Sample("18_good.bmp"));   // 회전된 부품
+        using var recipe = CopyPlate(dir);
+        using var img = VisionImage.Load(PlateInspection.Sample("18_good.bmp"));   // 회전된 부품
 
-        using var crop = await recipe.CropAsync(img, VisionRoi.Rect(268, 192, 134, 36));
+        using var crop = await recipe.CropAsync(img, VisionRoi.Rect(238, 116, 36, 20));
 
-        Assert.Equal((134, 36), (crop.Width, crop.Height));
+        Assert.Equal((36, 20), (crop.Width, crop.Height));
         using var black = VisionImage.From(new Mat(480, 640, MatType.CV_8UC3, Scalar.Black));
         Assert.Contains("부품 없음", (await Assert.ThrowsAsync<InvalidOperationException>(() => recipe.CropAsync(black, VisionRoi.Rect(0, 0, 10, 10)))).Message);
     }

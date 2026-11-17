@@ -14,7 +14,7 @@ A recipe is made in Devinno.Vision.Studio, the teaching tool: the engineer opens
 ```csharp
 using Devinno.Vision;
 
-using var recipe = VisionRecipe.Load(@"C:\recipes\bracket");   // the folder that holds studio.json, or a .dvpkg file
+using var recipe = VisionRecipe.Load(@"C:\recipes\plate");   // the folder that holds studio.json, or a .dvpkg file
 var job = recipe.CreateJob();
 
 using var img = VisionImage.Load(path);
@@ -144,7 +144,7 @@ The step names are the check names the engineer typed in Studio. The value names
 | `Onnx` | check name | `"<check name> 불량 확률"` — probability that the part is not good (0–1) | value ≤ `Threshold` | the most likely defect label in capitals (`scratch` → `SCRATCH`) |
 | good-part model | `VisionRecipe.GoodModelStepName` = `"양품 모델"` | `"양품 모델 점수"` — anomaly score | score ≤ `GoodModel.Max` | `GoodModel.Code` (`SURFACE`) |
 
-- `r.Error` for a missing part in a recipe named `브래킷` with an alignment check named `정렬` is `"브래킷/정렬: 부품 없음"`. The checks after it are `Skipped` (their pose is missing).
+- `r.Error` for a missing part in a recipe named `플레이트` with an alignment check named `정렬` is `"플레이트/정렬: 부품 없음"`. The checks after it are `Skipped` (their pose is missing).
 - The exception messages of `VisionRecipe` (`Load`, `CreateJob`, `Pack`, …) are Korean sentences. Show them to the user as they are; decide in code by the exception type.
 - To find a check's values without knowing the text: `r.Values.Where(v => v.Step == check.Name)`, or by code `r.Values.Where(v => v.Code == "HOLE")`.
 
@@ -156,7 +156,7 @@ The step names are the check names the engineer typed in Studio. The value names
 A recipe folder (a Studio project folder):
 
 ```
-bracket/
+plate/
 ├─ studio.json              the recipe (this section)
 ├─ images/base.png          the base image the ROIs were drawn on
 └─ models/
@@ -170,22 +170,22 @@ Other files Studio keeps in the folder (`goodset.json`, `train.json` in a model 
 
 ```json
 {
-  "Name": "bracket",
+  "Name": "plate",
   "FormatVersion": 1,
   "BaseImage": "images/base.png",
-  "Calibration": { "MmPerPx": 0.218978 },
+  "Calibration": { "MmPerPx": 0.25 },
   "Checks": [
     { "Kind": "BlobAlign", "Id": "bdba9c42", "Name": "align",
       "Blob": { "Mode": "Otsu", "Threshold": 128, "Invert": false, "MinArea": 20000, "MaxArea": 2147483647 },
-      "Reference": { "X": 330.42, "Y": 256.03, "Angle": -0.07 },
+      "Reference": { "X": 319.07, "Y": 240.66, "Angle": -2.3 },
       "Roi": { "Shape": "None", "X": 0, "Y": 0, "Width": 0, "Height": 0, "Angle": 0 } },
     { "Kind": "BlobCount", "Id": "772b0558", "Name": "left hole",
       "Blob": { "Mode": "Fixed", "Threshold": 80, "Invert": true, "MinArea": 300, "MaxArea": 2147483647 },
       "Min": 1, "Max": 1, "Code": "HOLE",
-      "Roi": { "Shape": "Rect", "X": 194, "Y": 251, "Width": 60, "Height": 60, "Angle": 0 } },
+      "Roi": { "Shape": "Rect", "X": 138, "Y": 130, "Width": 60, "Height": 60, "Angle": 0 } },
     { "Kind": "Length", "Id": "4fb79f9b", "Name": "length",
-      "Polarity": "BrightObject", "MinContrast": 8, "Nominal": 90, "Plus": 1, "Minus": 1, "Code": "LENGTH",
-      "Roi": { "Shape": "Rect", "X": 100, "Y": 305, "Width": 470, "Height": 30, "Angle": 0 } }
+      "Polarity": "DarkObject", "MinContrast": 8, "Nominal": 84, "Plus": 1, "Minus": 1, "Code": "LENGTH",
+      "Roi": { "Shape": "Rect", "X": 135, "Y": 312, "Width": 370, "Height": 16, "Angle": 0 } }
   ],
   "TestSets": []
 }
@@ -255,10 +255,10 @@ if (recipe.Checks.OfType<LengthCheck>().FirstOrDefault() is { } len)
 A package is the recipe as one file for deployment: a zip with `manifest.json` (library version, time, SHA-256 and size of every file), `studio.json` without the test folders, the base image and the model folders the recipe uses. It holds data and model files only — no code.
 
 ```csharp
-using var recipe = VisionRecipe.Load(@"C:\recipes\bracket");
-int files = recipe.Pack(@"C:\deploy\bracket.dvpkg");             // overwrites; returns the number of files packed (manifest not counted)
+using var recipe = VisionRecipe.Load(@"C:\recipes\plate");
+int files = recipe.Pack(@"C:\deploy\plate.dvpkg");             // overwrites; returns the number of files packed (manifest not counted)
 
-using var onSite = VisionRecipe.Load(@"C:\deploy\bracket.dvpkg"); // unpacked and checked, then loaded like a folder
+using var onSite = VisionRecipe.Load(@"C:\deploy\plate.dvpkg"); // unpacked and checked, then loaded like a folder
 var job = onSite.CreateJob();
 ```
 

@@ -22,17 +22,17 @@ A job is a named list of steps. `RunAsync` runs them in order on one image and r
 ```csharp
 using Devinno.Vision;
 
-public sealed class BracketSetup
+public sealed class PlateSetup
 {
     public BlobParams Body { get; set; } = new() { MinArea = 20000 };
     public VisionPose? BodyRef { get; set; }                                   // taught: the part position on the base image
-    public VisionRoi HoleL { get; set; } = VisionRoi.Rect(194, 251, 60, 60);
+    public VisionRoi HoleL { get; set; } = VisionRoi.Rect(138, 130, 60, 60);
     public BlobParams Hole { get; set; } = new() { Mode = ThresholdMode.Fixed, Threshold = 80, Invert = true, MinArea = 300 };
-    public VisionRoi Width { get; set; } = VisionRoi.Rect(100, 305, 470, 30);
-    public double WidthNominal { get; set; } = 90;                             // mm
+    public VisionRoi Width { get; set; } = VisionRoi.Rect(100, 180, 440, 12);
+    public double WidthNominal { get; set; } = 100;                             // mm
 }
 
-var job = new VisionJob<BracketSetup>("bracket") { Setup = new BracketSetup() }
+var job = new VisionJob<PlateSetup>("plate") { Setup = new PlateSetup() }
     .Add("align", pose: "body", (ctx, s) =>
     {
         var part = Blob.Find(ctx.Image, s.Body).FirstOrDefault();
@@ -52,7 +52,7 @@ var job = new VisionJob<BracketSetup>("bracket") { Setup = new BracketSetup() }
         ctx.Draw(e);
         ctx.Value("width", ctx.Mm(e), nominal: s.WidthNominal, plus: 1, minus: 1, code: "WIDTH", unit: "mm");
     });
-job.Calibration = VisionCalibration.Scale(0.219);                              // mm per px of this camera setup
+job.Calibration = VisionCalibration.Scale(0.25);                               // mm per px of this camera setup
 ```
 
 `Add` overloads (each returns the job, so calls chain; every one takes an optional `timeout:`):
@@ -169,10 +169,10 @@ if (r.Poses.TryGetValue("body", out var pose))
 mm instead of px:
 
 ```csharp
-job.Calibration = VisionCalibration.FromLength(px: 410.9, mm: 90.0);   // a gauge of known length measured in the image
+job.Calibration = VisionCalibration.FromLength(px: 400.0, mm: 100.0);   // a gauge of known length measured in the image
 // in a step:
 var e = Edge.Caliper(ctx.Image);
-ctx.Value("width", ctx.Mm(e), nominal: 90, plus: 1, minus: 1, code: "WIDTH", unit: "mm");
+ctx.Value("width", ctx.Mm(e), nominal: 100, plus: 1, minus: 1, code: "WIDTH", unit: "mm");
 ```
 
 - `VisionCalibration.Scale(mmPerPx)` or `FromLength(px, mm)`; both throw `ArgumentOutOfRangeException` for values that are not positive. It is one scale: the camera looks straight at a flat part.
