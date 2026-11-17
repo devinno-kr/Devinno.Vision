@@ -57,6 +57,7 @@ internal sealed class VisionViewWidget : DvWidget
                 DrawOverlay(canvas, ctx, o, snap);
             if (snap.StepName is null && (_preview ?? editRoi) is { } roi)
                 DrawEditRoi(canvas, ctx, roi);
+            DrawLabels(canvas, ctx, snap, dest);   // 글자는 맨 위에 — 편집 ROI 의 점선이 글자를 가로지르지 않게
             canvas.Restore();
 
             // 판정 · 경고
@@ -98,16 +99,7 @@ internal sealed class VisionViewWidget : DvWidget
         var pts = o.Points.Select(p => ToSk(_sourceToScreen.Map(p))).ToArray();
         if (pts.Length == 0)
             return;
-        var tone = o.Kind == VisionOverlayKind.Roi
-            ? (snap.StepStates.GetValueOrDefault(o.Step) switch
-            {
-                StepState.Ok => "tone-success",
-                StepState.Ng => "tone-danger",
-                StepState.Error => "tone-warning",
-                _ => "text-muted",
-            })
-            : "tone-info";
-        using var pen = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = o.Kind == VisionOverlayKind.Roi ? 2 : 1.5f, Color = ctx.Color(tone, SKColors.Cyan) };
+        using var pen = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = o.Kind == VisionOverlayKind.Roi ? 2 : 1.5f, Color = ctx.Color(Tone(o, snap), SKColors.Cyan) };
         switch (o.Kind)
         {
             case VisionOverlayKind.Roi or VisionOverlayKind.Box or VisionOverlayKind.Contour:
@@ -126,16 +118,52 @@ internal sealed class VisionViewWidget : DvWidget
                 canvas.DrawLine(pts[0].X, pts[0].Y - 4, pts[0].X, pts[0].Y + 4, pen);
                 break;
         }
-        if (o.Label is { } label)
+    }
+
+    private static string Tone(VisionOverlay o, ViewSnapshot snap) => o.Kind == VisionOverlayKind.Roi
+        ? (snap.StepStates.GetValueOrDefault(o.Step) switch
         {
-            var at = o.Kind == VisionOverlayKind.Line && pts.Length >= 2 ? new SKPoint((pts[0].X + pts[1].X) / 2, (pts[0].Y + pts[1].Y) / 2 - 4) : new SKPoint(pts[0].X + 2, pts[0].Y - 4);
-            // 회색 이미지 위에서도 읽히게 어두운 받침
-            var bold = o.Kind == VisionOverlayKind.Roi;
-            const float size = 15;   // 12 → 15: 실제 창에서 길이 라벨이 안 읽혀 키움
-            var w = ctx.MeasureText(label, size, bold ? 700 : 400);
-            using var back = new SKPaint { Color = new SKColor(0, 0, 0, 170) };
-            canvas.DrawRect(new SKRect(at.X - 3, at.Y - size, at.X + w + 3, at.Y + 4), back);
-            ctx.DrawText(canvas, label, at.X, at.Y, size, pen.Color, weight: bold ? 700 : 400);
+            StepState.Ok => "tone-success",
+            StepState.Ng => "tone-danger",
+            StepState.Error => "tone-warning",
+            _ => "text-muted",
+        })
+        : "tone-info";
+
+    // 라벨은 도형을 다 그린 뒤에 놓는다. 서로 겹치지 않게: 먼저 놓는 것이 자리를 차지하고 (NG · Error 인 ROI → 측정값 → 나머지 ROI),
+    // 뒤의 것은 다른 자리를 찾는다. ROI 이름은 자리가 없으면 그리지 않는다 (테두리 색은 남는다). 측정값은 겹치더라도 그린다.
+    private void DrawLabels(SKCanvas canvas, DvWidgetContext ctx, ViewSnapshot snap, SKRect image)
+    {
+        static int Order(VisionOverlay o, ViewSnapshot snap) => o.Kind != VisionOverlayKind.Roi ? 1
+            : snap.StepStates.GetValueOrDefault(o.Step) is StepState.Ng or StepState.Error ? 0 : 2;
+
+        var placed = new List<SKRect>();
+        using var back = new SKPaint { Color = new SKColor(0, 0, 0, 170) };   // 회색 이미지 위에서도 읽히게 어두운 받침
+        foreach (var o in snap.Overlays.Where(o => o.Label is not null && o.Points.Count > 0).OrderBy(o => Order(o, snap)))
+        {
+            var pts = o.Points.Select(p => ToSk(_sourceToScreen.Map(p))).ToArray();
+            var roi = o.Kind == VisionOverlayKind.Roi;
+            var size = roi ? 13f : 15f;   // 측정값 15: 실제 창에서 길이 라벨이 안 읽혀 키움. ROI 이름은 한 단계 작게
+            var weight = roi ? 600 : 400;
+            var w = ctx.MeasureText(o.Label!, size, weight);
+            float left = pts.Min(p => p.X), right = pts.Max(p => p.X), top = pts.Min(p => p.Y), bottom = pts.Max(p => p.Y);
+
+            // 글자 기준점(왼쪽 아래) 후보
+            SKPoint[] spots = o.Kind == VisionOverlayKind.Line && pts.Length >= 2
+                ? [new((pts[0].X + pts[1].X) / 2, (pts[0].Y + pts[1].Y) / 2 - 4), new((pts[0].X + pts[1].X) / 2, (pts[0].Y + pts[1].Y) / 2 + size + 2)]
+                : roi
+                    ? [new(left + 2, top - 5), new(left + 2, bottom + size + 1), new(right - w - 2, top - 5), new(right - w - 2, bottom + size + 1)]
+                    : [new(pts[0].X + 2, pts[0].Y - 4), new(pts[0].X + 2, pts[0].Y + size + 2)];
+            SKRect Box(SKPoint at) => new(at.X - 3, at.Y - size, at.X + w + 3, at.Y + 4);
+            bool Free(SKPoint at) => image.Contains(Box(at)) && !placed.Any(r => r.IntersectsWith(Box(at)));
+
+            var found = spots.Where(Free).Select(p => (SKPoint?)p).FirstOrDefault();
+            if (found is null && roi)
+                continue;
+            var spot = found ?? spots[0];
+            placed.Add(Box(spot));
+            canvas.DrawRect(Box(spot), back);
+            ctx.DrawText(canvas, o.Label!, spot.X, spot.Y, size, ctx.Color(Tone(o, snap), SKColors.Cyan), weight: weight);
         }
     }
 

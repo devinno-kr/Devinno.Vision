@@ -216,7 +216,7 @@ public sealed class VisionContext
     public VisionImage Crop(VisionRoi roi)
     {
         var img = _run.Place(roi, _motion);
-        _run.AddRoiOverlay(roi, _motion, Step, _followed);
+        _run.AddRoiOverlay(roi, _motion, Step);
         return img;
     }
 

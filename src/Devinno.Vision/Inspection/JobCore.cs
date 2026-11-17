@@ -68,14 +68,15 @@ internal sealed class JobRun
         return Frame.CropPlaced(center, roi.Width, roi.Height, angle);
     }
 
-    public void AddRoiOverlay(VisionRoi roi, Affine? motion, string step, string? followed)
+    public void AddRoiOverlay(VisionRoi roi, Affine? motion, string step)
     {
         if (roi.IsEmpty)
             return;
         var corners = roi.Corners();
         if (motion is { } m)
             corners = corners.Select(m.Map).ToArray();
-        AddOverlay(new VisionOverlay(VisionOverlayKind.Roi, corners, followed is null ? step : $"{step} ← {followed}", step));
+        // 라벨은 단계 이름만 — 따라간 pose 는 StepResult.Followed 에 있다 (라벨에 붙이면 검사가 많을 때 화면이 글자로 덮인다)
+        AddOverlay(new VisionOverlay(VisionOverlayKind.Roi, corners, step, step));
     }
 
     public void AddValue(VisionValue v)
@@ -371,7 +372,7 @@ internal sealed class JobCore(string name)
                         if (roi.IsEmpty)
                             throw new InvalidOperationException("The ROI is not set.");
                         stepImage = run.Place(roi, motion);
-                        run.AddRoiOverlay(roi, motion, name, followed);
+                        run.AddRoiOverlay(roi, motion, name);
                     }
                     else
                     {
